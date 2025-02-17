@@ -38,6 +38,8 @@ func TestUnpack(t *testing.T) {
 		{input: `\\2\30`, expected: `\\`},
 		{input: `a\1a`, expected: `a1a`},
 		{input: `a0\\0\00`, expected: ``},
+		{input: `为`, expected: `为`},
+		{input: `线3▟0🤘2`, expected: `线线线🤘🤘`},
 	}
 
 	for _, tc := range tests {
@@ -52,7 +54,7 @@ func TestUnpack(t *testing.T) {
 
 func TestUnpackInvalidString(t *testing.T) {
 	// Added test cases. Source slice: []string{"3abc", "45", "aaa10b"}.
-	invalidStrings := []string{"3abc", "45", "aaa10b", `\`, `\a`, `\\\`, `\\\a`, `ab\aba`}
+	invalidStrings := []string{"3abc", "45", "aaa10b", `\`, `\a`, `\\\`, `\\\a`, `ab\aba`, `\♬`}
 	for _, tc := range invalidStrings {
 		tc := tc
 		t.Run(tc, func(t *testing.T) {
