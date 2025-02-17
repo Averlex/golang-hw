@@ -42,7 +42,7 @@ func checkRune() func(char rune) (string, error) {
 			case prevChar == '\\' && !isEscaped:
 				isEscaped = true
 			// Character that should be written: an escaped digit or just a symbol.
-			case (unicode.IsDigit(prevChar) && isEscaped) || !unicode.IsDigit(prevChar):
+			case (prevChar != utf8.RuneError) && ((unicode.IsDigit(prevChar) && isEscaped) || !unicode.IsDigit(prevChar)):
 				isEscaped = false
 				res = string(prevChar)
 			// Leaving potential escape for the next iteration.
