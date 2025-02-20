@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -19,6 +18,12 @@ func checkRune() func(char rune) (string, error) {
 	prevChar := defaultChar
 	beforePrevChar := defaultChar
 	isEscaped := false // Escape flag for previous character.
+	isDigit := func(c rune) bool {
+		if c >= '0' && c <= '9' {
+			return true
+		}
+		return false
+	}
 
 	return func(char rune) (string, error) {
 		res := ""
@@ -26,7 +31,7 @@ func checkRune() func(char rune) (string, error) {
 		if d, err := strconv.Atoi(string(char)); err == nil {
 			switch {
 			// All error cases for digit character: sequence start, following not escaped digit.
-			case (prevChar == defaultChar && beforePrevChar == defaultChar) || (unicode.IsDigit(prevChar) && !isEscaped):
+			case (prevChar == defaultChar && beforePrevChar == defaultChar) || (isDigit(prevChar) && !isEscaped):
 				return "", ErrInvalidString
 			// Digit escape case.
 			case prevChar == '\\' && !isEscaped:
@@ -42,7 +47,7 @@ func checkRune() func(char rune) (string, error) {
 			case prevChar == '\\' && !isEscaped:
 				isEscaped = true
 			// Character that should be written: an escaped digit or just a symbol.
-			case (prevChar != utf8.RuneError) && ((unicode.IsDigit(prevChar) && isEscaped) || !unicode.IsDigit(prevChar)):
+			case (prevChar != utf8.RuneError) && ((isDigit(prevChar) && isEscaped) || !isDigit(prevChar)):
 				isEscaped = false
 				res = string(prevChar)
 			// Leaving potential escape for the next iteration.
@@ -55,7 +60,7 @@ func checkRune() func(char rune) (string, error) {
 			case prevChar == '\\' && !isEscaped:
 				return "", ErrInvalidString
 			// Muting previous character if it was a multiplier.
-			case (unicode.IsDigit(prevChar) && !isEscaped) || (prevChar == defaultChar):
+			case (isDigit(prevChar) && !isEscaped) || (prevChar == defaultChar):
 				isEscaped = false
 			// Normal flow: recording previous character.
 			default:
