@@ -40,6 +40,11 @@ func TestUnpack(t *testing.T) {
 		{input: `a0\\0\00`, expected: ``},
 		{input: `为`, expected: `为`},
 		{input: `线3▟0🤘2`, expected: `线线线🤘🤘`},
+
+		// Extra additions
+		{input: "১২৩", expected: "১২৩"},
+		{input: "১2২৩0", expected: "১১২"},
+		{input: "੩4", expected: "੩੩੩੩"},
 	}
 
 	for _, tc := range tests {
