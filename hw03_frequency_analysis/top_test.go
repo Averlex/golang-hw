@@ -1,6 +1,7 @@
 package hw03frequencyanalysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -44,8 +45,16 @@ var text = `Как видите, он  спускается  по  лестни�
 		В этот вечер...`
 
 func TestTop10(t *testing.T) {
-	t.Run("no words in empty string", func(t *testing.T) {
+	t.Run("no words - empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
+	})
+
+	t.Run("no words - string with only spaces", func(t *testing.T) {
+		require.Len(t, Top10("                     "), 0)
+	})
+
+	t.Run("no words - string with only spaces, tabs and newlines", func(t *testing.T) {
+		require.Len(t, Top10("      \t        \n               "), 0)
 	})
 
 	t.Run("positive test", func(t *testing.T) {
@@ -79,4 +88,158 @@ func TestTop10(t *testing.T) {
 			require.Equal(t, expected, Top10(text))
 		}
 	})
+
+	t.Run("single word", func(t *testing.T) {
+		source := "Word"
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"word", // 1
+			}
+			require.Equal(t, expected, Top10(source))
+		} else {
+			expected := []string{
+				"Word", // 1
+			}
+			require.Equal(t, expected, Top10(source))
+		}
+	})
+
+	t.Run("single repeated word, same case", func(t *testing.T) {
+		source := "Word Word"
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"word", // 2
+			}
+			require.Equal(t, expected, Top10(source))
+		} else {
+			expected := []string{
+				"Word", // 2
+			}
+			require.Equal(t, expected, Top10(source))
+		}
+	})
+
+	t.Run("single repeated word, different cases", func(t *testing.T) {
+		source := "Word word"
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"word", // 2
+			}
+			require.Equal(t, expected, Top10(source))
+		} else {
+			expected := []string{
+				"Word", // 1
+				"word", // 1
+			}
+			require.Equal(t, expected, Top10(source))
+		}
+	})
+
+	t.Run("same frequency, lexicographical order", func(t *testing.T) {
+		source := "f e d c a b"
+		expected := []string{
+			"a", // 1
+			"b", // 1
+			"c", // 1
+			"d", // 1
+			"e", // 1
+			"f", // 1
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("mixed frequencies, lexicographical order", func(t *testing.T) {
+		source := "never gonna give you up never gonna let you down"
+		expected := []string{
+			"gonna", // 2
+			"never", // 2
+			"you",   // 2
+			"down",  // 1
+			"give",  // 1
+			"let",   // 1
+			"up",    // 1
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("many repeating words, only few unique", func(t *testing.T) {
+		source := "a b a b a b a b a b c d e c"
+		expected := []string{
+			"a", // 5
+			"b", // 5
+			"c", // 2
+			"d", // 1
+			"e", // 1
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("surpassing limit - 15 unique words, same frequency", func(t *testing.T) {
+		source := "a b c d e f g h i j k l m n o"
+		expected := []string{
+			"a", // 1
+			"b", // 1
+			"c", // 1
+			"d", // 1
+			"e", // 1
+			"f", // 1
+			"g", // 1
+			"h", // 1
+			"i", // 1
+			"j", // 1
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("surpassing limit - 10 words with the same frequency, a few more with lower frequency", func(t *testing.T) {
+		source := "a a b b c c d d e e f f g g h h i i j j k l m n o"
+		expected := []string{
+			"a", // 2
+			"b", // 2
+			"c", // 2
+			"d", // 2
+			"e", // 2
+			"f", // 2
+			"g", // 2
+			"h", // 2
+			"i", // 2
+			"j", // 2
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("stress test", func(t *testing.T) {
+		source := strings.Repeat("word ", 1000)
+		expected := []string{
+			"word", // 1000
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("digits and special characters", func(t *testing.T) {
+		source := "1 1 2 @ @ @ 3"
+		expected := []string{
+			"@", // 3
+			"1", // 2
+			"2", // 1
+			"3", // 1
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	t.Run("unicode symbols", func(t *testing.T) {
+		source := "世界 オラ オラ オラ オラ オラ オラ オラ オラ オラ オラ ³ ७ ७ Ⅸ"
+		expected := []string{
+			"オラ", // 9
+			"७",  // 2
+			"³",  // 1
+			"Ⅸ",  // 1
+			"世界", // 1
+		}
+		require.Equal(t, expected, Top10(source))
+	})
+
+	// TODO: пустая строка, но есть знаки пунктуации (для астериска)
+	// TODO: слова с пунктуацией (для астериска)
+	// TODO: слова с пунктуацией разных юникод символов? (для астериска)
 }
