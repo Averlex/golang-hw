@@ -1,9 +1,11 @@
-package hw03frequencyanalysis
+package hw03frequencyanalysis_test
 
 import (
 	"strings"
 	"testing"
 
+	//nolint:depguard
+	testModule "github.com/Averlex/golang-hw/hw03_frequency_analysis"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,15 +48,25 @@ var text = `Как видите, он  спускается  по  лестни�
 
 func TestTop10(t *testing.T) {
 	t.Run("no words - empty string", func(t *testing.T) {
-		require.Len(t, Top10(""), 0)
+		require.Len(t, testModule.Top10(""), 0)
 	})
 
 	t.Run("no words - string with only spaces", func(t *testing.T) {
-		require.Len(t, Top10("                     "), 0)
+		require.Len(t, testModule.Top10("                     "), 0)
 	})
 
 	t.Run("no words - string with only spaces, tabs and newlines", func(t *testing.T) {
-		require.Len(t, Top10("      \t        \n               "), 0)
+		require.Len(t, testModule.Top10("      \t        \n               "), 0)
+	})
+
+	t.Run("no words - string with only spaces and punctuation", func(t *testing.T) {
+		source := "      ,        .         ⸻      "
+		if taskWithAsteriskIsCompleted {
+			require.Len(t, testModule.Top10(source), 0)
+		} else {
+			expected := []string{",", ".", "⸻"}
+			require.Equal(t, expected, testModule.Top10(source))
+		}
 	})
 
 	t.Run("positive test", func(t *testing.T) {
@@ -71,7 +83,7 @@ func TestTop10(t *testing.T) {
 				"кристофер", // 4
 				"не",        // 4
 			}
-			require.Equal(t, expected, Top10(text))
+			require.Equal(t, expected, testModule.Top10(text))
 		} else {
 			expected := []string{
 				"он",        // 8
@@ -85,7 +97,7 @@ func TestTop10(t *testing.T) {
 				"не",        // 4
 				"то",        // 4
 			}
-			require.Equal(t, expected, Top10(text))
+			require.Equal(t, expected, testModule.Top10(text))
 		}
 	})
 
@@ -95,12 +107,12 @@ func TestTop10(t *testing.T) {
 			expected := []string{
 				"word", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		} else {
 			expected := []string{
 				"Word", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		}
 	})
 
@@ -110,12 +122,12 @@ func TestTop10(t *testing.T) {
 			expected := []string{
 				"word", // 2
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		} else {
 			expected := []string{
 				"Word", // 2
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		}
 	})
 
@@ -125,13 +137,13 @@ func TestTop10(t *testing.T) {
 			expected := []string{
 				"word", // 2
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		} else {
 			expected := []string{
 				"Word", // 1
 				"word", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		}
 	})
 
@@ -145,7 +157,7 @@ func TestTop10(t *testing.T) {
 			"e", // 1
 			"f", // 1
 		}
-		require.Equal(t, expected, Top10(source))
+		require.Equal(t, expected, testModule.Top10(source))
 	})
 
 	t.Run("mixed frequencies, lexicographical order", func(t *testing.T) {
@@ -159,7 +171,7 @@ func TestTop10(t *testing.T) {
 			"let",   // 1
 			"up",    // 1
 		}
-		require.Equal(t, expected, Top10(source))
+		require.Equal(t, expected, testModule.Top10(source))
 	})
 
 	t.Run("many repeating words, only few unique", func(t *testing.T) {
@@ -171,7 +183,7 @@ func TestTop10(t *testing.T) {
 			"d", // 1
 			"e", // 1
 		}
-		require.Equal(t, expected, Top10(source))
+		require.Equal(t, expected, testModule.Top10(source))
 	})
 
 	t.Run("surpassing limit - 15 unique words, same frequency", func(t *testing.T) {
@@ -188,7 +200,7 @@ func TestTop10(t *testing.T) {
 			"i", // 1
 			"j", // 1
 		}
-		require.Equal(t, expected, Top10(source))
+		require.Equal(t, expected, testModule.Top10(source))
 	})
 
 	t.Run("surpassing limit - 10 words with the same frequency, a few more with lower frequency", func(t *testing.T) {
@@ -205,7 +217,7 @@ func TestTop10(t *testing.T) {
 			"i", // 2
 			"j", // 2
 		}
-		require.Equal(t, expected, Top10(source))
+		require.Equal(t, expected, testModule.Top10(source))
 	})
 
 	t.Run("stress test", func(t *testing.T) {
@@ -213,7 +225,7 @@ func TestTop10(t *testing.T) {
 		expected := []string{
 			"word", // 1000
 		}
-		require.Equal(t, expected, Top10(source))
+		require.Equal(t, expected, testModule.Top10(source))
 	})
 
 	t.Run("digits and special characters", func(t *testing.T) {
@@ -224,7 +236,7 @@ func TestTop10(t *testing.T) {
 				"2", // 1
 				"3", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		} else {
 			expected := []string{
 				"@", // 3
@@ -232,7 +244,7 @@ func TestTop10(t *testing.T) {
 				"2", // 1
 				"3", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		}
 	})
 
@@ -246,7 +258,7 @@ func TestTop10(t *testing.T) {
 				"ⅸ",  // 1
 				"世界", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		} else {
 			expected := []string{
 				"オラ", // 9
@@ -255,11 +267,68 @@ func TestTop10(t *testing.T) {
 				"Ⅸ",  // 1
 				"世界", // 1
 			}
-			require.Equal(t, expected, Top10(source))
+			require.Equal(t, expected, testModule.Top10(source))
 		}
 	})
 
-	// TODO: пустая строка, но есть знаки пунктуации (для астериска)
-	// TODO: слова с пунктуацией (для астериска)
-	// TODO: слова с пунктуацией разных юникод символов? (для астериска)
+	t.Run("words, consisting only of punctuation", func(t *testing.T) {
+		source := "      ,,        .    ---       ⸻      "
+		if taskWithAsteriskIsCompleted {
+			expected := []string{",,", "---"}
+			require.Equal(t, expected, testModule.Top10(source))
+		} else {
+			expected := []string{",,", "---", ".", "⸻"}
+			require.Equal(t, expected, testModule.Top10(source))
+		}
+	})
+
+	t.Run("letter and punctuation mixed words - short words", func(t *testing.T) {
+		source := ",a a, ,a, ,,a a,, ,,a,, .b⸻c."
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"a",     // 3
+				",,a",   // 1
+				",,a,,", // 1
+				"a,,",   // 1
+				"b⸻c",   // 1
+			}
+			require.Equal(t, expected, testModule.Top10(source))
+		} else {
+			expected := []string{
+				",,a",   // 1
+				",,a,,", // 1
+				",a",    // 1
+				",a,",
+				".b⸻c.", // 1
+				"a,",    // 1
+				"a,,",   // 1
+			}
+			require.Equal(t, expected, testModule.Top10(source))
+		}
+	})
+
+	t.Run("letter and punctuation mixed words - long words", func(t *testing.T) {
+		source := ",aaa aaa, ,aaa, ,,aaa aaa,, ,,aaa,, .bbb⸻ccc."
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"aaa",     // 3
+				",,aaa",   // 1
+				",,aaa,,", // 1
+				"aaa,,",   // 1
+				"bbb⸻ccc", // 1
+			}
+			require.Equal(t, expected, testModule.Top10(source))
+		} else {
+			expected := []string{
+				",,aaa",   // 1
+				",,aaa,,", // 1
+				",aaa",    // 1
+				",aaa,",
+				".bbb⸻ccc.", // 1
+				"aaa,",      // 1
+				"aaa,,",     // 1
+			}
+			require.Equal(t, expected, testModule.Top10(source))
+		}
+	})
 }
