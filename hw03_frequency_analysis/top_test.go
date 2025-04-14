@@ -8,7 +8,7 @@ import (
 )
 
 // Change to true if needed.
-var taskWithAsteriskIsCompleted = false
+var taskWithAsteriskIsCompleted = true
 
 var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
@@ -218,25 +218,45 @@ func TestTop10(t *testing.T) {
 
 	t.Run("digits and special characters", func(t *testing.T) {
 		source := "1 1 2 @ @ @ 3"
-		expected := []string{
-			"@", // 3
-			"1", // 2
-			"2", // 1
-			"3", // 1
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"1", // 2
+				"2", // 1
+				"3", // 1
+			}
+			require.Equal(t, expected, Top10(source))
+		} else {
+			expected := []string{
+				"@", // 3
+				"1", // 2
+				"2", // 1
+				"3", // 1
+			}
+			require.Equal(t, expected, Top10(source))
 		}
-		require.Equal(t, expected, Top10(source))
 	})
 
 	t.Run("unicode symbols", func(t *testing.T) {
 		source := "世界 オラ オラ オラ オラ オラ オラ オラ オラ オラ オラ ³ ७ ७ Ⅸ"
-		expected := []string{
-			"オラ", // 9
-			"७",  // 2
-			"³",  // 1
-			"Ⅸ",  // 1
-			"世界", // 1
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"オラ", // 9
+				"७",  // 2
+				"³",  // 1
+				"ⅸ",  // 1
+				"世界", // 1
+			}
+			require.Equal(t, expected, Top10(source))
+		} else {
+			expected := []string{
+				"オラ", // 9
+				"७",  // 2
+				"³",  // 1
+				"Ⅸ",  // 1
+				"世界", // 1
+			}
+			require.Equal(t, expected, Top10(source))
 		}
-		require.Equal(t, expected, Top10(source))
 	})
 
 	// TODO: пустая строка, но есть знаки пунктуации (для астериска)
