@@ -8,15 +8,23 @@ import (
 	"strings"
 )
 
+// Change to true if needed.
+var taskWithAsteriskIsCompleted = true
+
 type freqCounter struct {
 	Count int
 	Words []*string // To avoid unnecessary reallocations.
 }
 
 var (
-	strippedWordPattern = regexp.MustCompile(`^[\p{P}]?(?P<strippedWord>[^\p{P}]+.*[^\p{P}]+)[\p{P}]?$`)
+	// Stripping the word of punctuation chars only when it has a single one at the start or end of the string.
+	//nolint:lll
+	strippedWordPattern = regexp.MustCompile(`^[\p{P}]?(?P<pat1>[^\p{P}]+.*[^\p{P}]+|[^\p{P}]|[^\p{P}]+.*)[\p{P}]?$|^(?P<pat2>[\p{P}]{2,}.*[^\p{P}]+)[\p{P}]?$`)
 	singlePunctPattern  = regexp.MustCompile(`^[\p{P}]$`)
 )
+
+// Change to true if needed.
+// var taskWithAsteriskIsCompleted = true
 
 func parseWord(word string) string {
 	if isMatched := singlePunctPattern.Match([]byte(word)); isMatched {
@@ -27,7 +35,7 @@ func parseWord(word string) string {
 	matches := strippedWordPattern.FindStringSubmatch(word)
 	if len(matches) != 0 {
 		for i, matchName := range strippedWordPattern.SubexpNames() {
-			if matchName == "strippedWord" {
+			if (matchName == "pat1" || matchName == "pat2") && matches[i] != "" {
 				return strings.ToLower(matches[i])
 			}
 		}
@@ -51,12 +59,17 @@ func Top10(sourceText string) []string {
 	// The worst case scenario -> sourceText = "a a a a ...".
 	textByWords := strings.Fields(sourceText)
 
+	// Parsing goes here.
 	for _, word := range textByWords {
-		parsedWord := parseWord(word)
-		if parsedWord == "" {
-			continue
+		if taskWithAsteriskIsCompleted {
+			parsedWord := parseWord(word)
+			if parsedWord == "" {
+				continue
+			}
+			wordFreqs[parsedWord]++
+		} else {
+			wordFreqs[word]++
 		}
-		wordFreqs[parsedWord]++
 	}
 
 	// No words found in the text.
