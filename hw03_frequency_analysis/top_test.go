@@ -9,9 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Change to true if needed.
-var taskWithAsteriskIsCompleted = true
-
 var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
 	ступеньки собственным затылком:  бум-бум-бум.  Другого  способа
@@ -46,289 +43,145 @@ var text = `Как видите, он  спускается  по  лестни�
 	посидеть у огня и послушать какую-нибудь интересную сказку.
 		В этот вечер...`
 
-func TestTop10(t *testing.T) {
-	t.Run("no words - empty string", func(t *testing.T) {
-		require.Len(t, testModule.Top10(""), 0)
+func noWordsTests(t *testing.T) {
+	t.Helper()
+	t.Run("Empty string", func(t *testing.T) { require.Len(t, testModule.Top10(""), 0) })
+	t.Run("String with only spaces", func(t *testing.T) { require.Len(t, testModule.Top10("             "), 0) })
+	t.Run("String with only spaces, tabs and newlines", func(t *testing.T) {
+		require.Len(t, testModule.Top10("    \t      \n    "), 0)
 	})
-
-	t.Run("no words - string with only spaces", func(t *testing.T) {
-		require.Len(t, testModule.Top10("                     "), 0)
-	})
-
-	t.Run("no words - string with only spaces, tabs and newlines", func(t *testing.T) {
-		require.Len(t, testModule.Top10("      \t        \n               "), 0)
-	})
-
-	t.Run("no words - string with only spaces and punctuation", func(t *testing.T) {
+	t.Run("String with only spaces and punctuation", func(t *testing.T) {
 		source := "      ,        .         ⸻      "
-		if taskWithAsteriskIsCompleted {
-			require.Len(t, testModule.Top10(source), 0)
-		} else {
-			expected := []string{",", ".", "⸻"}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
+		require.Len(t, testModule.Top10(source), 0)
 	})
+}
 
-	t.Run("positive test", func(t *testing.T) {
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"а",         // 8
-				"он",        // 8
-				"и",         // 6
-				"ты",        // 5
-				"что",       // 5
-				"в",         // 4
-				"его",       // 4
-				"если",      // 4
-				"кристофер", // 4
-				"не",        // 4
-			}
-			require.Equal(t, expected, testModule.Top10(text))
-		} else {
-			expected := []string{
-				"он",        // 8
-				"а",         // 6
-				"и",         // 6
-				"ты",        // 5
-				"что",       // 5
-				"-",         // 4
-				"Кристофер", // 4
-				"если",      // 4
-				"не",        // 4
-				"то",        // 4
-			}
-			require.Equal(t, expected, testModule.Top10(text))
-		}
-	})
+func singleWordTests(t *testing.T) {
+	t.Helper()
 
-	t.Run("single word", func(t *testing.T) {
-		source := "Word"
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"word", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				"Word", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+	testCases := []struct {
+		name     string
+		source   string
+		expected []string
+	}{
+		{"Common word", "Word", []string{"word"}},
+		{"Repeated word, different cases", "Word word", []string{"word"}},
+		{"A word consisting of punctuation marks", ".!-?¡", []string{".!-?¡"}},
+	}
 
-	t.Run("single repeated word, same case", func(t *testing.T) {
-		source := "Word Word"
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"word", // 2
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				"Word", // 2
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := testModule.Top10(tC.source)
+			require.Equal(t, tC.expected, got)
+		})
+	}
+}
 
-	t.Run("single repeated word, different cases", func(t *testing.T) {
-		source := "Word word"
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"word", // 2
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				"Word", // 1
-				"word", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+func orderTests(t *testing.T) {
+	t.Helper()
 
-	t.Run("same frequency, lexicographical order", func(t *testing.T) {
-		source := "f e d c a b"
-		expected := []string{
-			"a", // 1
-			"b", // 1
-			"c", // 1
-			"d", // 1
-			"e", // 1
-			"f", // 1
-		}
-		require.Equal(t, expected, testModule.Top10(source))
-	})
+	testCases := []struct {
+		name     string
+		source   string
+		expected []string
+	}{
+		{"Several words, same frequency", "f e d c a b", []string{"a", "b", "c", "d", "e", "f"}},
+		{
+			"Mixed frequencies, lexicographical order",
+			"never gonna give you up never gonna let you down",
+			[]string{"gonna", "never", "you", "down", "give", "let", "up"},
+		},
+		{"Several repeating words, only few unique", "a b a b a b a b a b c d e c", []string{"a", "b", "c", "d", "e"}},
+	}
 
-	t.Run("mixed frequencies, lexicographical order", func(t *testing.T) {
-		source := "never gonna give you up never gonna let you down"
-		expected := []string{
-			"gonna", // 2
-			"never", // 2
-			"you",   // 2
-			"down",  // 1
-			"give",  // 1
-			"let",   // 1
-			"up",    // 1
-		}
-		require.Equal(t, expected, testModule.Top10(source))
-	})
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := testModule.Top10(tC.source)
+			require.Equal(t, tC.expected, got)
+		})
+	}
+}
 
-	t.Run("many repeating words, only few unique", func(t *testing.T) {
-		source := "a b a b a b a b a b c d e c"
-		expected := []string{
-			"a", // 5
-			"b", // 5
-			"c", // 2
-			"d", // 1
-			"e", // 1
-		}
-		require.Equal(t, expected, testModule.Top10(source))
-	})
+func limitTests(t *testing.T) {
+	t.Helper()
 
-	t.Run("surpassing limit - 15 unique words, same frequency", func(t *testing.T) {
-		source := "a b c d e f g h i j k l m n o"
-		expected := []string{
-			"a", // 1
-			"b", // 1
-			"c", // 1
-			"d", // 1
-			"e", // 1
-			"f", // 1
-			"g", // 1
-			"h", // 1
-			"i", // 1
-			"j", // 1
-		}
-		require.Equal(t, expected, testModule.Top10(source))
-	})
+	testCases := []struct {
+		name     string
+		source   string
+		expected []string
+	}{
+		{
+			"15 unique words, same frequency",
+			"a b c d e f g h i j k l m n o",
+			[]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+		},
+		{
+			"10 words with the same frequency, a few more with lower frequency",
+			"a a b b c c d d e e f f g g h h i i j j k l m n o",
+			[]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+		},
+		{"Stress test", strings.Repeat("word ", 1000), []string{"word"}},
+	}
 
-	t.Run("surpassing limit - 10 words with the same frequency, a few more with lower frequency", func(t *testing.T) {
-		source := "a a b b c c d d e e f f g g h h i i j j k l m n o"
-		expected := []string{
-			"a", // 2
-			"b", // 2
-			"c", // 2
-			"d", // 2
-			"e", // 2
-			"f", // 2
-			"g", // 2
-			"h", // 2
-			"i", // 2
-			"j", // 2
-		}
-		require.Equal(t, expected, testModule.Top10(source))
-	})
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := testModule.Top10(tC.source)
+			require.Equal(t, tC.expected, got)
+		})
+	}
+}
 
-	t.Run("stress test", func(t *testing.T) {
-		source := strings.Repeat("word ", 1000)
-		expected := []string{
-			"word", // 1000
-		}
-		require.Equal(t, expected, testModule.Top10(source))
-	})
+func punctuationTests(t *testing.T) {
+	t.Helper()
 
-	t.Run("digits and special characters", func(t *testing.T) {
-		source := "1 1 2 @ @ @ 3"
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"1", // 2
-				"2", // 1
-				"3", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				"@", // 3
-				"1", // 2
-				"2", // 1
-				"3", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+	testCases := []struct {
+		name     string
+		source   string
+		expected []string
+	}{
+		{"Whole word consists of punctuation", "      ,,        .    ---       ⸻      ", []string{",,", "---"}},
+		{"Mixed short words", ",a a, ,a, ,,a a,, ,,a,, .b⸻c.", []string{"a", ",,a", ",,a,,", "a,,", "b⸻c"}},
+		{
+			"Mixed long words",
+			",aaa aaa, ,aaa, ,,aaa aaa,, ,,aaa,, .bbb⸻ccc.",
+			[]string{"aaa", ",,aaa", ",,aaa,,", "aaa,,", "bbb⸻ccc"},
+		},
+	}
 
-	t.Run("unicode symbols", func(t *testing.T) {
-		source := "世界 オラ オラ オラ オラ オラ オラ オラ オラ オラ オラ ³ ७ ७ Ⅸ"
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"オラ", // 9
-				"७",  // 2
-				"³",  // 1
-				"ⅸ",  // 1
-				"世界", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				"オラ", // 9
-				"७",  // 2
-				"³",  // 1
-				"Ⅸ",  // 1
-				"世界", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := testModule.Top10(tC.source)
+			require.Equal(t, tC.expected, got)
+		})
+	}
+}
 
-	t.Run("words, consisting only of punctuation", func(t *testing.T) {
-		source := "      ,,        .    ---       ⸻      "
-		if taskWithAsteriskIsCompleted {
-			expected := []string{",,", "---"}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{",,", "---", ".", "⸻"}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+func additionalTests(t *testing.T) {
+	t.Helper()
 
-	t.Run("letter and punctuation mixed words - short words", func(t *testing.T) {
-		source := ",a a, ,a, ,,a a,, ,,a,, .b⸻c."
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"a",     // 3
-				",,a",   // 1
-				",,a,,", // 1
-				"a,,",   // 1
-				"b⸻c",   // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				",,a",   // 1
-				",,a,,", // 1
-				",a",    // 1
-				",a,",
-				".b⸻c.", // 1
-				"a,",    // 1
-				"a,,",   // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+	testCases := []struct {
+		name     string
+		source   string
+		expected []string
+	}{
+		{"Positive test", text, []string{"а", "он", "и", "ты", "что", "в", "его", "если", "кристофер", "не"}},
+		{"Digits and special characters", "1 1 2 @ @ @ 3", []string{"1", "2", "3"}},
+		{"Unicode chars", "世界 オラ オラ オラ オラ オラ オラ オラ オラ オラ オラ ³ ७ ७ Ⅸ", []string{"オラ", "७", "³", "ⅸ", "世界"}},
+	}
 
-	t.Run("letter and punctuation mixed words - long words", func(t *testing.T) {
-		source := ",aaa aaa, ,aaa, ,,aaa aaa,, ,,aaa,, .bbb⸻ccc."
-		if taskWithAsteriskIsCompleted {
-			expected := []string{
-				"aaa",     // 3
-				",,aaa",   // 1
-				",,aaa,,", // 1
-				"aaa,,",   // 1
-				"bbb⸻ccc", // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		} else {
-			expected := []string{
-				",,aaa",   // 1
-				",,aaa,,", // 1
-				",aaa",    // 1
-				",aaa,",
-				".bbb⸻ccc.", // 1
-				"aaa,",      // 1
-				"aaa,,",     // 1
-			}
-			require.Equal(t, expected, testModule.Top10(source))
-		}
-	})
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := testModule.Top10(tC.source)
+			require.Equal(t, tC.expected, got)
+		})
+	}
+}
+
+func TestTop10(t *testing.T) {
+	t.Run("No words", func(t *testing.T) { noWordsTests(t) })
+	t.Run("Single word", func(t *testing.T) { singleWordTests(t) })
+	t.Run("Output order", func(t *testing.T) { orderTests(t) })
+	t.Run("Top-10 and overall limit", func(t *testing.T) { limitTests(t) })
+	t.Run("Punctuation cases", func(t *testing.T) { punctuationTests(t) })
+	t.Run("Additional tests", func(t *testing.T) { additionalTests(t) })
 }
