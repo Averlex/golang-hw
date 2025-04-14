@@ -3,6 +3,7 @@
 package hw03frequencyanalysis
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -11,6 +12,29 @@ import (
 type freqCounter struct {
 	Count int
 	Words []string
+}
+
+var (
+	strippedWordPattern = regexp.MustCompile(`^[\p{P}]?(?P<strippedWord>[^\p{P}]+.*[^\p{P}]+)[\p{P}]?$`)
+	singlePunctPattern  = regexp.MustCompile(`^[\p{P}]$`)
+)
+
+func parseWord(word string) string {
+	if isMatched := singlePunctPattern.Match([]byte(word)); isMatched {
+		return ""
+	}
+
+	// Stripping and lowercasing the word if it matches the punctuation pattern.
+	matches := strippedWordPattern.FindStringSubmatch(word)
+	if len(matches) != 0 {
+		for i, matchName := range strippedWordPattern.SubexpNames() {
+			if matchName == "strippedWord" {
+				return strings.ToLower(matches[i])
+			}
+		}
+	}
+
+	return strings.ToLower(word)
 }
 
 // Top10 analyzes the frequency of words in the input string `sourceText`
@@ -23,15 +47,17 @@ func Top10(sourceText string) []string {
 	}
 
 	const topCount = 10
-
 	wordFreqs := make(map[string]int)
 
 	// The worst case scenario -> sourceText = "a a a a ...".
 	textByWords := strings.Fields(sourceText)
 
 	for _, word := range textByWords {
-		// TODO: Some text parsing logic
-		wordFreqs[word]++
+		parsedWord := parseWord(word)
+		if parsedWord == "" {
+			continue
+		}
+		wordFreqs[parsedWord]++
 	}
 
 	// No words found in the text.
