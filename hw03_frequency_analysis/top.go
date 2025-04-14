@@ -8,10 +8,9 @@ import (
 	"strings"
 )
 
-// TODO: or []*string? To avoid reallocations.
 type freqCounter struct {
 	Count int
-	Words []string
+	Words []*string // To avoid unnecessary reallocations.
 }
 
 var (
@@ -70,9 +69,10 @@ func Top10(sourceText string) []string {
 	// Grouping up words by their frequency.
 	for k, v := range wordFreqs {
 		if _, ok := freqs[v]; !ok {
-			freqs[v] = &freqCounter{v, make([]string, 0, len(textByWords))}
+			freqs[v] = &freqCounter{v, make([]*string, 0, len(textByWords))}
 		}
-		freqs[v].Words = append(freqs[v].Words, k)
+		clonedString := strings.Clone(k)
+		freqs[v].Words = append(freqs[v].Words, &clonedString)
 	}
 
 	// Flattening frequencies to a simple slice.
@@ -87,12 +87,13 @@ func Top10(sourceText string) []string {
 	count := 0
 	res := make([]string, 0, topCount)
 	for _, v := range flattenedFreqs {
-		slices.Sort(v.Words) // Sorting lexicographically within the given frequency group.
+		// Sorting lexicographically within the given frequency group.
+		slices.SortFunc(v.Words, func(a, b *string) int { return strings.Compare(*a, *b) })
 		for _, word := range v.Words {
 			if count == topCount {
 				break
 			}
-			res = append(res, word)
+			res = append(res, *word)
 			count++
 		}
 	}
