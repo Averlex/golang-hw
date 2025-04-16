@@ -29,6 +29,8 @@ func verifyMoveToFront(t *testing.T, l List, length int, elem *ListItem) {
 }
 
 func emptyList(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name string
 		test func(*testing.T)
@@ -45,11 +47,15 @@ func emptyList(t *testing.T) {
 }
 
 func emptyListStructure(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	verifyListStructure(t, l, 0, nil, nil)
 }
 
 func emptyListPushOperations(t *testing.T) {
+	t.Helper()
+
 	tests := []struct {
 		name   string
 		method func(List, any) *ListItem
@@ -68,12 +74,16 @@ func emptyListPushOperations(t *testing.T) {
 }
 
 func emptyListRemove(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	l.Remove(nil)
 	verifyListStructure(t, l, 0, nil, nil)
 }
 
 func emptyListMoveToFront(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	elem := &ListItem{Value: testValue}
 	l.MoveToFront(elem)
@@ -83,6 +93,8 @@ func emptyListMoveToFront(t *testing.T) {
 }
 
 func singleElementList(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name string
 		test func(*testing.T)
@@ -99,12 +111,16 @@ func singleElementList(t *testing.T) {
 }
 
 func singleElementStructure(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	elem := l.PushFront(testValue)
 	verifyListStructure(t, l, 1, elem, elem)
 }
 
 func singleElementPushOperations(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name                   string
 		method                 func(List, any) *ListItem
@@ -133,6 +149,8 @@ func singleElementPushOperations(t *testing.T) {
 }
 
 func singleElementRemove(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	elem := l.PushFront(testValue)
 	l.Remove(elem)
@@ -140,6 +158,8 @@ func singleElementRemove(t *testing.T) {
 }
 
 func singleElementMoveToFront(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	elem := l.PushFront(testValue)
 	l.MoveToFront(elem)
@@ -149,6 +169,8 @@ func singleElementMoveToFront(t *testing.T) {
 }
 
 func twoElementList(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name string
 		test func(*testing.T)
@@ -165,6 +187,8 @@ func twoElementList(t *testing.T) {
 }
 
 func twoElementStructure(t *testing.T) {
+	t.Helper()
+
 	l := NewList()
 	first := l.PushFront(testValue)
 	second := l.PushBack(testValue)
@@ -177,6 +201,8 @@ func twoElementStructure(t *testing.T) {
 }
 
 func twoElementPushOperations(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name   string
 		method func(List, any) *ListItem
@@ -206,6 +232,8 @@ func twoElementPushOperations(t *testing.T) {
 }
 
 func twoElementRemove(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name string
 		test func(*testing.T, List)
@@ -227,18 +255,24 @@ func twoElementRemove(t *testing.T) {
 }
 
 func removeFirstElement(t *testing.T, l List) {
+	t.Helper()
+
 	second := l.Back()
 	l.Remove(l.Front())
 	verifyListStructure(t, l, 1, second, second)
 }
 
 func removeLastElement(t *testing.T, l List) {
+	t.Helper()
+
 	first := l.Front()
 	l.Remove(l.Back())
 	verifyListStructure(t, l, 1, first, first)
 }
 
 func twoElementMoveToFront(t *testing.T) {
+	t.Helper()
+
 	testCases := []struct {
 		name string
 	}{
@@ -269,6 +303,8 @@ func twoElementMoveToFront(t *testing.T) {
 }
 
 func complexBehavior(t *testing.T) {
+	t.Helper()
+
 	t.Run("behavioral", func(t *testing.T) {
 		l := NewList()
 
