@@ -7,119 +7,123 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func emptyListDataStructureTest(t *testing.T) {
-	t.Helper()
-	t.Run("data structure", func(t *testing.T) {
-		l := NewList()
+const (
+	testValue = 42
+)
 
-		require.Equal(t, 0, l.Len())
-		require.Nil(t, l.Front())
-		require.Nil(t, l.Back())
-	})
+func verifyListStructure(t *testing.T, l List, length int, front, back *ListItem) {
+	t.Helper()
+	require.Equal(t, length, l.Len())
+	require.Equal(t, front, l.Front())
+	require.Equal(t, back, l.Back())
 }
 
-func emptyListPushTests(t *testing.T) {
+func verifyMoveToFront(t *testing.T, l List, length int, elem *ListItem) {
 	t.Helper()
 
-	testVal := 42
+	require.Equal(t, length, l.Len())
+	// Comparing values since we can't compare pointers due to method's behavior.
+	require.Equal(t, l.Front().Value, elem.Value)
+	require.Nil(t, l.Front().Prev)
+	require.Nil(t, l.Back().Next)
+}
 
+func emptyList(t *testing.T) {
 	testCases := []struct {
-		name   string
-		len    int
-		method func(List, any) *ListItem
+		name string
+		test func(*testing.T)
 	}{
-		{"push front", 1, List.PushFront},
-		{"push back", 1, List.PushBack},
+		{"data structure", emptyListStructure},
+		{"push operations", emptyListPushOperations},
+		{"remove", emptyListRemove},
+		{"move to front", emptyListMoveToFront},
 	}
 
 	for _, tC := range testCases {
-		t.Run(tC.name, func(t *testing.T) {
-			l := NewList()
-			newElem := tC.method(l, testVal)
+		t.Run(tC.name, tC.test)
+	}
+}
 
-			require.Equal(t, tC.len, l.Len())
-			require.Equal(t, l.Front(), newElem)
-			require.Equal(t, l.Back(), newElem)
+func emptyListStructure(t *testing.T) {
+	l := NewList()
+	verifyListStructure(t, l, 0, nil, nil)
+}
+
+func emptyListPushOperations(t *testing.T) {
+	tests := []struct {
+		name   string
+		method func(List, any) *ListItem
+	}{
+		{"push front", List.PushFront},
+		{"push back", List.PushBack},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewList()
+			elem := tt.method(l, testValue)
+			verifyListStructure(t, l, 1, elem, elem)
 		})
 	}
 }
 
-func emptyListRemoveTest(t *testing.T) {
-	t.Helper()
-	t.Run("remove", func(t *testing.T) {
-		l := NewList()
-		l.Remove(nil)
-
-		require.Equal(t, 0, l.Len())
-		require.Nil(t, l.Front())
-		require.Nil(t, l.Back())
-	})
+func emptyListRemove(t *testing.T) {
+	l := NewList()
+	l.Remove(nil)
+	verifyListStructure(t, l, 0, nil, nil)
 }
 
-func emptyListMoveToFrontTest(t *testing.T) {
-	t.Helper()
-	t.Run("move to front", func(t *testing.T) {
-		testVal := 42
-		l := NewList()
-		elem := &ListItem{Value: testVal}
-		l.MoveToFront(elem)
+func emptyListMoveToFront(t *testing.T) {
+	l := NewList()
+	elem := &ListItem{Value: testValue}
+	l.MoveToFront(elem)
 
-		require.Equal(t, 1, l.Len())
-		require.Equal(t, l.Front(), l.Back())
-		// Comparing values since we can't compare pointers due to method's behavior.
-		require.Equal(t, l.Front().Value, elem.Value)
-		require.Nil(t, l.Front().Prev)
-		require.Nil(t, l.Back().Next)
-	})
+	verifyMoveToFront(t, l, 1, elem)
+	require.Equal(t, l.Front(), l.Back())
 }
 
-func emptyListTests(t *testing.T) {
-	t.Helper()
+func singleElementList(t *testing.T) {
+	testCases := []struct {
+		name string
+		test func(*testing.T)
+	}{
+		{"data structure", singleElementStructure},
+		{"push operations", singleElementPushOperations},
+		{"remove", singleElementRemove},
+		{"move to front", singleElementMoveToFront},
+	}
 
-	emptyListDataStructureTest(t)
-	emptyListPushTests(t)
-	emptyListRemoveTest(t)
-	emptyListMoveToFrontTest(t)
+	for _, tC := range testCases {
+		t.Run(tC.name, tC.test)
+	}
 }
 
-func singleElemListDataStructureTest(t *testing.T) {
-	t.Helper()
-	t.Run("data structure", func(t *testing.T) {
-		testVal := 42
-		l := NewList()
-		firstElem := l.PushFront(testVal)
-
-		require.Equal(t, 1, l.Len())
-		require.Equal(t, l.Front(), l.Back())
-		require.Equal(t, l.Front(), firstElem)
-	})
+func singleElementStructure(t *testing.T) {
+	l := NewList()
+	elem := l.PushFront(testValue)
+	verifyListStructure(t, l, 1, elem, elem)
 }
 
-func singleElemListPushTests(t *testing.T) {
-	t.Helper()
-
-	testVal := 42
-
+func singleElementPushOperations(t *testing.T) {
 	testCases := []struct {
 		name                   string
-		len                    int
 		method                 func(List, any) *ListItem
 		headMethod, tailMethod func(List) *ListItem
 	}{
-		{"push front", 2, List.PushFront, List.Front, List.Back},
-		{"push back", 2, List.PushBack, List.Back, List.Front},
+		{"push front", List.PushFront, List.Front, List.Back},
+		{"push back", List.PushBack, List.Back, List.Front},
 	}
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
 			l := NewList()
-			firstElem := tC.method(l, testVal)
-			newElem := tC.method(l, testVal)
+			first := l.PushFront(testValue)
+			second := tC.method(l, testValue)
 
 			// Data structure testing.
-			require.Equal(t, tC.len, l.Len())
-			require.Equal(t, tC.headMethod(l), newElem)
-			require.Equal(t, tC.tailMethod(l), firstElem)
+			require.Equal(t, 2, l.Len())
+			require.Equal(t, tC.headMethod(l), second)
+			require.Equal(t, tC.tailMethod(l), first)
 
 			// Linkage testing.
 			require.Equal(t, l.Front().Next, l.Back())
@@ -128,96 +132,72 @@ func singleElemListPushTests(t *testing.T) {
 	}
 }
 
-func singleElemListRemoveTest(t *testing.T) {
-	t.Helper()
-	t.Run("remove", func(t *testing.T) {
-		testVal := 42
-		l := NewList()
-		elem := l.PushFront(testVal)
-		l.Remove(elem)
-
-		require.Equal(t, 0, l.Len())
-		require.Nil(t, l.Front())
-		require.Nil(t, l.Back())
-	})
+func singleElementRemove(t *testing.T) {
+	l := NewList()
+	elem := l.PushFront(testValue)
+	l.Remove(elem)
+	verifyListStructure(t, l, 0, nil, nil)
 }
 
-func singleElemListMoveToFrontTest(t *testing.T) {
-	t.Helper()
-	t.Run("move to front", func(t *testing.T) {
-		testVal := 42
-		l := NewList()
-		elem := l.PushFront(testVal)
-		l.MoveToFront(elem)
+func singleElementMoveToFront(t *testing.T) {
+	l := NewList()
+	elem := l.PushFront(testValue)
+	l.MoveToFront(elem)
 
-		require.Equal(t, 1, l.Len())
-		require.Equal(t, l.Front(), l.Back())
-		require.Equal(t, l.Front().Value, elem.Value)
-		require.Nil(t, l.Front().Prev)
-		require.Nil(t, l.Back().Next)
-	})
+	verifyMoveToFront(t, l, 1, elem)
+	require.Equal(t, l.Front(), l.Back())
 }
 
-func singleElemListTests(t *testing.T) {
-	t.Helper()
-
-	singleElemListDataStructureTest(t)
-	singleElemListPushTests(t)
-	singleElemListRemoveTest(t)
-	singleElemListMoveToFrontTest(t)
-}
-
-func twoElemListDataStructureTest(t *testing.T) {
-	t.Helper()
-	t.Run("data structure", func(t *testing.T) {
-		l := NewList()
-		testVal := 42
-		firstElem := l.PushFront(testVal)
-		secondElem := l.PushBack(testVal)
-
-		require.Equal(t, 2, l.Len())
-		require.Equal(t, firstElem, l.Front())
-		require.Equal(t, secondElem, l.Back())
-		require.Equal(t, l.Front().Next, l.Back())
-		require.Equal(t, l.Back().Prev, l.Front())
-		require.Nil(t, l.Front().Prev)
-		require.Nil(t, l.Back().Next)
-	})
-}
-
-func twoElemListPushTests(t *testing.T) {
-	t.Helper()
-
-	testVal := 42
-
+func twoElementList(t *testing.T) {
 	testCases := []struct {
-		name                       string
-		len                        int
-		method                     func(List, any) *ListItem
-		expectedHead, expectedTail *ListItem
+		name string
+		test func(*testing.T)
 	}{
-		{"push front", 3, List.PushFront, nil, nil},
-		{"push back", 3, List.PushBack, nil, nil},
+		{"data structure", twoElementStructure},
+		{"push operations", twoElementPushOperations},
+		{"remove", twoElementRemove},
+		{"move to front", twoElementMoveToFront},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, tC.test)
+	}
+}
+
+func twoElementStructure(t *testing.T) {
+	l := NewList()
+	first := l.PushFront(testValue)
+	second := l.PushBack(testValue)
+
+	verifyListStructure(t, l, 2, first, second)
+	require.Equal(t, l.Front().Next, l.Back())
+	require.Equal(t, l.Back().Prev, l.Front())
+	require.Nil(t, l.Front().Prev)
+	require.Nil(t, l.Back().Next)
+}
+
+func twoElementPushOperations(t *testing.T) {
+	testCases := []struct {
+		name   string
+		method func(List, any) *ListItem
+	}{
+		{"push front", List.PushFront},
+		{"push back", List.PushBack},
 	}
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
 			l := NewList()
-			firstElem := l.PushFront(testVal)
-			secondElem := l.PushBack(testVal)
-			newElem := tC.method(l, testVal)
-
-			require.Equal(t, tC.len, l.Len())
+			first := l.PushFront(testValue)
+			second := l.PushBack(testValue)
+			newElem := tC.method(l, testValue)
 
 			if tC.name == "push front" {
-				require.Equal(t, newElem, l.Front())
-				require.Equal(t, secondElem, l.Back())
+				verifyListStructure(t, l, 3, newElem, second)
 			} else {
-				require.Equal(t, newElem, l.Back())
-				require.Equal(t, firstElem, l.Front())
+				verifyListStructure(t, l, 3, first, newElem)
 			}
-
-			// Проверка связей между элементами
+			// Linkage testing.
 			require.Equal(t, l.Front().Next, l.Back().Prev)
 			require.Equal(t, l.Front().Next.Next, l.Back())
 			require.Equal(t, l.Back().Prev.Prev, l.Front())
@@ -225,86 +205,70 @@ func twoElemListPushTests(t *testing.T) {
 	}
 }
 
-func twoElemListRemoveTest(t *testing.T) {
-	t.Helper()
+func twoElementRemove(t *testing.T) {
+	testCases := []struct {
+		name string
+		test func(*testing.T, List)
+	}{
+		{"remove first", removeFirstElement},
+		{"remove last", removeLastElement},
+	}
 
-	testVal := 42
-
-	t.Run("remove first element", func(t *testing.T) {
-		l := NewList()
-		firstElem := l.PushFront(testVal)
-		secondElem := l.PushBack(testVal)
-		l.Remove(firstElem)
-
-		require.Equal(t, 1, l.Len())
-		require.Equal(t, secondElem, l.Front())
-		require.Equal(t, secondElem, l.Back())
-		require.Nil(t, l.Front().Prev)
-		require.Nil(t, l.Back().Next)
-	})
-
-	t.Run("remove last element", func(t *testing.T) {
-		l := NewList()
-		firstElem := l.PushFront(testVal)
-		secondElem := l.PushBack(testVal)
-		l.Remove(secondElem)
-
-		require.Equal(t, 1, l.Len())
-		require.Equal(t, firstElem, l.Front())
-		require.Equal(t, firstElem, l.Back())
-		require.Nil(t, l.Front().Prev)
-		require.Nil(t, l.Back().Next)
-	})
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			l := NewList()
+			l.PushFront(testValue)
+			l.PushBack(testValue)
+			tC.test(t, l)
+			require.Nil(t, l.Front().Prev)
+			require.Nil(t, l.Back().Next)
+		})
+	}
 }
 
-func twoElemListMoveToFrontTest(t *testing.T) {
-	t.Helper()
-
-	testVal := 42
-
-	t.Run("move first element to front", func(t *testing.T) {
-		l := NewList()
-		firstElem := l.PushFront(testVal)
-		secondElem := l.PushBack(testVal)
-		l.MoveToFront(firstElem)
-
-		require.Equal(t, 2, l.Len())
-		// Comparing values since we can't compare pointers due to method's behavior.
-		require.Equal(t, firstElem.Value, l.Front().Value)
-		require.Equal(t, secondElem, l.Back())
-		require.Equal(t, l.Front().Next, l.Back())
-		require.Equal(t, l.Back().Prev, l.Front())
-	})
-
-	t.Run("move last element to front", func(t *testing.T) {
-		l := NewList()
-		firstElem := l.PushFront(testVal * 1)
-		secondElem := l.PushBack(testVal * 2)
-		l.MoveToFront(secondElem)
-
-		require.Equal(t, 2, l.Len())
-		// Comparing values since we can't compare pointers due to method's behavior.
-		require.Equal(t, secondElem.Value, l.Front().Value)
-		require.Equal(t, firstElem, l.Back())
-		require.Equal(t, l.Front().Next, l.Back())
-		require.Equal(t, l.Back().Prev, l.Front())
-		require.Nil(t, l.Back().Next)
-		require.Nil(t, l.Front().Prev)
-	})
+func removeFirstElement(t *testing.T, l List) {
+	second := l.Back()
+	l.Remove(l.Front())
+	verifyListStructure(t, l, 1, second, second)
 }
 
-func twoElemListTests(t *testing.T) {
-	t.Helper()
-
-	twoElemListDataStructureTest(t)
-	twoElemListPushTests(t)
-	twoElemListRemoveTest(t)
-	twoElemListMoveToFrontTest(t)
+func removeLastElement(t *testing.T, l List) {
+	first := l.Front()
+	l.Remove(l.Back())
+	verifyListStructure(t, l, 1, first, first)
 }
 
-func complexListTests(t *testing.T) {
-	t.Helper()
+func twoElementMoveToFront(t *testing.T) {
+	testCases := []struct {
+		name string
+	}{
+		{"move first"},
+		{"move last"},
+	}
 
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			l := NewList()
+			first := l.PushFront(testValue)
+			second := l.PushBack(testValue)
+
+			if tC.name == "move first" {
+				l.MoveToFront(first)
+				verifyMoveToFront(t, l, 2, first)
+				require.Equal(t, second, l.Back())
+			} else {
+				l.MoveToFront(second)
+				verifyMoveToFront(t, l, 2, second)
+				require.Equal(t, first, l.Back())
+			}
+
+			require.Equal(t, l.Front().Next, l.Back())
+			require.Equal(t, l.Back().Prev, l.Front())
+		})
+	}
+}
+
+func complexBehavior(t *testing.T) {
 	t.Run("behavioral", func(t *testing.T) {
 		l := NewList()
 
@@ -339,11 +303,7 @@ func complexListTests(t *testing.T) {
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
 
-	testSuite := &BehaviorTestSuite{
-		l:        NewList(),
-		cycleLen: 10,
-	}
-	suite.Run(t, testSuite)
+	suite.Run(t, new(BehaviorTestSuite))
 }
 
 type BehaviorTestSuite struct {
@@ -351,14 +311,6 @@ type BehaviorTestSuite struct {
 	l        List
 	cycleLen int
 	expected []int
-}
-
-func (s *BehaviorTestSuite) getList(l List) []int {
-	elems := make([]int, 0, s.cycleLen)
-	for i := l.Front(); i != nil; i = i.Next {
-		elems = append(elems, i.Value.(int))
-	}
-	return elems
 }
 
 func (s *BehaviorTestSuite) SetupTest() {
@@ -400,9 +352,17 @@ func (s *BehaviorTestSuite) TestCyclicMoveToFront() {
 	s.Require().Equal(s.expected, s.getList(s.l))
 }
 
+func (s *BehaviorTestSuite) getList(l List) []int {
+	elems := make([]int, 0, s.cycleLen)
+	for i := l.Front(); i != nil; i = i.Next {
+		elems = append(elems, i.Value.(int))
+	}
+	return elems
+}
+
 func TestList(t *testing.T) {
-	t.Run("empty list", func(t *testing.T) { emptyListTests(t) })
-	t.Run("list with a single element", func(t *testing.T) { singleElemListTests(t) })
-	t.Run("list with 2 elements", func(t *testing.T) { twoElemListTests(t) })
-	t.Run("complex", func(t *testing.T) { complexListTests(t) })
+	t.Run("empty list", func(t *testing.T) { emptyList(t) })
+	t.Run("list with a single element", func(t *testing.T) { singleElementList(t) })
+	t.Run("list with 2 elements", func(t *testing.T) { twoElementList(t) })
+	t.Run("complex", func(t *testing.T) { complexBehavior(t) })
 }
