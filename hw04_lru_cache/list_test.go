@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func emptyListDataStructureTest(t *testing.T) {
@@ -338,67 +339,65 @@ func complexListTests(t *testing.T) {
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
 
-	t.Run("cyclic moving last elem to front", func(t *testing.T) {
-		l := NewList()
+	testSuite := &BehaviorTestSuite{
+		l:        NewList(),
+		cycleLen: 10,
+	}
+	suite.Run(t, testSuite)
+}
 
-		cycleLen := 10
-		expected := make([]int, 0, cycleLen)
+type BehaviorTestSuite struct {
+	suite.Suite
+	l        List
+	cycleLen int
+	expected []int
+}
 
-		getList := func(l List) []int {
-			elems := make([]int, 0, cycleLen)
-			for i := l.Front(); i != nil; i = i.Next {
-				elems = append(elems, i.Value.(int))
-			}
-			return elems
-		}
+func (s *BehaviorTestSuite) getList(l List) []int {
+	elems := make([]int, 0, s.cycleLen)
+	for i := l.Front(); i != nil; i = i.Next {
+		elems = append(elems, i.Value.(int))
+	}
+	return elems
+}
 
-		// expected: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
-		for i := range cycleLen {
-			l.PushBack(i * 10)
-			expected = append(expected, i*10)
-		}
+func (s *BehaviorTestSuite) SetupTest() {
+	s.l = NewList()
 
-		require.Equal(t, cycleLen, l.Len())
-		require.Equal(t, expected, getList(l))
+	s.cycleLen = 10
+	s.expected = make([]int, 0, s.cycleLen)
 
-		// Clearing
-		for range cycleLen {
-			l.MoveToFront(l.Back())
-		}
+	// expected: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+	for i := range s.cycleLen {
+		s.l.PushBack(i * 10)
+		s.expected = append(s.expected, i*10)
+	}
+}
 
-		require.Equal(t, expected, getList(l))
-	})
+func (s *BehaviorTestSuite) TestClearList() {
+	s.Require().NotNil(s.l)
+	s.Require().Equal(s.cycleLen, s.l.Len())
+	s.Require().Equal(s.expected, s.getList(s.l))
 
-	t.Run("list clearing", func(t *testing.T) {
-		l := NewList()
+	// Clearing
+	for range s.cycleLen {
+		s.l.Remove(s.l.Back())
+	}
 
-		cycleLen := 10
-		expected := make([]int, 0, cycleLen)
+	s.Require().Equal(0, s.l.Len())
+}
 
-		getList := func(l List) []int {
-			elems := make([]int, 0, cycleLen)
-			for i := l.Front(); i != nil; i = i.Next {
-				elems = append(elems, i.Value.(int))
-			}
-			return elems
-		}
+func (s *BehaviorTestSuite) TestCyclicMoveToFront() {
+	s.Require().NotNil(s.l)
+	s.Require().Equal(s.cycleLen, s.l.Len())
+	s.Require().Equal(s.expected, s.getList(s.l))
 
-		// expected: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
-		for i := range cycleLen {
-			l.PushBack(i * 10)
-			expected = append(expected, i*10)
-		}
+	// Cyclic shift
+	for range s.cycleLen {
+		s.l.MoveToFront(s.l.Back())
+	}
 
-		require.Equal(t, cycleLen, l.Len())
-		require.Equal(t, expected, getList(l))
-
-		// Ciclyc shift
-		for range cycleLen {
-			l.Remove(l.Back())
-		}
-
-		require.Equal(t, 0, l.Len())
-	})
+	s.Require().Equal(s.expected, s.getList(s.l))
 }
 
 func TestList(t *testing.T) {
