@@ -47,28 +47,35 @@ func (l *list) Back() *ListItem {
 	return l.back
 }
 
+// pushFrontLogic is a helper method for PushFront and MoveToFront methods.
+func (l *list) pushFrontLogic(i *ListItem) *ListItem {
+	switch l.len {
+	case 0:
+		l.front = i
+		l.back = i
+		l.front.Next = nil
+	case 1:
+		l.front = i
+		l.front.Next = l.back
+		l.back.Prev = l.front
+	default:
+		l.front.Prev = i
+		i.Next = l.front
+		l.front = i
+	}
+
+	l.front.Prev = nil
+	l.len++
+
+	return i
+}
+
 // PushFront adds the value v at the beginning of the list.
 // The function returns the item that was created for the value v.
 func (l *list) PushFront(v any) *ListItem {
 	newItem := &ListItem{Value: v}
 
-	switch l.len {
-	case 0:
-		l.front = newItem
-		l.back = newItem
-	case 1:
-		l.front = newItem
-		l.front.Next = l.back
-		l.back.Prev = l.front
-	default:
-		l.front.Prev = newItem
-		newItem.Next = l.front
-		l.front = newItem
-	}
-
-	l.len++
-
-	return newItem
+	return l.pushFrontLogic(newItem)
 }
 
 // PushBack adds the value v at the end of the list.
@@ -125,8 +132,8 @@ func (l *list) Remove(i *ListItem) {
 }
 
 // MoveToFront moves item i to the front of the list.
-// For an empty list function has the same behavior as PushFront method.
+// For an empty list function has the similar behavior as PushFront method.
 func (l *list) MoveToFront(i *ListItem) {
 	l.Remove(i)
-	l.PushFront(i.Value)
+	l.pushFrontLogic(i)
 }
