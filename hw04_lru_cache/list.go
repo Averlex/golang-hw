@@ -102,6 +102,7 @@ func (l *list) Remove(i *ListItem) {
 	case 0:
 		return
 	case 1:
+		// TODO: assuming the list item is in the given list - panic otherwise.
 		l.front = nil
 		l.back = nil
 	default:
@@ -124,6 +125,7 @@ func (l *list) Remove(i *ListItem) {
 }
 
 // MoveToFront moves item i to the front of the list.
+// For an empty list function has the same behavior as PushFront method.
 func (l *list) MoveToFront(i *ListItem) {
 	l.Remove(i)
 	l.PushFront(i.Value)
