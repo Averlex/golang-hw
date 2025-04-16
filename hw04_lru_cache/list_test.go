@@ -22,7 +22,7 @@ func verifyMoveToFront(t *testing.T, l List, length int, elem *ListItem) {
 	t.Helper()
 
 	require.Equal(t, length, l.Len())
-	// Comparing values since we can't compare pointers due to method's behavior.
+	// Comparing values since for the cases where method may reallocate memory.
 	require.Equal(t, l.Front().Value, elem.Value)
 	require.Nil(t, l.Front().Prev)
 	require.Nil(t, l.Back().Next)
