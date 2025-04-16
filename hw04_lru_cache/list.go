@@ -114,6 +114,7 @@ func (l *list) Remove(i *ListItem) {
 			l.back.Next = nil
 		// Item is somewhere in the middle of the list.
 		default:
+			// TODO: assuming the list item is in the given list - panic otherwise.
 			i.Prev.Next = i.Next
 			i.Next.Prev = i.Prev
 		}
