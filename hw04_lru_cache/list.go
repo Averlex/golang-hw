@@ -6,15 +6,15 @@ type List interface {
 	Len() int
 	Front() *ListItem
 	Back() *ListItem
-	PushFront(v any) *ListItem
-	PushBack(v any) *ListItem
+	PushFront(v interface{}) *ListItem
+	PushBack(v interface{}) *ListItem
 	Remove(i *ListItem)
 	MoveToFront(i *ListItem)
 }
 
 // ListItem represents a basic item of the doubly-linked list.
 type ListItem struct {
-	Value any
+	Value interface{}
 	Next  *ListItem
 	Prev  *ListItem
 }
@@ -109,7 +109,7 @@ func (l *list) Remove(i *ListItem) {
 	case 0:
 		return
 	case 1:
-		// TODO: assuming the list item is in the given list - panic otherwise.
+		// Assuming the list item is in the given list - panic otherwise.
 		l.front = nil
 		l.back = nil
 	default:
@@ -122,7 +122,7 @@ func (l *list) Remove(i *ListItem) {
 			l.back.Next = nil
 		// Item is somewhere in the middle of the list.
 		default:
-			// TODO: assuming the list item is in the given list - panic otherwise.
+			// Assuming the list item is in the given list - panic otherwise.
 			i.Prev.Next = i.Next
 			i.Next.Prev = i.Prev
 		}
