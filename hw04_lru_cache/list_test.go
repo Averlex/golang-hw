@@ -35,7 +35,6 @@ func emptyList(t *testing.T) {
 		name string
 		test func(*testing.T)
 	}{
-		{"data structure", emptyListStructure},
 		{"push operations", emptyListPushOperations},
 		{"remove", emptyListRemove},
 		{"move to front", emptyListMoveToFront},
@@ -44,13 +43,6 @@ func emptyList(t *testing.T) {
 	for _, tC := range testCases {
 		t.Run(tC.name, tC.test)
 	}
-}
-
-func emptyListStructure(t *testing.T) {
-	t.Helper()
-
-	l := NewList()
-	verifyListStructure(t, l, 0, nil, nil)
 }
 
 func emptyListPushOperations(t *testing.T) {
@@ -305,40 +297,6 @@ func twoElementMoveToFront(t *testing.T) {
 func complexBehavior(t *testing.T) {
 	t.Helper()
 
-	t.Run("behavioral", func(t *testing.T) {
-		l := NewList()
-
-		l.PushFront(10) // [10]
-		l.PushBack(20)  // [10, 20]
-		l.PushBack(30)  // [10, 20, 30]
-		require.Equal(t, 3, l.Len())
-
-		middle := l.Front().Next // 20
-		l.Remove(middle)         // [10, 30]
-		require.Equal(t, 2, l.Len())
-
-		for i, v := range [...]int{40, 50, 60, 70, 80} {
-			if i%2 == 0 {
-				l.PushFront(v)
-			} else {
-				l.PushBack(v)
-			}
-		} // [80, 60, 40, 10, 30, 50, 70]
-
-		require.Equal(t, 7, l.Len())
-		require.Equal(t, 80, l.Front().Value)
-		require.Equal(t, 70, l.Back().Value)
-
-		l.MoveToFront(l.Front()) // [80, 60, 40, 10, 30, 50, 70]
-		l.MoveToFront(l.Back())  // [70, 80, 60, 40, 10, 30, 50]
-
-		elems := make([]int, 0, l.Len())
-		for i := l.Front(); i != nil; i = i.Next {
-			elems = append(elems, i.Value.(int))
-		}
-		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
-	})
-
 	suite.Run(t, new(BehaviorTestSuite))
 }
 
@@ -397,8 +355,50 @@ func (s *BehaviorTestSuite) getList(l List) []int {
 }
 
 func TestList(t *testing.T) {
-	t.Run("empty list", func(t *testing.T) { emptyList(t) })
+	t.Run("empty list", func(t *testing.T) {
+		l := NewList()
+
+		require.Equal(t, 0, l.Len())
+		require.Nil(t, l.Front())
+		require.Nil(t, l.Back())
+	})
+
+	t.Run("complex", func(t *testing.T) {
+		l := NewList()
+
+		l.PushFront(10) // [10]
+		l.PushBack(20)  // [10, 20]
+		l.PushBack(30)  // [10, 20, 30]
+		require.Equal(t, 3, l.Len())
+
+		middle := l.Front().Next // 20
+		l.Remove(middle)         // [10, 30]
+		require.Equal(t, 2, l.Len())
+
+		for i, v := range [...]int{40, 50, 60, 70, 80} {
+			if i%2 == 0 {
+				l.PushFront(v)
+			} else {
+				l.PushBack(v)
+			}
+		} // [80, 60, 40, 10, 30, 50, 70]
+
+		require.Equal(t, 7, l.Len())
+		require.Equal(t, 80, l.Front().Value)
+		require.Equal(t, 70, l.Back().Value)
+
+		l.MoveToFront(l.Front()) // [80, 60, 40, 10, 30, 50, 70]
+		l.MoveToFront(l.Back())  // [70, 80, 60, 40, 10, 30, 50]
+
+		elems := make([]int, 0, l.Len())
+		for i := l.Front(); i != nil; i = i.Next {
+			elems = append(elems, i.Value.(int))
+		}
+		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
+	})
+
+	t.Run("custom empty list", func(t *testing.T) { emptyList(t) })
 	t.Run("list with a single element", func(t *testing.T) { singleElementList(t) })
 	t.Run("list with 2 elements", func(t *testing.T) { twoElementList(t) })
-	t.Run("complex", func(t *testing.T) { complexBehavior(t) })
+	t.Run("complex behavior", func(t *testing.T) { complexBehavior(t) })
 }
