@@ -8,23 +8,12 @@ import (
 	"strings"
 )
 
-// Change to true if needed.
-var taskWithAsteriskIsCompleted = true
-
-type freqCounter struct {
-	Count int
-	Words []*string // To avoid unnecessary reallocations.
-}
-
 var (
 	// Stripping the word of punctuation chars only when it has a single one at the start or end of the string.
 	//nolint:lll
 	strippedWordPattern = regexp.MustCompile(`^[\p{P}]?(?P<pat1>[^\p{P}]+.*[^\p{P}]+|[^\p{P}]|[^\p{P}]+.*)[\p{P}]?$|^(?P<pat2>[\p{P}]{2,}.*[^\p{P}]+)[\p{P}]?$`)
 	singlePunctPattern  = regexp.MustCompile(`^[\p{P}]$`)
 )
-
-// Change to true if needed.
-// var taskWithAsteriskIsCompleted = true
 
 func parseWord(word string) string {
 	if isMatched := singlePunctPattern.Match([]byte(word)); isMatched {
@@ -56,20 +45,20 @@ func Top10(sourceText string) []string {
 	const topCount = 10
 	wordFreqs := make(map[string]int)
 
-	// The worst case scenario -> sourceText = "a a a a ...".
 	textByWords := strings.Fields(sourceText)
+	words := make([]string, 0, len(textByWords))
 
 	// Parsing goes here.
 	for _, word := range textByWords {
-		if taskWithAsteriskIsCompleted {
-			parsedWord := parseWord(word)
-			if parsedWord == "" {
-				continue
-			}
-			wordFreqs[parsedWord]++
-		} else {
-			wordFreqs[word]++
+		parsedWord := parseWord(word)
+		if parsedWord == "" {
+			continue
 		}
+		// Filling words slice with unique words.
+		if _, ok := wordFreqs[parsedWord]; !ok {
+			words = append(words, parsedWord)
+		}
+		wordFreqs[parsedWord]++
 	}
 
 	// No words found in the text.
@@ -77,39 +66,16 @@ func Top10(sourceText string) []string {
 		return nil
 	}
 
-	freqs := make(map[int]*freqCounter, len(wordFreqs))
-
-	// Grouping up words by their frequency.
-	for k, v := range wordFreqs {
-		if _, ok := freqs[v]; !ok {
-			freqs[v] = &freqCounter{v, make([]*string, 0, len(textByWords))}
+	// Sorting the slice both by frequency and lexicographically.
+	slices.SortFunc(words, func(a, b string) int {
+		if wordFreqs[a] == wordFreqs[b] {
+			return strings.Compare(a, b)
 		}
-		clonedString := strings.Clone(k)
-		freqs[v].Words = append(freqs[v].Words, &clonedString)
-	}
+		return wordFreqs[b] - wordFreqs[a]
+	})
 
-	// Flattening frequencies to a simple slice.
-	flattenedFreqs := make([]*freqCounter, 0, len(freqs))
-	for _, v := range freqs {
-		flattenedFreqs = append(flattenedFreqs, v)
-	}
-
-	// Sorting groups of words by each group's frequency.
-	slices.SortFunc(flattenedFreqs, func(a, b *freqCounter) int { return b.Count - a.Count })
-
-	count := 0
-	res := make([]string, 0, topCount)
-	for _, v := range flattenedFreqs {
-		// Sorting lexicographically within the given frequency group.
-		slices.SortFunc(v.Words, func(a, b *string) int { return strings.Compare(*a, *b) })
-		for _, word := range v.Words {
-			if count == topCount {
-				break
-			}
-			res = append(res, *word)
-			count++
-		}
-	}
+	res := make([]string, min(topCount, len(words)))
+	_ = copy(res, words)
 
 	return res
 }
