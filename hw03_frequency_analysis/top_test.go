@@ -1,13 +1,14 @@
-package hw03frequencyanalysis_test
+package hw03frequencyanalysis
 
 import (
 	"strings"
 	"testing"
 
-	//nolint:depguard
-	testModule "github.com/Averlex/golang-hw/hw03_frequency_analysis"
 	"github.com/stretchr/testify/require"
 )
+
+// Change to true if needed.
+var taskWithAsteriskIsCompleted = true
 
 var text = `Как видите, он  спускается  по  лестнице  вслед  за  своим
 	другом   Кристофером   Робином,   головой   вниз,  пересчитывая
@@ -45,14 +46,13 @@ var text = `Как видите, он  спускается  по  лестни�
 
 func noWordsTests(t *testing.T) {
 	t.Helper()
-	t.Run("Empty string", func(t *testing.T) { require.Len(t, testModule.Top10(""), 0) })
-	t.Run("String with only spaces", func(t *testing.T) { require.Len(t, testModule.Top10("             "), 0) })
+	t.Run("String with only spaces", func(t *testing.T) { require.Len(t, Top10("             "), 0) })
 	t.Run("String with only spaces, tabs and newlines", func(t *testing.T) {
-		require.Len(t, testModule.Top10("    \t      \n    "), 0)
+		require.Len(t, Top10("    \t      \n    "), 0)
 	})
 	t.Run("String with only spaces and punctuation", func(t *testing.T) {
 		source := "      ,        .         ⸻      "
-		require.Len(t, testModule.Top10(source), 0)
+		require.Len(t, Top10(source), 0)
 	})
 }
 
@@ -71,7 +71,7 @@ func singleWordTests(t *testing.T) {
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			got := testModule.Top10(tC.source)
+			got := Top10(tC.source)
 			require.Equal(t, tC.expected, got)
 		})
 	}
@@ -96,7 +96,7 @@ func orderTests(t *testing.T) {
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			got := testModule.Top10(tC.source)
+			got := Top10(tC.source)
 			require.Equal(t, tC.expected, got)
 		})
 	}
@@ -125,7 +125,7 @@ func limitTests(t *testing.T) {
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			got := testModule.Top10(tC.source)
+			got := Top10(tC.source)
 			require.Equal(t, tC.expected, got)
 		})
 	}
@@ -150,7 +150,7 @@ func punctuationTests(t *testing.T) {
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			got := testModule.Top10(tC.source)
+			got := Top10(tC.source)
 			require.Equal(t, tC.expected, got)
 		})
 	}
@@ -164,20 +164,55 @@ func additionalTests(t *testing.T) {
 		source   string
 		expected []string
 	}{
-		{"Positive test", text, []string{"а", "он", "и", "ты", "что", "в", "его", "если", "кристофер", "не"}},
 		{"Digits and special characters", "1 1 2 @ @ @ 3", []string{"1", "2", "3"}},
 		{"Unicode chars", "世界 オラ オラ オラ オラ オラ オラ オラ オラ オラ オラ ³ ७ ७ Ⅸ", []string{"オラ", "७", "³", "ⅸ", "世界"}},
 	}
 
 	for _, tC := range testCases {
 		t.Run(tC.name, func(t *testing.T) {
-			got := testModule.Top10(tC.source)
+			got := Top10(tC.source)
 			require.Equal(t, tC.expected, got)
 		})
 	}
 }
 
 func TestTop10(t *testing.T) {
+	t.Run("no words in empty string", func(t *testing.T) {
+		require.Len(t, Top10(""), 0)
+	})
+
+	t.Run("positive test", func(t *testing.T) {
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"а",         // 8
+				"он",        // 8
+				"и",         // 6
+				"ты",        // 5
+				"что",       // 5
+				"в",         // 4
+				"его",       // 4
+				"если",      // 4
+				"кристофер", // 4
+				"не",        // 4
+			}
+			require.Equal(t, expected, Top10(text))
+		} else {
+			expected := []string{
+				"он",        // 8
+				"а",         // 6
+				"и",         // 6
+				"ты",        // 5
+				"что",       // 5
+				"-",         // 4
+				"Кристофер", // 4
+				"если",      // 4
+				"не",        // 4
+				"то",        // 4
+			}
+			require.Equal(t, expected, Top10(text))
+		}
+	})
+
 	t.Run("No words", func(t *testing.T) { noWordsTests(t) })
 	t.Run("Single word", func(t *testing.T) { singleWordTests(t) })
 	t.Run("Output order", func(t *testing.T) { orderTests(t) })
