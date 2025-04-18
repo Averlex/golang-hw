@@ -71,9 +71,8 @@ func TestCache(t *testing.T) {
 	t.Run("stress", cacheStressSuite)
 }
 
+//nolint:revive
 func TestCacheMultithreading(t *testing.T) {
-	t.Skip() // Remove me if task with asterisk completed.
-
 	c := NewCache(10)
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
@@ -384,6 +383,52 @@ func (s *CacheStressSuite) TestHeavyItems() {
 	// Old items should be evicted.
 	oldKey := Key("0")
 	s.isNotInCache(oldKey)
+}
+
+func (s *CacheStressSuite) TestComplexMultithreading() {
+	wg := &sync.WaitGroup{}
+	wg.Add(3)
+	defer wg.Wait()
+
+	getsDone, setsDone, clearsDone := make(chan int), make(chan int), make(chan int)
+
+	go func(res chan<- int) {
+		defer wg.Done()
+		defer close(res)
+		setsDone := 0
+		for i := range 100_000 {
+			key := Key(strconv.Itoa(i))
+			s.cache.Set(key, i)
+			setsDone++
+		}
+		res <- setsDone
+	}(getsDone)
+
+	go func(res chan<- int) {
+		defer wg.Done()
+		defer close(res)
+		getsDone := 0
+		for i := range 100_000 {
+			key := Key(strconv.Itoa(i))
+			s.cache.Get(key)
+			getsDone++
+		}
+		res <- getsDone
+	}(setsDone)
+
+	go func(res chan<- int) {
+		defer wg.Done()
+		defer close(res)
+		clearsDone := 0
+		for range 100_000 {
+			s.cache.Clear()
+			clearsDone++
+		}
+		res <- clearsDone
+	}(clearsDone)
+
+	total := <-getsDone + <-setsDone + <-clearsDone
+	s.Require().Equal(300_000, total)
 }
 
 func cacheStressSuite(t *testing.T) {
