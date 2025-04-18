@@ -14,7 +14,6 @@ type lruCache struct {
 	capacity int
 	queue    List
 	items    map[Key]*ListItem
-	keys     List
 }
 
 type cacheListItem struct {
