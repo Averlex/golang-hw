@@ -66,6 +66,9 @@ func TestCache(t *testing.T) {
 
 	t.Run("incorrect capacity", incorrectCapacity)
 	t.Run("single element cache", cacheSingleItemSuite)
+	t.Run("multi element cache", cacheMultiItemSuite)
+	t.Run("eviction", cacheEvictionSuite)
+	t.Run("stress", cacheStressSuite)
 }
 
 func TestCacheMultithreading(t *testing.T) {
@@ -172,12 +175,6 @@ func (s *SingleItemCacheSuite) TestGetFromFilled() {
 	s.isInCache("key1", 100)
 }
 
-func (s *SingleItemCacheSuite) TestGetEvicted() {
-	s.cache.Set("key1", 100)
-	s.cache.Set("key2", 200)
-	s.isNotInCache("key1")
-}
-
 func (s *SingleItemCacheSuite) TestGetNonExistent() {
 	s.cache.Set("key1", 100)
 	s.isNotInCache("key2")
@@ -197,4 +194,199 @@ func (s *SingleItemCacheSuite) TestClearFilled() {
 func cacheSingleItemSuite(t *testing.T) {
 	t.Helper()
 	suite.Run(t, new(SingleItemCacheSuite))
+}
+
+type MultiItemCacheSuite struct {
+	CacheTestHelper
+}
+
+func (s *MultiItemCacheSuite) SetupTest() {
+	s.cache = NewCache(3)
+}
+
+func (s *MultiItemCacheSuite) TestSetToEmpty() {
+	s.setNew("key1", 100)
+	s.isInCache("key1", 100)
+}
+
+func (s *MultiItemCacheSuite) TestSetToPartiallyFilled() {
+	s.cache.Set("key1", 100)
+	s.setNew("key2", 200)
+	s.isInCache("key1", 100)
+	s.isInCache("key2", 200)
+}
+
+func (s *MultiItemCacheSuite) TestSetWithUpdate() {
+	s.cache.Set("key1", 100)
+	s.cache.Set("key2", 200)
+
+	s.setExisting("key1", 101)
+	s.setExisting("key2", 201)
+
+	s.isInCache("key1", 101)
+	s.isInCache("key2", 201)
+}
+
+func (s *MultiItemCacheSuite) TestGetFromEmpty() {
+	s.isNotInCache("key1")
+}
+
+func (s *MultiItemCacheSuite) TestGetFromPartiallyFilled() {
+	s.cache.Set("key1", 100)
+	s.isInCache("key1", 100)
+	s.isNotInCache("key2")
+}
+
+func (s *MultiItemCacheSuite) TestGetFromFull() {
+	s.cache.Set("key1", 100)
+	s.cache.Set("key2", 200)
+	s.cache.Set("key3", 300)
+
+	s.isInCache("key1", 100)
+	s.isInCache("key2", 200)
+	s.isInCache("key3", 300)
+}
+
+func (s *MultiItemCacheSuite) TestGetNonExistent() {
+	s.cache.Set("key1", 100)
+	s.cache.Set("key2", 200)
+	s.cache.Set("key3", 300)
+	s.isNotInCache("key4")
+}
+
+func (s *MultiItemCacheSuite) TestClearEmptyCache() {
+	s.cache.Clear()
+	s.isNotInCache("key1")
+}
+
+func (s *MultiItemCacheSuite) TestClearPartiallyFilled() {
+	s.cache.Set("key1", 100)
+	s.cache.Set("key2", 200)
+
+	s.cache.Clear()
+
+	s.isNotInCache("key1")
+	s.isNotInCache("key2")
+}
+
+func (s *MultiItemCacheSuite) TestClearFull() {
+	s.cache.Set("key1", 100)
+	s.cache.Set("key2", 200)
+	s.cache.Set("key3", 300)
+
+	s.cache.Clear()
+
+	s.isNotInCache("key1")
+	s.isNotInCache("key2")
+	s.isNotInCache("key3")
+}
+
+func cacheMultiItemSuite(t *testing.T) {
+	t.Helper()
+	suite.Run(t, new(MultiItemCacheSuite))
+}
+
+type CacheEvictionSuite struct {
+	CacheTestHelper
+}
+
+func (s *CacheEvictionSuite) SetupTest() {
+	s.cache = NewCache(3)
+}
+
+func cacheEvictionSuite(t *testing.T) {
+	t.Helper()
+	suite.Run(t, new(CacheEvictionSuite))
+}
+
+func (s *CacheEvictionSuite) TestQueueSizeEviction() {
+	s.cache.Set("key1", 100)
+	s.cache.Set("key2", 200)
+	s.cache.Set("key3", 300)
+
+	s.setNew("key4", 400)
+
+	s.isNotInCache("key1")
+	s.isInCache("key2", 200)
+	s.isInCache("key3", 300)
+	s.isInCache("key4", 400)
+}
+
+func (s *CacheEvictionSuite) TestUnusedEviction() {
+	s.cache.Set("key1", 100) // [100 nil nil]
+	s.cache.Set("key2", 200) // [200 100 nil]
+	s.cache.Set("key3", 300) // [300 200 100]
+
+	s.cache.Get("key1") // [100 300 200]
+	s.cache.Get("key3") // [300 100 200]
+
+	s.cache.Set("key1", 101) // [101 300 200]
+	s.cache.Set("key2", 201) // [201 101 300]
+
+	s.cache.Set("key4", 400) // [400 201 101] -> key3 is evicted
+
+	s.isNotInCache("key3")
+	s.isInCache("key1", 101)
+	s.isInCache("key2", 201)
+	s.isInCache("key4", 400)
+}
+
+func (s *CacheEvictionSuite) TestSingleItemCacheEviction() {
+	c := NewCache(1)
+	c.Set("key1", 100)
+	c.Set("key2", 200)
+
+	v, ok := c.Get("key1")
+	s.False(ok)
+	s.Nil(v)
+
+	v, ok = c.Get("key2")
+	s.True(ok)
+	s.Equal(200, v)
+}
+
+type CacheStressSuite struct {
+	CacheTestHelper
+}
+
+func (s *CacheStressSuite) SetupTest() {
+	s.cache = NewCache(1000)
+}
+
+func (s *CacheStressSuite) TestHighFrequencySets() {
+	iterations := 1_000_000
+
+	for i := 0; i < iterations; i++ {
+		key := Key(strconv.Itoa(i))
+		s.setNew(key, i)
+
+		// To reduce test execution time.
+		if i%1000 == 0 {
+			s.isInCache(key, i)
+		}
+	}
+}
+
+func (s *CacheStressSuite) TestHeavyItems() {
+	const items = 100_000
+	bigValue := make([]byte, 1024) // 1KB
+
+	for i := 0; i < items; i++ {
+		key := Key(strconv.Itoa(i))
+		s.cache.Set(key, bigValue)
+
+		// To reduce test execution time.
+		if i%10_000 == 0 {
+			s.isInCache(key, bigValue)
+		}
+	}
+
+	// Old items should be evicted.
+	oldKey := Key("0")
+	s.isNotInCache(oldKey)
+}
+
+func cacheStressSuite(t *testing.T) {
+	t.Helper()
+	suite.Run(t, new(CacheStressSuite))
 }
