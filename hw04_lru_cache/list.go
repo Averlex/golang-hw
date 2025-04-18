@@ -1,4 +1,4 @@
-// Package hw04lrucache provides a doubly-linked list implementation.
+// Package hw04lrucache provides a doubly-linked list and LRU cache implementations.
 package hw04lrucache
 
 // List represents some basic operations over a doubly-linked list.

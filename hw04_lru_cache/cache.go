@@ -1,7 +1,9 @@
 package hw04lrucache
 
+//nolint:revive
 type Key string
 
+//nolint:revive
 type Cache interface {
 	Set(key Key, value interface{}) bool
 	Get(key Key) (interface{}, bool)
@@ -9,8 +11,6 @@ type Cache interface {
 }
 
 type lruCache struct {
-	Cache // Remove me after realization.
-
 	capacity int
 	queue    List
 	items    map[Key]*ListItem
@@ -21,6 +21,8 @@ type cacheListItem struct {
 	value interface{}
 }
 
+// NewCache returns a new Cache with the given capacity. If the capacity is less than 1, it returns nil.
+// The cache is implemented as a doubly-linked list with a map from keys to list items.
 func NewCache(capacity int) Cache {
 	if capacity < 1 {
 		return nil
@@ -33,6 +35,9 @@ func NewCache(capacity int) Cache {
 	}
 }
 
+// Set adds a key-value pair to the cache. If the key already exists, it updates the value
+// and moves the item to the front of the queue. If the cache exceeds its capacity, it removes
+// the least recently used item. Returns true if the key was already present in the cache, false otherwise.
 func (c *lruCache) Set(key Key, value interface{}) bool {
 	listItem := &cacheListItem{key, value}
 
@@ -46,6 +51,7 @@ func (c *lruCache) Set(key Key, value interface{}) bool {
 	newElem := c.queue.PushFront(listItem)
 	c.items[key] = newElem
 
+	// Removing the oldest cache item to sustain the capacity.
 	if c.queue.Len() > c.capacity {
 		delete(c.items, c.queue.Back().Value.(*cacheListItem).key)
 		c.queue.Remove(c.queue.Back())
@@ -54,6 +60,8 @@ func (c *lruCache) Set(key Key, value interface{}) bool {
 	return false
 }
 
+// Get returns a value for a key if it exists in the cache, also moves the accessed item
+// to the front of the queue. Otherwise, returns nil and false.
 func (c *lruCache) Get(key Key) (interface{}, bool) {
 	if v, ok := c.items[key]; ok {
 		c.queue.MoveToFront(v)
@@ -61,4 +69,10 @@ func (c *lruCache) Get(key Key) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+// Clear removes all stored items from the cache.
+func (c *lruCache) Clear() {
+	c.queue = NewList()
+	c.items = make(map[Key]*ListItem, c.capacity)
 }
