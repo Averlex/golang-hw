@@ -49,7 +49,6 @@ func (c *lruCache) Set(key Key, value interface{}) bool {
 	if c.queue.Len() > c.capacity {
 		if li, ok := c.queue.Back().Value.(*cacheListItem); ok {
 			delete(c.items, li.key)
-			c.queue.Remove(c.queue.Back())
 		}
 		// TODO: в этом случае из кэша мы не удаляем ничего?
 		c.queue.Remove(c.queue.Back())
