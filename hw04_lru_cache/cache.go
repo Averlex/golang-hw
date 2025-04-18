@@ -1,5 +1,7 @@
 package hw04lrucache
 
+import "sync"
+
 //nolint:revive
 type Key string
 
@@ -11,6 +13,7 @@ type Cache interface {
 }
 
 type lruCache struct {
+	mu       sync.Mutex
 	capacity int
 	queue    List
 	items    map[Key]*ListItem
@@ -41,6 +44,9 @@ func NewCache(capacity int) Cache {
 func (c *lruCache) Set(key Key, value interface{}) bool {
 	listItem := &cacheListItem{key, value}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// The element is present in the cache -> updating it's value, moving it to the front.
 	if v, ok := c.items[key]; ok {
 		v.Value = listItem
@@ -63,6 +69,9 @@ func (c *lruCache) Set(key Key, value interface{}) bool {
 // Get returns a value for a key if it exists in the cache, also moves the accessed item
 // to the front of the queue. Otherwise, returns nil and false.
 func (c *lruCache) Get(key Key) (interface{}, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if v, ok := c.items[key]; ok {
 		c.queue.MoveToFront(v)
 		return v.Value.(*cacheListItem).value, true
@@ -73,6 +82,9 @@ func (c *lruCache) Get(key Key) (interface{}, bool) {
 
 // Clear removes all stored items from the cache.
 func (c *lruCache) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.queue = NewList()
 	c.items = make(map[Key]*ListItem, c.capacity)
 }
