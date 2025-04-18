@@ -2,10 +2,10 @@ package hw04lrucache
 
 import "sync"
 
-//nolint:revive
+// Key is a wrapper type for string keys.
 type Key string
 
-//nolint:revive
+// Cache is an interface for an LRU cache.
 type Cache interface {
 	Set(key Key, value interface{}) bool
 	Get(key Key) (interface{}, bool)
