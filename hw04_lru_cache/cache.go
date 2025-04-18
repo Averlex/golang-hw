@@ -47,12 +47,18 @@ func (c *lruCache) Set(key Key, value interface{}) bool {
 	c.items[key] = newElem
 
 	if c.queue.Len() > c.capacity {
-		if li, ok := c.queue.Back().Value.(*cacheListItem); ok {
-			delete(c.items, li.key)
-		}
-		// TODO: в этом случае из кэша мы не удаляем ничего?
+		delete(c.items, c.queue.Back().Value.(*cacheListItem).key)
 		c.queue.Remove(c.queue.Back())
 	}
 
 	return false
+}
+
+func (c *lruCache) Get(key Key) (interface{}, bool) {
+	if v, ok := c.items[key]; ok {
+		c.queue.MoveToFront(v)
+		return v.Value.(*cacheListItem).value, true
+	}
+
+	return nil, false
 }
