@@ -34,6 +34,7 @@ import (
 // n > len(tasks)
 // len(tasks) >> n
 // concurrency test without time.Sleep
+// panicing tasks
 
 func TestRun(t *testing.T) {
 	defer goleak.VerifyNone(t)
