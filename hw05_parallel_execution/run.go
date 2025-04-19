@@ -13,8 +13,11 @@ var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
 // Task is a function that is executed in a separate worker.
 type Task func() error
 
-// Реализовать воркер с 3 каналами: внешний стоп, канал задач, канал done
+// +++ Реализовать воркер с 3 каналами: внешний стоп, канал задач, канал done
+// +++ Реализовать передачу задач в канал
+// +++ Убедиться, что генератор безопасен
 // Реализовать мультиплексор каналов And-channel с лимитом m - в отдельной горутине
+// m <= 0 - не использовать лимит ошибок
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
@@ -22,33 +25,48 @@ func Run(tasks []Task, n, m int) error {
 		return nil
 	}
 
-	// stop := make(chan struct{})
-	// errors := make([]chan error, n)
-	// taskPool := make(chan Task)
+	wg := &sync.WaitGroup{}
 
-	// runWorkers := func() {
-	// 	for i := 0; i < n; i++ {
-	// 		// Initializing worker response channel.
-	// 		errors[i] := make(chan error)
-	// 		go func(res chan error) {
+	stop := make(chan struct{})
+	errors := make([]chan error, n)
 
-	// 		}(errors[i])
-	// 	}
-	// }
+	taskPool := taskGenerator(tasks, stop)
+
+	runWorkers := func() {
+		// Running n workers regardless of the len(tasks).
+		for i := 0; i < n; i++ {
+			errors[i] = make(chan error) // Initializing worker response channel.
+			wg.Add(1)
+			go worker(wg, stop, taskPool, errors[i])
+		}
+	}
 
 	return nil
+}
+
+// taskGenerator creates a goroutine that sends each task in the tasks slice
+// to the returned channel. If the stop channel is closed or the stop signal received,
+// the goroutine will stop sending tasks and close the channel.
+func taskGenerator(tasks []Task, stop <-chan struct{}) <-chan Task {
+	taskPool := make(chan Task)
+
+	go func() {
+		defer close(taskPool)
+		for _, task := range tasks {
+			select {
+			case <-stop:
+				return
+			case taskPool <- task:
+			}
+		}
+	}()
+
+	return taskPool
 }
 
 func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, taskRes chan<- error) {
 	defer close(taskRes)
 	defer wg.Done()
-
-	defer func() {
-		if r := recover(); r != nil {
-			taskRes <- fmt.Errorf("one of the tasks panicked: %v", r)
-		}
-		close(taskRes)
-	}()
 
 	for {
 		// Prioritizing stop signals.
