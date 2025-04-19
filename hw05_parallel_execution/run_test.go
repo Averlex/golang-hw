@@ -9,8 +9,31 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	//nolint:depguard
 	"go.uber.org/goleak"
 )
+
+// Test cases:
+// m <= 0
+// 1. 0 tasks, 0 workers
+// 2. 0 tasks, 1 worker
+// 3. 1 task, 0 workers
+// 4. 1 task, 1 worker
+// 5. 1 task, many workers
+// 6. many tasks, 1 worker
+// 7. many tasks, many workers
+// Cases above for 0, 1 and many errors
+// normal workflow
+// limit of errors exceeded
+// limit of errors is reached, but not exceeded
+// m > n
+// m == n
+// m < n
+// n < len(tasks)
+// n == len(tasks)
+// n > len(tasks)
+// len(tasks) >> n
+// concurrency test without time.Sleep
 
 func TestRun(t *testing.T) {
 	defer goleak.VerifyNone(t)
