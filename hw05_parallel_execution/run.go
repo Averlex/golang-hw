@@ -97,3 +97,37 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 		}
 	}
 }
+
+func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
+	if len(channels) == 0 {
+		return nil
+	}
+
+	res := make(chan error)
+	closedChannels := make(map[int]struct{}, len(channels))
+	wg.Add(1)
+
+	// Starting separate goroutine to listen to all channels and multiplexing them to a single one.
+	go func() {
+		defer wg.Done()
+		defer close(res)
+
+		for len(closedChannels) == len(channels) {
+			// Listening to each channel once without blocking.
+			for i, ch := range channels {
+				select {
+				case v, ok := <-ch:
+					if !ok {
+						closedChannels[i] = struct{}{}
+						continue
+					}
+					res <- v
+				default:
+					continue
+				}
+			}
+		}
+	}()
+
+	return nil
+}
