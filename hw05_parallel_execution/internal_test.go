@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestTaskGenerator(t *testing.T) {
-	generatorTests(t)
+func TestInternal(t *testing.T) {
+	t.Run("taskGenerator", generatorTests)
 }
 
 type generatorSuite struct {
