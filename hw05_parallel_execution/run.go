@@ -65,8 +65,14 @@ func taskGenerator(tasks []Task, stop <-chan struct{}) <-chan Task {
 }
 
 func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, taskRes chan<- error) {
-	defer close(taskRes)
+	if taskRes != nil {
+		defer close(taskRes)
+	}
 	defer wg.Done()
+
+	if stop == nil || taskPool == nil {
+		return
+	}
 
 	for {
 		// Prioritizing stop signals.
