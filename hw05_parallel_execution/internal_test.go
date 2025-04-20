@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -89,11 +88,8 @@ func (s *generatorSuite) TestBuildingPool() {
 func (s *generatorSuite) TestStopBeforeExctracting() {
 	s.stop <- struct{}{}
 
-	select {
-	case _, ok := <-s.taskPool:
-		s.Require().False(ok, "[%s] taskPool should be closed before sending tasks", s.suiteName)
-	default:
-	}
+	_, ok := <-s.taskPool
+	s.Require().False(ok, "[%s] taskPool should be closed before sending tasks", s.suiteName)
 }
 
 func (s *generatorSuite) TestStopDuringExctracting() {
@@ -245,16 +241,19 @@ func (s *workerSuite) TestWorker() {
 
 func (s *workerSuite) TestStopBeforeExecuting() {
 	s.stop <- struct{}{}
+	counter := 0
 
 	s.wg.Add(1)
 	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
 
-	s.Require().Eventually(func() bool {
-		var ok bool
-		select {
-		case _, ok = <-s.taskRes:
-		default:
+	for ; counter < s.n; counter++ {
+		_, ok := <-s.taskRes
+		if !ok {
+			break
 		}
-		return !ok
-	}, 1*time.Second, 10*time.Millisecond, "[%s] taskRes should be closed before processing tasks", s.suiteName)
+	}
+
+	s.Require().Equal(counter, 0, "[%s] tasks done before stop - %v, expected - %v", s.suiteName, counter, 0)
+	_, ok := <-s.taskRes
+	s.Require().False(ok, "[%s] taskRes should be closed before sending tasks", s.suiteName)
 }
