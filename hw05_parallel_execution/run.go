@@ -122,7 +122,7 @@ func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
 		defer wg.Done()
 		defer close(res)
 
-		for len(closedChannels) == len(channels) {
+		for len(closedChannels) < len(channels) {
 			// Listening to each channel once without blocking.
 			for i, ch := range channels {
 				select {
