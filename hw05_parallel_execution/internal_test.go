@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+func taskText(val int) string {
+	if val == 1 {
+		return fmt.Sprintf("%d task", val)
+	}
+	return fmt.Sprintf("%d tasks", val)
+}
+
 func TestInternal(t *testing.T) {
 	t.Run("taskGenerator", generatorTests)
 	t.Run("worker", workerTests)
@@ -33,21 +40,12 @@ func newGeneratorSuite(suiteName string, n int) *generatorSuite {
 func generatorTests(t *testing.T) {
 	t.Helper()
 
-	testCases := []struct {
-		name string
-		n    int
-	}{
-		{name: "1 task", n: 1},
-		{name: "2 tasks", n: 2},
-		{name: "5 tasks", n: 5},
-		{name: "10 tasks", n: 10},
-		{name: "1000 tasks", n: 1000},
-	}
+	testCases := []int{1, 2, 5, 10, 1000}
 
 	for _, tC := range testCases {
 		tc := tC
-		t.Run(tc.name, func(t *testing.T) {
-			suite.Run(t, newGeneratorSuite(tc.name, tc.n))
+		t.Run(taskText(tc), func(t *testing.T) {
+			suite.Run(t, newGeneratorSuite(taskText(tc), tc))
 		})
 	}
 }
@@ -168,24 +166,21 @@ func newWorkerSuite(suiteName string, n int, isError, isPanic bool) *workerSuite
 func workerTests(t *testing.T) {
 	t.Helper()
 
-	testCases := []struct {
-		name string
-		n    int
-	}{
-		{name: "1 task", n: 1},
-		{name: "2 tasks", n: 2},
-		{name: "5 tasks", n: 5},
-		{name: "10 tasks", n: 10},
-		{name: "1000 tasks", n: 1000},
-	}
+	testCases := []int{1, 2, 5, 10, 1000}
 
 	for _, tC := range testCases {
 		tc := tC
 
-		t.Run(tc.name, func(t *testing.T) {
-			t.Run("normal", func(t *testing.T) { suite.Run(t, newWorkerSuite(tc.name+"/normal", tc.n, false, false)) })
-			t.Run("with error", func(t *testing.T) { suite.Run(t, newWorkerSuite(tc.name+"/with error", tc.n, true, false)) })
-			t.Run("with panic", func(t *testing.T) { suite.Run(t, newWorkerSuite(tc.name+"/with panic", tc.n, false, true)) })
+		t.Run(taskText(tc), func(t *testing.T) {
+			t.Run("normal", func(t *testing.T) {
+				suite.Run(t, newWorkerSuite(taskText(tc)+"/normal", tc, false, false))
+			})
+			t.Run("with error", func(t *testing.T) {
+				suite.Run(t, newWorkerSuite(taskText(tc)+"/with error", tc, true, false))
+			})
+			t.Run("with panic", func(t *testing.T) {
+				suite.Run(t, newWorkerSuite(taskText(tc)+"/with panic", tc, false, true))
+			})
 		})
 	}
 }
@@ -224,9 +219,12 @@ func (s *workerSuite) TestWorker() {
 	for i := 0; i < s.n; i++ {
 		v, ok := <-s.taskRes
 		s.Require().True(ok, "[%s] taskRes closed prematurely (got %d/%d tasks)", s.suiteName, i+1, s.n)
-		msg := fmt.Sprintf("[%s] taskRes received incorrect value on task %d/%d (got %v, isPanic=%v, isError=%v)",
+		s.Require().Equal(erroneousCond, v != nil,
+			`[%s] taskRes received incorrect value on task %d/%d:
+			- got %v
+			- isPanic=%v
+			- isError=%v`,
 			s.suiteName, i+1, s.n, v, s.isPanic, s.isError)
-		s.Require().Equal(erroneousCond, v != nil, msg)
 	}
 
 	select {
