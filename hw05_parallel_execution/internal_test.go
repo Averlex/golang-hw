@@ -350,3 +350,37 @@ ForLoop:
 		s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
 	}
 }
+
+func (s *workerSuite) TestStopAfterExecuting() {
+	counter := 0
+
+	s.wg.Add(1)
+	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+
+ForLoop:
+	for ; counter < s.n; counter++ {
+		select {
+		case _, ok := <-s.taskRes:
+			if !ok {
+				break ForLoop
+			}
+		case <-time.After(testTimeout):
+			s.Require().Fail("test timeout exceeded")
+			return
+		}
+	}
+
+	close(s.stop)
+
+	s.Require().Equal(counter, s.n)
+
+	select {
+	case _, ok := <-s.taskRes:
+		if ok {
+			s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+		}
+		s.Require().False(ok, "taskRes should be closed after %d tasks", s.suiteName, s.n)
+	case <-time.After(testTimeout):
+		s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+	}
+}
