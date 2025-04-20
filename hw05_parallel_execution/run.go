@@ -29,18 +29,8 @@ func Run(tasks []Task, n, m int) error {
 	wg := &sync.WaitGroup{}
 
 	stop := make(chan struct{})
-	errors := make([]chan error, n)
 
 	taskPool := taskGenerator(tasks, stop)
-
-	runWorkers := func() {
-		// Running n workers regardless of the len(tasks).
-		for i := 0; i < n; i++ {
-			errors[i] = make(chan error) // Initializing worker response channel.
-			wg.Add(1)
-			go worker(wg, stop, taskPool, errors[i])
-		}
-	}
 
 	return nil
 }
@@ -135,4 +125,21 @@ func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
 	}()
 
 	return res
+}
+
+// runWorkers starts n goroutines that consume tasks from taskPool and send the results to the returned channel.
+// It stops working when the stop signal is received or when there are no more tasks.
+//
+// runWorkers starts exactly n+1 goroutines: n workers and 1 multiplexer.
+func runWorkers(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, n int) <-chan error {
+	res := make([]<-chan error, n)
+
+	for i := 0; i < n; i++ {
+		workerRes := make(chan error) // Initializing worker response channel.
+		wg.Add(1)
+		go worker(wg, stop, taskPool, workerRes)
+		res[i] = workerRes // Casting workerRes to <-workerRes.
+	}
+
+	return muxChannels(wg, res...)
 }
