@@ -16,7 +16,8 @@ type Task func() error
 // +++ Реализовать воркер с 3 каналами: внешний стоп, канал задач, канал done
 // +++ Реализовать передачу задач в канал
 // +++ Убедиться, что генератор безопасен
-// Реализовать мультиплексор каналов And-channel с лимитом m - в отдельной горутине
+// +++ Реализовать мультиплексор каналов
+// Обработать лимит m
 // m <= 0 - не использовать лимит ошибок
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
@@ -64,6 +65,9 @@ func taskGenerator(tasks []Task, stop <-chan struct{}) <-chan Task {
 	return taskPool
 }
 
+// worker starts a goroutine that consumes tasks from taskPool and sends the results to taskRes.
+// It stops working when the stop signal is received or when there are no more tasks.
+// It handles panics in tasks and sends the error to the taskRes channel.
 func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, taskRes chan<- error) {
 	if taskRes != nil {
 		defer close(taskRes)
@@ -98,6 +102,12 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 	}
 }
 
+// muxChannels takes a WaitGroup and a variadic slice of read-only error channels,
+// and returns a single channel that multiplexes all input channels into one.
+// It listens to all provided channels in separate goroutine, forwarding any received
+// errors to the output channel until all input channels are closed.
+// The function ensures that the WaitGroup counter is decremented once all channels
+// have been processed.
 func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
 	if len(channels) == 0 {
 		return nil
@@ -129,5 +139,5 @@ func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
 		}
 	}()
 
-	return nil
+	return res
 }
