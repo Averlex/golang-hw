@@ -7,33 +7,43 @@ import (
 	"sync"
 )
 
-// ErrErrorsLimitExceeded is an error indicating that the limit of errors is exceeded.
-var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
+var (
+	// ErrErrorsLimitExceeded is an error indicating that the limit of errors is exceeded.
+	ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
+	// ErrNoWorkers is an error indicating that no workers were set.
+	ErrNoWorkers = errors.New("no workers set")
+)
 
 // Task is a function that is executed in a separate worker.
 type Task func() error
 
-// +++ Реализовать воркер с 3 каналами: внешний стоп, канал задач, канал done
-// +++ Реализовать передачу задач в канал
-// +++ Убедиться, что генератор безопасен
-// +++ Реализовать мультиплексор каналов
-// Обработать лимит m
-// m <= 0 - не использовать лимит ошибок
-
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
-	if len(tasks) == 0 || n <= 0 {
+	if len(tasks) == 0 {
 		return nil
+	}
+
+	if n <= 0 {
+		return ErrNoWorkers
 	}
 
 	wg := &sync.WaitGroup{}
 	stop := make(chan struct{})
+	defer close(stop)
 
 	taskPool := taskGenerator(tasks, stop)
 	taskResults := runWorkers(wg, stop, taskPool, n)
 	muxedResults := muxChannels(wg, taskResults...)
+	res := processTaskResults(muxedResults, m)
 
-	return nil
+	if res != nil {
+		select {
+		case stop <- struct{}{}: // Sending a singnal if at least 1 of listeners up.
+		default: // All workers are already done.
+		}
+	}
+
+	return res
 }
 
 // taskGenerator creates a goroutine that sends each task in the tasks slice
@@ -141,4 +151,33 @@ func runWorkers(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, 
 	}
 
 	return res
+}
+
+// processTaskResults processes the results from the provided error channel res.
+// It listens to the channel until it is closed, counting the number of errors received.
+//
+// If m is greater than 0, it treats m as the maximum allowable error count.
+//
+// If the count of errors reaches or exceeds m, it returns ErrErrorsLimitExceeded.
+//
+// If m is 0 or negative, it ignores the error count and processes all results until the channel is closed.
+func processTaskResults(res <-chan error, m int) error {
+	ignoreErrors := m <= 0
+
+	counter := 0
+
+	for v := range res {
+		// Task completed without errors.
+		if v == nil {
+			continue
+		}
+
+		counter++
+		// Limit of errors exceeded.
+		if !ignoreErrors && counter >= m {
+			return ErrErrorsLimitExceeded
+		}
+	}
+
+	return nil
 }
