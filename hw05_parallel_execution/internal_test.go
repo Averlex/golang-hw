@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 )
+
+const testTimeout = 500 * time.Millisecond
 
 func taskText(val int) string {
 	if val == 1 {
@@ -64,7 +67,14 @@ func (s *generatorSuite) SetupTest() {
 
 func (s *generatorSuite) TearDownTest() {
 	s.wg.Wait()
-	close(s.stop)
+	select {
+	case _, ok := <-s.stop:
+		if ok {
+			close(s.stop)
+		}
+	default:
+		close(s.stop)
+	}
 }
 
 func (s *generatorSuite) TestBuildingPool() {
@@ -76,7 +86,7 @@ func (s *generatorSuite) TestBuildingPool() {
 	select {
 	case _, ok := <-s.taskPool:
 		if ok {
-			s.Fail("[%s] taskPool should be closed but isn't", s.suiteName)
+			s.Require().Fail("[%s] taskPool should be closed but isn't", s.suiteName)
 		}
 		s.Require().False(ok, "[%s] taskPool should be closed after %d tasks", s.suiteName, s.n)
 	default:
@@ -84,7 +94,7 @@ func (s *generatorSuite) TestBuildingPool() {
 }
 
 func (s *generatorSuite) TestStopBeforeExctracting() {
-	s.stop <- struct{}{}
+	close(s.stop)
 
 	_, ok := <-s.taskPool
 	s.Require().False(ok, "[%s] taskPool should be closed before sending tasks", s.suiteName)
@@ -96,7 +106,7 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 
 	for ; counter < s.n; counter++ {
 		if counter == stopValue {
-			s.stop <- struct{}{}
+			close(s.stop)
 			break
 		}
 		_, ok := <-s.taskPool
@@ -108,7 +118,7 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 	select {
 	case _, ok := <-s.taskPool:
 		if ok {
-			s.Fail("[%s] taskPool should be closed but isn't", s.suiteName)
+			s.Require().Fail("[%s] taskPool should be closed but isn't", s.suiteName)
 		}
 		s.Require().False(ok, "[%s] taskPool should be closed after %d tasks", s.suiteName, stopValue)
 	default:
@@ -124,17 +134,14 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 		s.Require().True(ok, "[%s] taskPool closed prematurely (got %d/%d tasks)", s.suiteName, counter+1, s.n)
 	}
 
-	select {
-	case s.stop <- struct{}{}:
-	default:
-	}
+	close(s.stop)
 
 	s.Require().Equal(counter, stopValue)
 
 	select {
 	case _, ok := <-s.taskPool:
 		if ok {
-			s.Fail("[%s] taskPool should be closed but isn't", s.suiteName)
+			s.Require().Fail("[%s] taskPool should be closed but isn't", s.suiteName)
 		}
 		s.Require().False(ok, "[%s] taskPool should be closed after %d tasks", s.suiteName, stopValue)
 	default:
@@ -207,7 +214,14 @@ func (s *workerSuite) SetupTest() {
 
 func (s *workerSuite) TearDownTest() {
 	s.wg.Wait()
-	close(s.stop)
+	select {
+	case _, ok := <-s.stop:
+		if ok {
+			close(s.stop)
+		}
+	default:
+		close(s.stop)
+	}
 }
 
 func (s *workerSuite) TestWorker() {
@@ -230,7 +244,7 @@ func (s *workerSuite) TestWorker() {
 	select {
 	case _, ok := <-s.taskRes:
 		if ok {
-			s.Fail("[%s] taskRes should be closed but isn't", s.suiteName)
+			s.Require().Fail("[%s] taskRes should be closed but isn't", s.suiteName)
 		}
 		s.Require().False(ok, "[%s] taskRes should be closed after receiving %d tasks", s.suiteName, s.n)
 	default:
@@ -238,7 +252,7 @@ func (s *workerSuite) TestWorker() {
 }
 
 func (s *workerSuite) TestStopBeforeExecuting() {
-	s.stop <- struct{}{}
+	close(s.stop)
 	counter := 0
 
 	s.wg.Add(1)
@@ -254,4 +268,41 @@ func (s *workerSuite) TestStopBeforeExecuting() {
 	s.Require().Equal(counter, 0, "[%s] tasks done before stop - %v, expected - %v", s.suiteName, counter, 0)
 	_, ok := <-s.taskRes
 	s.Require().False(ok, "[%s] taskRes should be closed before sending tasks", s.suiteName)
+}
+
+func (s *workerSuite) TestStopDuringExecuting() {
+	counter := 0
+	stopValue := s.n / 2
+
+	s.wg.Add(1)
+	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+
+ForLoop:
+	for ; counter < s.n; counter++ {
+		if counter == stopValue {
+			close(s.stop)
+		}
+		select {
+		case _, ok := <-s.taskRes:
+			if !ok {
+				break ForLoop
+			}
+		case <-time.After(testTimeout):
+			s.Require().Fail("test timeout exceeded")
+			return
+		}
+	}
+
+	// Might have done stopValue and stopValue+1 tasks as well.
+	s.Require().LessOrEqual(counter, stopValue+1)
+
+	select {
+	case _, ok := <-s.taskRes:
+		if ok {
+			s.Require().Fail("[%s] taskRes should be closed but isn't", s.suiteName)
+		}
+		s.Require().False(ok, "[%s] taskRes should be closed after %d tasks", s.suiteName, stopValue)
+	case <-time.After(testTimeout):
+		s.Require().Fail("[%s] taskRes should be closed but isn't", s.suiteName)
+	}
 }
