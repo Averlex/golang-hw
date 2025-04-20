@@ -35,11 +35,11 @@ func generatorTests(t *testing.T) {
 		name string
 		n    int
 	}{
-		{name: "1 workers", n: 1},
-		{name: "2 workers", n: 2},
-		{name: "5 workers", n: 5},
-		{name: "10 workers", n: 10},
-		{name: "1000 workers", n: 1000},
+		{name: "1 task", n: 1},
+		{name: "2 tasks", n: 2},
+		{name: "5 tasks", n: 5},
+		{name: "10 tasks", n: 10},
+		{name: "1000 tasks", n: 1000},
 	}
 
 	for _, tC := range testCases {
