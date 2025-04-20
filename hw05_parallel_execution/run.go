@@ -79,7 +79,6 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 	}
 
 	for {
-		// Prioritizing stop signals.
 		select {
 		case <-stop:
 			return
@@ -102,12 +101,8 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 	}
 }
 
-// muxChannels takes a WaitGroup and a variadic slice of read-only error channels,
-// and returns a single channel that multiplexes all input channels into one.
-// It listens to all provided channels in separate goroutine, forwarding any received
-// errors to the output channel until all input channels are closed.
-// The function ensures that the WaitGroup counter is decremented once all channels
-// have been processed.
+// muxChannels starts a goroutine that listens to all given channels and multiplexes them to a single one.
+// It closes the result channel when all input channels are closed.
 func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
 	if len(channels) == 0 {
 		return nil
