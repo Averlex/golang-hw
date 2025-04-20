@@ -1,6 +1,7 @@
 package hw05parallelexecution
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 
 func TestInternal(t *testing.T) {
 	t.Run("taskGenerator", generatorTests)
+	t.Run("worker", workerTests)
 }
 
 type generatorSuite struct {
@@ -45,7 +47,6 @@ func generatorTests(t *testing.T) {
 	for _, tC := range testCases {
 		tc := tC
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			suite.Run(t, newGeneratorSuite(tc.name, tc.n))
 		})
 	}
@@ -141,6 +142,102 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 			s.Fail("[%s] taskPool should be closed but isn't", s.suiteName)
 		}
 		s.Require().False(ok, "[%s] taskPool should be closed after %d tasks", s.suiteName, stopValue)
+	default:
+	}
+}
+
+type workerSuite struct {
+	suite.Suite
+	wg        *sync.WaitGroup
+	suiteName string
+	n         int
+	isError   bool
+	isPanic   bool
+	tasks     []Task
+	stop      chan struct{}
+	taskPool  <-chan Task
+	taskRes   chan error
+}
+
+func newWorkerSuite(suiteName string, n int, isError, isPanic bool) *workerSuite {
+	return &workerSuite{
+		suiteName: suiteName,
+		n:         n,
+		isError:   isError,
+		isPanic:   isPanic,
+	}
+}
+
+func workerTests(t *testing.T) {
+	t.Helper()
+
+	testCases := []struct {
+		name string
+		n    int
+	}{
+		{name: "1 task", n: 1},
+		{name: "2 tasks", n: 2},
+		{name: "5 tasks", n: 5},
+		{name: "10 tasks", n: 10},
+		{name: "1000 tasks", n: 1000},
+	}
+
+	for _, tC := range testCases {
+		tc := tC
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Run("normal", func(t *testing.T) { suite.Run(t, newWorkerSuite(tc.name+"/normal", tc.n, false, false)) })
+			t.Run("with error", func(t *testing.T) { suite.Run(t, newWorkerSuite(tc.name+"/with error", tc.n, true, false)) })
+			t.Run("with panic", func(t *testing.T) { suite.Run(t, newWorkerSuite(tc.name+"/with panic", tc.n, false, true)) })
+		})
+	}
+}
+
+func (s *workerSuite) SetupTest() {
+	s.wg = &sync.WaitGroup{}
+	s.stop = make(chan struct{})
+	s.taskRes = make(chan error)
+
+	s.tasks = make([]Task, s.n)
+	for i := range s.tasks {
+		switch {
+		case s.isPanic:
+			s.tasks[i] = func() error { panic("panic") }
+		case s.isError:
+			s.tasks[i] = func() error { return fmt.Errorf("error") }
+		default:
+			s.tasks[i] = func() error { return nil }
+		}
+	}
+
+	s.taskPool = taskGenerator(s.wg, s.tasks, s.stop)
+
+	s.wg.Add(1)
+	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+}
+
+func (s *workerSuite) TearDownTest() {
+	s.wg.Wait()
+	close(s.stop)
+}
+
+func (s *workerSuite) TestWorker() {
+	erroneousCond := s.isPanic || s.isError
+
+	for i := 0; i < s.n; i++ {
+		v, ok := <-s.taskRes
+		s.Require().True(ok, "[%s] taskRes closed prematurely (got %d/%d tasks)", s.suiteName, i+1, s.n)
+		msg := fmt.Sprintf("[%s] taskRes received incorrect value on task %d/%d (got %v, isPanic=%v, isError=%v)",
+			s.suiteName, i+1, s.n, v, s.isPanic, s.isError)
+		s.Require().Equal(erroneousCond, v != nil, msg)
+	}
+
+	select {
+	case _, ok := <-s.taskRes:
+		if ok {
+			s.Fail("[%s] taskRes should be closed but isn't", s.suiteName)
+		}
+		s.Require().False(ok, "[%s] taskRes should be closed after receiving %d tasks", s.suiteName, s.n)
 	default:
 	}
 }
