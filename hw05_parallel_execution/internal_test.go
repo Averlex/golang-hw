@@ -81,7 +81,7 @@ func (s *generatorSuite) TestBuildingPool() {
 	for i := 0; i < s.n; i++ {
 		select {
 		case _, ok := <-s.taskPool:
-			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", s.suiteName, i+1, s.n)
+			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", i+1, s.n)
 		case <-time.After(testTimeout):
 			s.Require().Fail("test timeout exceeded")
 			return
@@ -91,9 +91,9 @@ func (s *generatorSuite) TestBuildingPool() {
 	select {
 	case _, ok := <-s.taskPool:
 		if ok {
-			s.Require().Fail("taskPool should be closed but isn't", s.suiteName)
+			s.Require().Fail("taskPool should be closed but isn't")
 		}
-		s.Require().False(ok, "taskPool should be closed after %d tasks", s.suiteName, s.n)
+		s.Require().False(ok, "taskPool should be closed after %d tasks", s.n)
 	case <-time.After(testTimeout):
 		s.Require().Fail("test timeout exceeded")
 		return
@@ -105,7 +105,7 @@ func (s *generatorSuite) TestStopBeforeExctracting() {
 
 	select {
 	case _, ok := <-s.taskPool:
-		s.Require().False(ok, "taskPool should be closed before sending tasks", s.suiteName)
+		s.Require().False(ok, "taskPool should be closed before sending tasks")
 	case <-time.After(testTimeout):
 		s.Require().Fail("test timeout exceeded")
 		return
@@ -123,7 +123,7 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 		}
 		select {
 		case _, ok := <-s.taskPool:
-			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", s.suiteName, counter+1, stopValue)
+			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", counter+1, stopValue)
 		case <-time.After(testTimeout):
 			s.Require().Fail("test timeout exceeded")
 			return
@@ -135,9 +135,9 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 	select {
 	case _, ok := <-s.taskPool:
 		if ok {
-			s.Require().Fail("taskPool should be closed but isn't", s.suiteName)
+			s.Require().Fail("taskPool should be closed but isn't")
 		}
-		s.Require().False(ok, "taskPool should be closed after %d tasks", s.suiteName, stopValue)
+		s.Require().False(ok, "taskPool should be closed after %d tasks", stopValue)
 	case <-time.After(testTimeout):
 		s.Require().Fail("test timeout exceeded")
 		return
@@ -151,7 +151,7 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 	for ; counter < s.n; counter++ {
 		select {
 		case _, ok := <-s.taskPool:
-			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", s.suiteName, counter+1, s.n)
+			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", counter+1, s.n)
 		case <-time.After(testTimeout):
 			s.Require().Fail("test timeout exceeded")
 			return
@@ -165,9 +165,9 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 	select {
 	case _, ok := <-s.taskPool:
 		if ok {
-			s.Require().Fail("taskPool should be closed but isn't", s.suiteName)
+			s.Require().Fail("taskPool should be closed but isn't")
 		}
-		s.Require().False(ok, "taskPool should be closed after %d tasks", s.suiteName, stopValue)
+		s.Require().False(ok, "taskPool should be closed after %d tasks", stopValue)
 	case <-time.After(testTimeout):
 		s.Require().Fail("test timeout exceeded")
 		return
@@ -259,13 +259,13 @@ func (s *workerSuite) TestWorker() {
 	for i := 0; i < s.n; i++ {
 		select {
 		case v, ok := <-s.taskRes:
-			s.Require().True(ok, "taskRes closed prematurely (got %d/%d tasks)", s.suiteName, i+1, s.n)
+			s.Require().True(ok, "taskRes closed prematurely (got %d/%d tasks)", i+1, s.n)
 			s.Require().Equal(erroneousCond, v != nil,
 				`taskRes received incorrect value on task %d/%d:
-			- got %v
-			- isPanic=%v
-			- isError=%v`,
-				s.suiteName, i+1, s.n, v, s.isPanic, s.isError)
+				- got %v
+				- isPanic=%v
+				- isError=%v`,
+				i+1, s.n, v, s.isPanic, s.isError)
 		case <-time.After(testTimeout):
 			s.Require().Fail("test timeout exceeded")
 			return
@@ -275,9 +275,9 @@ func (s *workerSuite) TestWorker() {
 	select {
 	case _, ok := <-s.taskRes:
 		if ok {
-			s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+			s.Require().Fail("taskRes should be closed but isn't")
 		}
-		s.Require().False(ok, "taskRes should be closed after receiving %d tasks", s.suiteName, s.n)
+		s.Require().False(ok, "taskRes should be closed after receiving %d tasks", s.n)
 	case <-time.After(testTimeout):
 		s.Require().Fail("test timeout exceeded")
 		return
@@ -304,10 +304,10 @@ ForLoop:
 		}
 	}
 
-	s.Require().Equal(counter, 0, "tasks done before stop - %v, expected - %v", s.suiteName, counter, 0)
+	s.Require().Equal(counter, 0, "tasks done before stop - %v, expected - %v", counter, 0)
 	select {
 	case _, ok := <-s.taskRes:
-		s.Require().False(ok, "taskRes should be closed before sending tasks", s.suiteName)
+		s.Require().False(ok, "taskRes should be closed before sending tasks")
 	case <-time.After(testTimeout):
 		s.Require().Fail("test timeout exceeded")
 		return
@@ -343,11 +343,11 @@ ForLoop:
 	select {
 	case _, ok := <-s.taskRes:
 		if ok {
-			s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+			s.Require().Fail("taskRes should be closed but isn't")
 		}
-		s.Require().False(ok, "taskRes should be closed after %d tasks", s.suiteName, stopValue)
+		s.Require().False(ok, "taskRes should be closed after %d tasks", stopValue)
 	case <-time.After(testTimeout):
-		s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+		s.Require().Fail("taskRes should be closed but isn't")
 	}
 }
 
@@ -377,10 +377,10 @@ ForLoop:
 	select {
 	case _, ok := <-s.taskRes:
 		if ok {
-			s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+			s.Require().Fail("taskRes should be closed but isn't")
 		}
-		s.Require().False(ok, "taskRes should be closed after %d tasks", s.suiteName, s.n)
+		s.Require().False(ok, "taskRes should be closed after %d tasks", s.n)
 	case <-time.After(testTimeout):
-		s.Require().Fail("taskRes should be closed but isn't", s.suiteName)
+		s.Require().Fail("taskRes should be closed but isn't")
 	}
 }
