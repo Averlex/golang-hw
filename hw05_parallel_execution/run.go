@@ -29,18 +29,22 @@ func Run(tasks []Task, n, m int) error {
 
 	wg := &sync.WaitGroup{}
 	stop := make(chan struct{})
-	defer close(stop)
-
 	taskPool := taskGenerator(wg, tasks, stop)
 	taskResults := runWorkers(wg, stop, taskPool, n)
 	muxedResults := muxChannels(wg, taskResults...)
 	res := processTaskResults(muxedResults, m)
 
+	// if res != nil {
+	// 	select {
+	// 	case stop <- struct{}{}: // Sending a singnal if at least 1 of listeners up.
+	// 	default: // All workers are already done.
+	// 	}
+	// }
+
 	if res != nil {
-		select {
-		case stop <- struct{}{}: // Sending a singnal if at least 1 of listeners up.
-		default: // All workers are already done.
-		}
+		close(stop)
+	} else {
+		defer close(stop)
 	}
 
 	wg.Wait()
