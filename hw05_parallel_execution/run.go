@@ -66,7 +66,12 @@ func taskGenerator(wg *sync.WaitGroup, tasks []Task, stop <-chan struct{}) <-cha
 			select {
 			case <-stop:
 				return
-			case taskPool <- task:
+			default:
+				select {
+				case <-stop:
+					return
+				case taskPool <- task:
+				}
 			}
 		}
 	}()
@@ -91,7 +96,8 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 		select {
 		case <-stop:
 			return
-		case task, ok := <-taskPool:
+		default:
+			task, ok := <-taskPool
 			// No tasks left.
 			if !ok {
 				return
