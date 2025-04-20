@@ -31,7 +31,7 @@ func Run(tasks []Task, n, m int) error {
 	stop := make(chan struct{})
 	defer close(stop)
 
-	taskPool := taskGenerator(tasks, stop)
+	taskPool := taskGenerator(wg, tasks, stop)
 	taskResults := runWorkers(wg, stop, taskPool, n)
 	muxedResults := muxChannels(wg, taskResults...)
 	res := processTaskResults(muxedResults, m)
@@ -43,17 +43,21 @@ func Run(tasks []Task, n, m int) error {
 		}
 	}
 
+	wg.Wait()
+
 	return res
 }
 
 // taskGenerator creates a goroutine that sends each task in the tasks slice
 // to the returned channel. If the stop channel is closed or the stop signal received,
 // the goroutine will stop sending tasks and close the channel.
-func taskGenerator(tasks []Task, stop <-chan struct{}) <-chan Task {
+func taskGenerator(wg *sync.WaitGroup, tasks []Task, stop <-chan struct{}) <-chan Task {
 	taskPool := make(chan Task)
+	wg.Add(1)
 
 	go func() {
 		defer close(taskPool)
+		defer wg.Done()
 		for _, task := range tasks {
 			select {
 			case <-stop:
