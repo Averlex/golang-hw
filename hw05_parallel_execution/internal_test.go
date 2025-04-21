@@ -425,7 +425,14 @@ func muxTests(t *testing.T) {
 		t.Run(formText(cn, "channel"), func(t *testing.T) {
 			for _, tN := range taskNum {
 				tn := tN
-				t.Run(formText(tn, "task"), func(t *testing.T) { suite.Run(t, newMuxSuite(cn, tn)) })
+				t.Run(formText(tn, "task"), func(t *testing.T) {
+					// For cleaner output.
+					testSuite := newMuxSuite(cn, tn)
+					testSuite.SetT(t)
+					testSuite.SetupTest()
+					testSuite.TestMux()
+					testSuite.TearDownTest()
+				})
 			}
 		})
 	}
@@ -447,6 +454,13 @@ func (s *muxSuite) TearDownTest() {
 	s.wg.Wait()
 }
 
+// TestMux tests the muxChannels function by verifying that it correctly multiplexes
+// results from multiple error channels into a single output channel.
+//
+// It checks for proper handling of both nil and error messages and ensures the output channel
+// receives the expected number of tasks.
+//
+// The test also confirms that the output channel is closed after all tasks are processed.
 func (s *muxSuite) TestMux() {
 	testWG := &sync.WaitGroup{}
 	defer testWG.Wait()
@@ -456,7 +470,7 @@ func (s *muxSuite) TestMux() {
 		return
 	}
 
-	simpleWorker := func(wg *sync.WaitGroup, ch chan<- error, taskNum int) {
+	nilWorker := func(wg *sync.WaitGroup, ch chan<- error, taskNum int) {
 		defer wg.Done()
 		defer close(ch)
 		for range taskNum {
@@ -464,21 +478,39 @@ func (s *muxSuite) TestMux() {
 		}
 	}
 
-	// If chanNum > taskNum, then distribution will be like [n, n, n, ..., 0, 0, 0, 0, 0].
+	errWorker := func(wg *sync.WaitGroup, ch chan<- error, taskNum int) {
+		defer wg.Done()
+		defer close(ch)
+		for range taskNum {
+			ch <- fmt.Errorf("error")
+		}
+	}
+
+	// If chanNum > taskNum, then distribution will be like [1, 1, 1, ..., 0, 0].
 	distributedTasks := s.distributeTasksEvenly()
 
 	// Loading channels with evenly distributed tasks.
+	errsExpected := 0
 	for i := range s.chanNum {
 		testWG.Add(1)
-		go simpleWorker(testWG, s.channels[i], distributedTasks[i])
+		if i%2 == 0 {
+			go nilWorker(testWG, s.channels[i], distributedTasks[i])
+			continue
+		}
+		go errWorker(testWG, s.channels[i], distributedTasks[i])
+		errsExpected += distributedTasks[i]
 	}
 
 	counter := 0
+	errsCounter := 0
 	for ; counter < s.taskNum; counter++ {
 		select {
-		case _, ok := <-s.res:
+		case v, ok := <-s.res:
 			if !ok {
 				s.Require().Equal(counter+1, s.taskNum, "channel closed prematurely (got %d/%d tasks)", counter+1, s.taskNum)
+			}
+			if v != nil {
+				errsCounter++
 			}
 		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
@@ -486,6 +518,7 @@ func (s *muxSuite) TestMux() {
 	}
 
 	s.Require().Equal(counter, s.taskNum, "channel received %d tasks, expected %d", counter, s.taskNum)
+	s.Require().Equal(errsExpected, errsCounter, "channel received %d errors, expected %d", errsCounter, errsExpected)
 
 	select {
 	case _, ok := <-s.res:
@@ -496,5 +529,4 @@ func (s *muxSuite) TestMux() {
 	case <-time.After(timeout):
 		s.Require().Fail("channel should be closed but isn't")
 	}
-	// Проверка значений (nil || error).
 }
