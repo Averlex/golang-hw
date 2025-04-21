@@ -32,20 +32,7 @@ func Run(tasks []Task, n, m int) error {
 	taskPool := taskGenerator(wg, tasks, stop)
 	taskResults := runWorkers(wg, stop, taskPool, n)
 	muxedResults := muxChannels(wg, taskResults...)
-	res := processTaskResults(muxedResults, m)
-
-	// if res != nil {
-	// 	select {
-	// 	case stop <- struct{}{}: // Sending a singnal if at least 1 of listeners up.
-	// 	default: // All workers are already done.
-	// 	}
-	// }
-
-	if res != nil {
-		close(stop)
-	} else {
-		defer close(stop)
-	}
+	res := processTaskResults(stop, muxedResults, m)
 
 	wg.Wait()
 
@@ -178,7 +165,7 @@ func runWorkers(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, 
 // If the count of errors reaches or exceeds m, it returns ErrErrorsLimitExceeded.
 //
 // If m is 0 or negative, it ignores the error count and processes all results until the channel is closed.
-func processTaskResults(receiver <-chan error, m int) error {
+func processTaskResults(stop chan<- struct{}, receiver <-chan error, m int) error {
 	ignoreErrors := m <= 0
 	var res error
 
@@ -192,9 +179,14 @@ func processTaskResults(receiver <-chan error, m int) error {
 
 		counter++
 		// Limit of errors exceeded.
-		if !ignoreErrors && counter >= m {
+		if !ignoreErrors && counter >= m && res == nil {
 			res = ErrErrorsLimitExceeded
+			close(stop)
 		}
+	}
+
+	if res == nil {
+		defer close(stop)
 	}
 
 	return res
