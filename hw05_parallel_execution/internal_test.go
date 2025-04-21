@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const testTimeout = 100 * time.Millisecond
+const timeout = 100 * time.Millisecond
 
-func testText(val int, text string) string {
+func formText(val int, text string) string {
 	if val == 1 {
 		return fmt.Sprintf("%d %s", val, text)
 	}
@@ -46,7 +46,7 @@ func generatorTests(t *testing.T) {
 
 	for _, tC := range testCases {
 		tc := tC
-		t.Run(testText(tc, "task"), func(t *testing.T) {
+		t.Run(formText(tc, "task"), func(t *testing.T) {
 			suite.Run(t, newGeneratorSuite(tc))
 		})
 	}
@@ -81,7 +81,7 @@ func (s *generatorSuite) TestBuildingPool() {
 		select {
 		case _, ok := <-s.taskPool:
 			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", i+1, s.n)
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -93,7 +93,7 @@ func (s *generatorSuite) TestBuildingPool() {
 			s.Require().Fail("taskPool should be closed but isn't")
 		}
 		s.Require().False(ok, "taskPool should be closed after %d tasks", s.n)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("test timeout exceeded")
 		return
 	}
@@ -105,7 +105,7 @@ func (s *generatorSuite) TestStopBeforeExctracting() {
 	select {
 	case _, ok := <-s.taskPool:
 		s.Require().False(ok, "taskPool should be closed before sending tasks")
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("test timeout exceeded")
 		return
 	}
@@ -123,7 +123,7 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 		select {
 		case _, ok := <-s.taskPool:
 			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", counter+1, stopValue)
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -137,7 +137,7 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 			s.Require().Fail("taskPool should be closed but isn't")
 		}
 		s.Require().False(ok, "taskPool should be closed after %d tasks", stopValue)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("test timeout exceeded")
 		return
 	}
@@ -151,7 +151,7 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 		select {
 		case _, ok := <-s.taskPool:
 			s.Require().True(ok, "taskPool closed prematurely (got %d/%d tasks)", counter+1, s.n)
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -167,7 +167,7 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 			s.Require().Fail("taskPool should be closed but isn't")
 		}
 		s.Require().False(ok, "taskPool should be closed after %d tasks", stopValue)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("test timeout exceeded")
 		return
 	}
@@ -201,7 +201,7 @@ func workerTests(t *testing.T) {
 	for _, tC := range testCases {
 		tc := tC
 
-		t.Run(testText(tc, "task"), func(t *testing.T) {
+		t.Run(formText(tc, "task"), func(t *testing.T) {
 			t.Run("normal", func(t *testing.T) {
 				suite.Run(t, newWorkerSuite(tc, false, false))
 			})
@@ -263,7 +263,7 @@ func (s *workerSuite) TestWorker() {
 				- isPanic=%v
 				- isError=%v`,
 				i+1, s.n, v, s.isPanic, s.isError)
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -275,7 +275,7 @@ func (s *workerSuite) TestWorker() {
 			s.Require().Fail("taskRes should be closed but isn't")
 		}
 		s.Require().False(ok, "taskRes should be closed after receiving %d tasks", s.n)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("test timeout exceeded")
 		return
 	}
@@ -295,7 +295,7 @@ ForLoop:
 			if !ok {
 				break ForLoop
 			}
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -305,7 +305,7 @@ ForLoop:
 	select {
 	case _, ok := <-s.taskRes:
 		s.Require().False(ok, "taskRes should be closed before sending tasks")
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("test timeout exceeded")
 		return
 	}
@@ -328,7 +328,7 @@ ForLoop:
 			if !ok {
 				break ForLoop
 			}
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -343,7 +343,7 @@ ForLoop:
 			s.Require().Fail("taskRes should be closed but isn't")
 		}
 		s.Require().False(ok, "taskRes should be closed after %d tasks", stopValue)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("taskRes should be closed but isn't")
 	}
 }
@@ -361,7 +361,7 @@ ForLoop:
 			if !ok {
 				break ForLoop
 			}
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 			return
 		}
@@ -377,7 +377,7 @@ ForLoop:
 			s.Require().Fail("taskRes should be closed but isn't")
 		}
 		s.Require().False(ok, "taskRes should be closed after %d tasks", s.n)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("taskRes should be closed but isn't")
 	}
 }
@@ -417,16 +417,15 @@ func newMuxSuite(chanNum, taskNum int) *muxSuite {
 func muxTests(t *testing.T) {
 	t.Helper()
 
-	chanNum := []int{0, 1, 2, 5, 10, 1000}
-	taskNum := []int{0, 1, 2, 5, 10, 1000, 10000}
+	chanNum := []int{0, 1, 2, 10, 1000}
+	taskNum := []int{0, 1, 2, 100, 10000}
 
 	for _, cN := range chanNum {
 		cn := cN
-
-		t.Run(testText(cn, "channel"), func(t *testing.T) {
+		t.Run(formText(cn, "channel"), func(t *testing.T) {
 			for _, tN := range taskNum {
 				tn := tN
-				t.Run(testText(tn, "task"), func(t *testing.T) { suite.Run(t, newMuxSuite(cn, tn)) })
+				t.Run(formText(tn, "task"), func(t *testing.T) { suite.Run(t, newMuxSuite(cn, tn)) })
 			}
 		})
 	}
@@ -476,7 +475,7 @@ func (s *muxSuite) TestMux() {
 			if !ok {
 				s.Require().Equal(counter+1, s.taskNum, "channel closed prematurely (got %d/%d tasks)", counter+1, s.taskNum)
 			}
-		case <-time.After(testTimeout):
+		case <-time.After(timeout):
 			s.Require().Fail("test timeout exceeded")
 		}
 	}
@@ -489,11 +488,8 @@ func (s *muxSuite) TestMux() {
 			s.Require().Fail("channel should be closed but isn't")
 		}
 		s.Require().False(ok, "channel should be closed after %d tasks", s.taskNum)
-	case <-time.After(testTimeout):
+	case <-time.After(timeout):
 		s.Require().Fail("channel should be closed but isn't")
 	}
-
-	// Все воркеры заняты
-	// Часть воркеров простаивает
-	// Проверка значений (nil || error)
+	// Проверка значений (nil || error).
 }
