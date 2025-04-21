@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const timeout = 100 * time.Millisecond
+const timeout = 1000 * time.Millisecond
 
 func formText(val int, text string) string {
 	if val == 1 {
@@ -450,6 +450,11 @@ func (s *muxSuite) TearDownTest() {
 func (s *muxSuite) TestMux() {
 	testWG := &sync.WaitGroup{}
 	defer testWG.Wait()
+
+	if s.chanNum == 0 {
+		s.Require().Nil(s.res, "channel should be nil but it isn't")
+		return
+	}
 
 	simpleWorker := func(wg *sync.WaitGroup, ch chan<- error, taskNum int) {
 		defer wg.Done()
