@@ -84,7 +84,14 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 		case <-stop:
 			return
 		default:
-			task, ok := <-taskPool
+			var task Task
+			var ok bool
+			select {
+			case <-stop:
+				return
+			case task, ok = <-taskPool:
+			}
+
 			// No tasks left.
 			if !ok {
 				return
@@ -97,6 +104,11 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 						taskRes <- fmt.Errorf("one of the tasks panicked: %v", r)
 					}
 				}()
+				select {
+				case <-stop:
+					return
+				default:
+				}
 				taskRes <- task()
 			}()
 		}
