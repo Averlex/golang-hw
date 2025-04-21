@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const timeout = 1000 * time.Millisecond
+const timeout = 10 * time.Millisecond
 
 func formText(val int, text string) string {
 	if val == 1 {

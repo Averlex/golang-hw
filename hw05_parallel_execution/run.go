@@ -164,7 +164,7 @@ func runWorkers(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, 
 	res := make([]<-chan error, n)
 
 	for i := 0; i < n; i++ {
-		workerRes := make(chan error) // Initializing worker response channel.
+		workerRes := make(chan error, 1) // Initializing worker response channel.
 		wg.Add(1)
 		go worker(wg, stop, taskPool, workerRes)
 		res[i] = workerRes // Casting workerRes to <-workerRes.
@@ -195,7 +195,7 @@ func processTaskResults(stop chan<- struct{}, receiver <-chan error, m int) erro
 
 		counter++
 		// Limit of errors exceeded.
-		if !ignoreErrors && counter >= m && res == nil {
+		if !ignoreErrors && counter == m {
 			close(stop)
 			res = ErrErrorsLimitExceeded
 		}
