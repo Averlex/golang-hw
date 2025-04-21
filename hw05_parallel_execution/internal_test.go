@@ -11,11 +11,11 @@ import (
 
 const testTimeout = 100 * time.Millisecond
 
-func taskText(val int) string {
+func testText(val int, text string) string {
 	if val == 1 {
-		return fmt.Sprintf("%d task", val)
+		return fmt.Sprintf("%d %s", val, text)
 	}
-	return fmt.Sprintf("%d tasks", val)
+	return fmt.Sprintf("%d %ss", val, text)
 }
 
 func TestInternal(t *testing.T) {
@@ -46,7 +46,7 @@ func generatorTests(t *testing.T) {
 
 	for _, tC := range testCases {
 		tc := tC
-		t.Run(taskText(tc), func(t *testing.T) {
+		t.Run(testText(tc, "task"), func(t *testing.T) {
 			suite.Run(t, newGeneratorSuite(tc))
 		})
 	}
@@ -201,7 +201,7 @@ func workerTests(t *testing.T) {
 	for _, tC := range testCases {
 		tc := tC
 
-		t.Run(taskText(tc), func(t *testing.T) {
+		t.Run(testText(tc, "task"), func(t *testing.T) {
 			t.Run("normal", func(t *testing.T) {
 				suite.Run(t, newWorkerSuite(tc, false, false))
 			})
@@ -423,10 +423,10 @@ func muxTests(t *testing.T) {
 	for _, cN := range chanNum {
 		cn := cN
 
-		t.Run(taskText(cn), func(t *testing.T) {
+		t.Run(testText(cn, "channel"), func(t *testing.T) {
 			for _, tN := range taskNum {
 				tn := tN
-				t.Run(taskText(tn), func(t *testing.T) { suite.Run(t, newMuxSuite(cn, tn)) })
+				t.Run(testText(tn, "task"), func(t *testing.T) { suite.Run(t, newMuxSuite(cn, tn)) })
 			}
 		})
 	}
@@ -474,7 +474,7 @@ func (s *muxSuite) TestMux() {
 		select {
 		case _, ok := <-s.res:
 			if !ok {
-				s.Require().Fail("channel closed prematurely (got %d/%d tasks)", counter+1, s.taskNum)
+				s.Require().Equal(counter+1, s.taskNum, "channel closed prematurely (got %d/%d tasks)", counter+1, s.taskNum)
 			}
 		case <-time.After(testTimeout):
 			s.Require().Fail("test timeout exceeded")
