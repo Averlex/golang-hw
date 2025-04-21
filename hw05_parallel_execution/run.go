@@ -108,8 +108,12 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 				case <-stop:
 					return
 				default:
+					select {
+					case <-stop:
+						return
+					case taskRes <- task():
+					}
 				}
-				taskRes <- task()
 			}()
 		}
 	}
@@ -192,8 +196,8 @@ func processTaskResults(stop chan<- struct{}, receiver <-chan error, m int) erro
 		counter++
 		// Limit of errors exceeded.
 		if !ignoreErrors && counter >= m && res == nil {
-			res = ErrErrorsLimitExceeded
 			close(stop)
+			res = ErrErrorsLimitExceeded
 		}
 	}
 
