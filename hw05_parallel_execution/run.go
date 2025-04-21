@@ -178,12 +178,13 @@ func runWorkers(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, 
 // If the count of errors reaches or exceeds m, it returns ErrErrorsLimitExceeded.
 //
 // If m is 0 or negative, it ignores the error count and processes all results until the channel is closed.
-func processTaskResults(res <-chan error, m int) error {
+func processTaskResults(receiver <-chan error, m int) error {
 	ignoreErrors := m <= 0
+	var res error
 
 	counter := 0
 
-	for v := range res {
+	for v := range receiver {
 		// Task completed without errors.
 		if v == nil {
 			continue
@@ -192,9 +193,9 @@ func processTaskResults(res <-chan error, m int) error {
 		counter++
 		// Limit of errors exceeded.
 		if !ignoreErrors && counter >= m {
-			return ErrErrorsLimitExceeded
+			res = ErrErrorsLimitExceeded
 		}
 	}
 
-	return nil
+	return res
 }
