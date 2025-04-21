@@ -25,18 +25,16 @@ func TestInternal(t *testing.T) {
 
 type generatorSuite struct {
 	suite.Suite
-	wg        *sync.WaitGroup
-	suiteName string
-	n         int
-	tasks     []Task
-	stop      chan struct{}
-	taskPool  <-chan Task
+	wg       *sync.WaitGroup
+	n        int
+	tasks    []Task
+	stop     chan struct{}
+	taskPool <-chan Task
 }
 
-func newGeneratorSuite(suiteName string, n int) *generatorSuite {
+func newGeneratorSuite(n int) *generatorSuite {
 	return &generatorSuite{
-		suiteName: suiteName,
-		n:         n,
+		n: n,
 	}
 }
 
@@ -48,7 +46,7 @@ func generatorTests(t *testing.T) {
 	for _, tC := range testCases {
 		tc := tC
 		t.Run(taskText(tc), func(t *testing.T) {
-			suite.Run(t, newGeneratorSuite(taskText(tc), tc))
+			suite.Run(t, newGeneratorSuite(tc))
 		})
 	}
 }
@@ -176,23 +174,21 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 
 type workerSuite struct {
 	suite.Suite
-	wg        *sync.WaitGroup
-	suiteName string
-	n         int
-	isError   bool
-	isPanic   bool
-	tasks     []Task
-	stop      chan struct{}
-	taskPool  <-chan Task
-	taskRes   chan error
+	wg       *sync.WaitGroup
+	n        int
+	isError  bool
+	isPanic  bool
+	tasks    []Task
+	stop     chan struct{}
+	taskPool <-chan Task
+	taskRes  chan error
 }
 
-func newWorkerSuite(suiteName string, n int, isError, isPanic bool) *workerSuite {
+func newWorkerSuite(n int, isError, isPanic bool) *workerSuite {
 	return &workerSuite{
-		suiteName: suiteName,
-		n:         n,
-		isError:   isError,
-		isPanic:   isPanic,
+		n:       n,
+		isError: isError,
+		isPanic: isPanic,
 	}
 }
 
@@ -206,13 +202,13 @@ func workerTests(t *testing.T) {
 
 		t.Run(taskText(tc), func(t *testing.T) {
 			t.Run("normal", func(t *testing.T) {
-				suite.Run(t, newWorkerSuite(taskText(tc)+"/normal", tc, false, false))
+				suite.Run(t, newWorkerSuite(tc, false, false))
 			})
 			t.Run("with error", func(t *testing.T) {
-				suite.Run(t, newWorkerSuite(taskText(tc)+"/with error", tc, true, false))
+				suite.Run(t, newWorkerSuite(tc, true, false))
 			})
 			t.Run("with panic", func(t *testing.T) {
-				suite.Run(t, newWorkerSuite(taskText(tc)+"/with panic", tc, false, true))
+				suite.Run(t, newWorkerSuite(tc, false, true))
 			})
 		})
 	}
