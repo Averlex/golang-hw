@@ -21,6 +21,7 @@ func taskText(val int) string {
 func TestInternal(t *testing.T) {
 	t.Run("taskGenerator", generatorTests)
 	t.Run("worker", workerTests)
+	t.Run("mux", muxTests)
 }
 
 type generatorSuite struct {
@@ -379,4 +380,120 @@ ForLoop:
 	case <-time.After(testTimeout):
 		s.Require().Fail("taskRes should be closed but isn't")
 	}
+}
+
+type muxSuite struct {
+	suite.Suite
+	wg       *sync.WaitGroup
+	chanNum  int
+	taskNum  int
+	channels []chan error
+	res      <-chan error
+}
+
+func (s *muxSuite) distributeTasksEvenly() []int {
+	distribution := make([]int, s.chanNum)
+	if s.chanNum == 0 {
+		return distribution
+	}
+	base := s.taskNum / s.chanNum
+	remainder := s.taskNum % s.chanNum
+	for i := 0; i < s.chanNum; i++ {
+		distribution[i] = base
+		if i < remainder {
+			distribution[i]++
+		}
+	}
+	return distribution
+}
+
+func newMuxSuite(chanNum, taskNum int) *muxSuite {
+	return &muxSuite{
+		chanNum: chanNum,
+		taskNum: taskNum,
+	}
+}
+
+func muxTests(t *testing.T) {
+	t.Helper()
+
+	chanNum := []int{0, 1, 2, 5, 10, 1000}
+	taskNum := []int{0, 1, 2, 5, 10, 1000, 10000}
+
+	for _, cN := range chanNum {
+		cn := cN
+
+		t.Run(taskText(cn), func(t *testing.T) {
+			for _, tN := range taskNum {
+				tn := tN
+				t.Run(taskText(tn), func(t *testing.T) { suite.Run(t, newMuxSuite(cn, tn)) })
+			}
+		})
+	}
+}
+
+func (s *muxSuite) SetupTest() {
+	s.wg = &sync.WaitGroup{}
+	s.channels = make([]chan error, s.chanNum)
+	arg := make([]<-chan error, s.chanNum)
+	for i := range s.channels {
+		s.channels[i] = make(chan error)
+		arg[i] = s.channels[i]
+	}
+
+	s.res = muxChannels(s.wg, arg...)
+}
+
+func (s *muxSuite) TearDownTest() {
+	s.wg.Wait()
+}
+
+func (s *muxSuite) TestMux() {
+	testWG := &sync.WaitGroup{}
+	defer testWG.Wait()
+
+	simpleWorker := func(wg *sync.WaitGroup, ch chan<- error, taskNum int) {
+		defer wg.Done()
+		defer close(ch)
+		for range taskNum {
+			ch <- nil
+		}
+	}
+
+	// If chanNum > taskNum, then distribution will be like [n, n, n, ..., 0, 0, 0, 0, 0].
+	distributedTasks := s.distributeTasksEvenly()
+
+	// Loading channels with evenly distributed tasks.
+	for i := range s.chanNum {
+		testWG.Add(1)
+		go simpleWorker(testWG, s.channels[i], distributedTasks[i])
+	}
+
+	counter := 0
+	for ; counter < s.taskNum; counter++ {
+		select {
+		case _, ok := <-s.res:
+			if !ok {
+				s.Require().Fail("channel closed prematurely (got %d/%d tasks)", counter+1, s.taskNum)
+			}
+		case <-time.After(testTimeout):
+			s.Require().Fail("test timeout exceeded")
+		}
+	}
+
+	s.Require().Equal(counter, s.taskNum, "channel received %d tasks, expected %d", counter, s.taskNum)
+
+	select {
+	case _, ok := <-s.res:
+		if ok {
+			s.Require().Fail("channel should be closed but isn't")
+		}
+		s.Require().False(ok, "channel should be closed after %d tasks", s.taskNum)
+	case <-time.After(testTimeout):
+		s.Require().Fail("channel should be closed but isn't")
+	}
+
+	// Все воркеры заняты
+	// Часть воркеров простаивает
+	// Проверка значений (nil || error)
 }
