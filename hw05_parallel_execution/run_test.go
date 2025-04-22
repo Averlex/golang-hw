@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	//nolint:depguard
 	"go.uber.org/goleak"
 )
 
