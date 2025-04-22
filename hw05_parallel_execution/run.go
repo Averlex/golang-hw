@@ -118,7 +118,6 @@ func worker(ctx context.Context, wg *sync.WaitGroup, taskPool <-chan Task, taskR
 					case <-ctx.Done():
 						return
 					case taskRes <- task():
-						taskRes <- nil
 					}
 				}
 			}()

@@ -1,7 +1,9 @@
 package hw05parallelexecution
 
 import (
+	"context"
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -26,10 +28,11 @@ func TestInternal(t *testing.T) {
 
 type generatorSuite struct {
 	suite.Suite
+	ctx      context.Context
+	cancel   context.CancelFunc
 	wg       *sync.WaitGroup
 	n        int
 	tasks    []Task
-	stop     chan struct{}
 	taskPool <-chan Task
 }
 
@@ -54,25 +57,25 @@ func generatorTests(t *testing.T) {
 
 func (s *generatorSuite) SetupTest() {
 	s.wg = &sync.WaitGroup{}
-	s.stop = make(chan struct{})
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	s.tasks = make([]Task, s.n)
 	for i := range s.tasks {
 		s.tasks[i] = func() error { return nil }
 	}
 
-	s.taskPool = taskGenerator(s.wg, s.tasks, s.stop)
+	s.taskPool = taskGenerator(s.ctx, s.wg, s.tasks)
 }
 
 func (s *generatorSuite) TearDownTest() {
 	s.wg.Wait()
 	select {
-	case _, ok := <-s.stop:
+	case _, ok := <-s.ctx.Done():
 		if ok {
-			close(s.stop)
+			s.cancel()
 		}
 	default:
-		close(s.stop)
+		s.cancel()
 	}
 }
 
@@ -100,7 +103,7 @@ func (s *generatorSuite) TestBuildingPool() {
 }
 
 func (s *generatorSuite) TestStopBeforeExctracting() {
-	close(s.stop)
+	s.cancel()
 
 	select {
 	case _, ok := <-s.taskPool:
@@ -117,7 +120,7 @@ func (s *generatorSuite) TestStopDuringExctracting() {
 
 	for ; counter < s.n; counter++ {
 		if counter == stopValue {
-			close(s.stop)
+			s.cancel()
 			break
 		}
 		select {
@@ -157,7 +160,7 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 		}
 	}
 
-	close(s.stop)
+	s.cancel()
 
 	s.Require().Equal(counter, stopValue)
 
@@ -175,12 +178,13 @@ func (s *generatorSuite) TestStopAfterExctracting() {
 
 type workerSuite struct {
 	suite.Suite
+	ctx      context.Context
+	cancel   context.CancelFunc
 	wg       *sync.WaitGroup
 	n        int
 	isError  bool
 	isPanic  bool
 	tasks    []Task
-	stop     chan struct{}
 	taskPool <-chan Task
 	taskRes  chan error
 }
@@ -217,7 +221,7 @@ func workerTests(t *testing.T) {
 
 func (s *workerSuite) SetupTest() {
 	s.wg = &sync.WaitGroup{}
-	s.stop = make(chan struct{})
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.taskRes = make(chan error)
 
 	s.tasks = make([]Task, s.n)
@@ -232,18 +236,18 @@ func (s *workerSuite) SetupTest() {
 		}
 	}
 
-	s.taskPool = taskGenerator(s.wg, s.tasks, s.stop)
+	s.taskPool = taskGenerator(s.ctx, s.wg, s.tasks)
 }
 
 func (s *workerSuite) TearDownTest() {
 	s.wg.Wait()
 	select {
-	case _, ok := <-s.stop:
+	case _, ok := <-s.ctx.Done():
 		if ok {
-			close(s.stop)
+			s.cancel()
 		}
 	default:
-		close(s.stop)
+		s.cancel()
 	}
 }
 
@@ -251,7 +255,8 @@ func (s *workerSuite) TestWorker() {
 	erroneousCond := s.isPanic || s.isError
 
 	s.wg.Add(1)
-	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+	go worker(s.ctx, s.wg, s.taskPool, s.taskRes)
+	runtime.Gosched()
 
 	for i := 0; i < s.n; i++ {
 		select {
@@ -282,11 +287,12 @@ func (s *workerSuite) TestWorker() {
 }
 
 func (s *workerSuite) TestStopBeforeExecuting() {
-	close(s.stop)
+	s.cancel()
 	counter := 0
 
 	s.wg.Add(1)
-	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+	go worker(s.ctx, s.wg, s.taskPool, s.taskRes)
+	runtime.Gosched()
 
 ForLoop:
 	for ; counter < s.n; counter++ {
@@ -316,12 +322,13 @@ func (s *workerSuite) TestStopDuringExecuting() {
 	stopValue := s.n / 2
 
 	s.wg.Add(1)
-	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+	go worker(s.ctx, s.wg, s.taskPool, s.taskRes)
+	runtime.Gosched()
 
 ForLoop:
 	for ; counter < s.n; counter++ {
 		if counter == stopValue {
-			close(s.stop)
+			s.cancel()
 		}
 		select {
 		case _, ok := <-s.taskRes:
@@ -352,7 +359,8 @@ func (s *workerSuite) TestStopAfterExecuting() {
 	counter := 0
 
 	s.wg.Add(1)
-	go worker(s.wg, s.stop, s.taskPool, s.taskRes)
+	go worker(s.ctx, s.wg, s.taskPool, s.taskRes)
+	runtime.Gosched()
 
 ForLoop:
 	for ; counter < s.n; counter++ {
@@ -367,7 +375,7 @@ ForLoop:
 		}
 	}
 
-	close(s.stop)
+	s.cancel()
 
 	s.Require().Equal(counter, s.n)
 
