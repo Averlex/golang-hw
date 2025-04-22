@@ -2,8 +2,10 @@
 package hw05parallelexecution
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 )
 
@@ -27,22 +29,26 @@ func Run(tasks []Task, n, m int) error {
 		return ErrNoWorkers
 	}
 
+	// n workers + current goroutine + 2 extra ones.
+	runtime.GOMAXPROCS(n + 3)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	wg := &sync.WaitGroup{}
-	stop := make(chan struct{})
-	taskPool := taskGenerator(wg, tasks, stop)
-	taskResults := runWorkers(wg, stop, taskPool, n)
+	taskPool := taskGenerator(ctx, wg, tasks)
+	taskResults := runWorkers(ctx, wg, taskPool, n)
 	muxedResults := muxChannels(wg, taskResults...)
-	res := processTaskResults(stop, muxedResults, m)
+	res := processTaskResults(cancel, muxedResults, m)
 
 	wg.Wait()
-
 	return res
 }
 
 // taskGenerator creates a goroutine that sends each task in the tasks slice
-// to the returned channel. If the stop channel is closed or the stop signal received,
+// to the returned channel. If the context is cancelled,
 // the goroutine will stop sending tasks and close the channel.
-func taskGenerator(wg *sync.WaitGroup, tasks []Task, stop <-chan struct{}) <-chan Task {
+func taskGenerator(ctx context.Context, wg *sync.WaitGroup, tasks []Task) <-chan Task {
 	taskPool := make(chan Task)
 	wg.Add(1)
 
@@ -51,11 +57,11 @@ func taskGenerator(wg *sync.WaitGroup, tasks []Task, stop <-chan struct{}) <-cha
 		defer wg.Done()
 		for _, task := range tasks {
 			select {
-			case <-stop:
+			case <-ctx.Done():
 				return
 			default:
 				select {
-				case <-stop:
+				case <-ctx.Done():
 					return
 				case taskPool <- task:
 				}
@@ -67,27 +73,27 @@ func taskGenerator(wg *sync.WaitGroup, tasks []Task, stop <-chan struct{}) <-cha
 }
 
 // worker starts a goroutine that consumes tasks from taskPool and sends the results to taskRes.
-// It stops working when the stop signal is received or when there are no more tasks.
+// It stops working on the context cancellation.
 // It handles panics in tasks and sends the error to the taskRes channel.
-func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, taskRes chan<- error) {
+func worker(ctx context.Context, wg *sync.WaitGroup, taskPool <-chan Task, taskRes chan<- error) {
 	if taskRes != nil {
 		defer close(taskRes)
 	}
 	defer wg.Done()
 
-	if stop == nil || taskPool == nil {
+	if taskPool == nil {
 		return
 	}
 
 	for {
 		select {
-		case <-stop:
+		case <-ctx.Done():
 			return
 		default:
 			var task Task
 			var ok bool
 			select {
-			case <-stop:
+			case <-ctx.Done():
 				return
 			case task, ok = <-taskPool:
 			}
@@ -105,13 +111,14 @@ func worker(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, task
 					}
 				}()
 				select {
-				case <-stop:
+				case <-ctx.Done():
 					return
 				default:
 					select {
-					case <-stop:
+					case <-ctx.Done():
 						return
 					case taskRes <- task():
+						taskRes <- nil
 					}
 				}
 			}()
@@ -159,29 +166,28 @@ func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
 }
 
 // runWorkers starts n goroutines that consume tasks from taskPool and send the results to the returned channel.
-// It stops working when the stop signal is received or when there are no more tasks.
-func runWorkers(wg *sync.WaitGroup, stop <-chan struct{}, taskPool <-chan Task, n int) []<-chan error {
+func runWorkers(ctx context.Context, wg *sync.WaitGroup, taskPool <-chan Task, n int) []<-chan error {
 	res := make([]<-chan error, n)
 
 	for i := 0; i < n; i++ {
-		workerRes := make(chan error, 1) // Initializing worker response channel.
+		workerRes := make(chan error) // Initializing worker response channel.
 		wg.Add(1)
-		go worker(wg, stop, taskPool, workerRes)
+		go worker(ctx, wg, taskPool, workerRes)
 		res[i] = workerRes // Casting workerRes to <-workerRes.
 	}
 
 	return res
 }
 
-// processTaskResults processes the results from the provided error channel res.
-// It listens to the channel until it is closed, counting the number of errors received.
+// processTaskResults listens for errors on the receiver channel and counts them until an error limit is reached.
+// If the limit is reached, it cancels the context to stop further task execution and returns ErrErrorsLimitExceeded.
 //
 // If m is greater than 0, it treats m as the maximum allowable error count.
 //
 // If the count of errors reaches or exceeds m, it returns ErrErrorsLimitExceeded.
 //
 // If m is 0 or negative, it ignores the error count and processes all results until the channel is closed.
-func processTaskResults(stop chan<- struct{}, receiver <-chan error, m int) error {
+func processTaskResults(cancel context.CancelFunc, receiver <-chan error, m int) error {
 	ignoreErrors := m <= 0
 	var res error
 
@@ -196,13 +202,9 @@ func processTaskResults(stop chan<- struct{}, receiver <-chan error, m int) erro
 		counter++
 		// Limit of errors exceeded.
 		if !ignoreErrors && counter == m {
-			close(stop)
+			cancel()
 			res = ErrErrorsLimitExceeded
 		}
-	}
-
-	if res == nil {
-		defer close(stop)
 	}
 
 	return res
