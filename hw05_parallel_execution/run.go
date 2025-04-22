@@ -14,6 +14,8 @@ var (
 	ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
 	// ErrNoWorkers is an error indicating that no workers were set.
 	ErrNoWorkers = errors.New("no workers set")
+	// ErrNoTasks is an error indicating that no tasks were set.
+	ErrNoTasks = errors.New("no tasks set")
 )
 
 // Task is a function that is executed in a separate worker.
@@ -22,7 +24,7 @@ type Task func() error
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
 	if len(tasks) == 0 {
-		return nil
+		return ErrNoTasks
 	}
 
 	if n <= 0 {
