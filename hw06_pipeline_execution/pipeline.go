@@ -46,26 +46,20 @@ func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
 
 	var localOut Out
 
-	// Running the given stage.
-	select {
-	case <-ctx.Done():
-		return
-	default:
-		// Stage panic protection.
-		localOut = func(in In) (out Out) {
-			// Returning a closed channel on stage running panic.
-			defer func() {
-				if r := recover(); r != nil {
-					tmpChan := make(Bi)
-					close(tmpChan)
-					out = tmpChan
-				}
-			}()
+	// Stage panic protection.
+	localOut = func(in In) (out Out) {
+		// Returning a closed channel on stage running panic.
+		defer func() {
+			if r := recover(); r != nil {
+				tmpChan := make(Bi)
+				close(tmpChan)
+				out = tmpChan
+			}
+		}()
 
-			localOut = stage(in)
-			return localOut
-		}(in)
-	}
+		localOut = stage(in)
+		return localOut
+	}(in)
 
 	// Delivering results from one stage to another.
 	for {
@@ -107,3 +101,11 @@ func listenRes(prevStageChan In, res chan<- interface{}, done In, cancel context
 		}
 	}
 }
+
+// listenRes - переименовать, подумать, как сделать последние строчки ExecutePipeline чуть более graceful.
+//
+// ПРОБЛЕМА в том, что в тесте идёт отправка всех значений из набора, горутина блокируется,
+// т.к. канал перестают слушать. Для решения ПРОБЛЕМЫ нужно обернуть входной канал по аналогии
+// с выходным - его надо вычитывать полностью вне зависимости от сигнала отмены. --- написать в чат об этом моменте в тесте
+//
+// Разделить runStage на 2 части???
