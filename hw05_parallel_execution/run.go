@@ -2,11 +2,10 @@
 package hw05parallelexecution
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -21,6 +20,25 @@ var (
 // Task is a function that is executed in a separate worker.
 type Task func() error
 
+type errorCounter struct {
+	count int64
+	m     int64
+}
+
+// Inc atomically increments the error counter and returns its new value.
+func (ec *errorCounter) Inc() int64 {
+	return atomic.AddInt64(&ec.count, 1)
+}
+
+// IsExceeded checks if the number of errors exceeds the limit.
+// Returns false if the number of errors is less than limit, true otherwise.
+func (ec *errorCounter) IsExceeded() bool {
+	if ec.m <= 0 {
+		return false
+	}
+	return atomic.LoadInt64(&ec.count) >= ec.m
+}
+
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
 	if len(tasks) == 0 {
@@ -31,182 +49,71 @@ func Run(tasks []Task, n, m int) error {
 		return ErrNoWorkers
 	}
 
-	// n workers + current goroutine + 2 extra ones.
-	runtime.GOMAXPROCS(n + 3)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// n workers + current goroutine + tasks sender.
+	runtime.GOMAXPROCS(n + 2)
 
 	wg := &sync.WaitGroup{}
-	taskPool := taskGenerator(ctx, wg, tasks)
-	taskResults := runWorkers(ctx, wg, taskPool, n)
-	muxedResults := muxChannels(wg, taskResults...)
-	res := processTaskResults(cancel, muxedResults, m)
+	taskPool := make(chan Task)
+	errCounter := &errorCounter{count: 0, m: int64(m)}
+
+	// Starting workers.
+	for range n {
+		wg.Add(1)
+		go worker(wg, taskPool, errCounter)
+	}
+
+	// Sending tasks.
+	wg.Add(1)
+	go sendTasks(wg, taskPool, errCounter, tasks)
 
 	wg.Wait()
-	return res
-}
 
-// taskGenerator creates a goroutine that sends each task in the tasks slice
-// to the returned channel. If the context is cancelled,
-// the goroutine will stop sending tasks and close the channel.
-func taskGenerator(ctx context.Context, wg *sync.WaitGroup, tasks []Task) <-chan Task {
-	taskPool := make(chan Task)
-	wg.Add(1)
-
-	go func() {
-		defer close(taskPool)
-		defer wg.Done()
-		for _, task := range tasks {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				select {
-				case <-ctx.Done():
-					return
-				case taskPool <- task:
-				}
-			}
-		}
-	}()
-
-	return taskPool
-}
-
-// worker starts a goroutine that consumes tasks from taskPool and sends the results to taskRes.
-// It stops working on the context cancellation.
-// It handles panics in tasks and sends the error to the taskRes channel.
-func worker(ctx context.Context, wg *sync.WaitGroup, taskPool <-chan Task, taskRes chan<- error) {
-	if taskRes != nil {
-		defer close(taskRes)
+	if errCounter.IsExceeded() {
+		return ErrErrorsLimitExceeded
 	}
+
+	return nil
+}
+
+// worker takes tasks from the taskPool and executes them.
+// The worker continues to work after any of the tasks panics.
+// If the number of errors exceeds the limit, the worker stops working.
+func worker(wg *sync.WaitGroup, taskPool <-chan Task, errCounter *errorCounter) {
 	defer wg.Done()
-
-	if taskPool == nil {
-		return
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			var task Task
-			var ok bool
-			select {
-			case <-ctx.Done():
-				return
-			case task, ok = <-taskPool:
-			}
-
-			// No tasks left.
-			if !ok {
-				return
-			}
-
-			// Ensuring that the worker continues to work after any of the tasks panics.
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						taskRes <- fmt.Errorf("one of the tasks panicked: %v", r)
-					}
-				}()
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					select {
-					case <-ctx.Done():
-						return
-					case taskRes <- task():
-					}
+	for task := range taskPool {
+		// Ensuring that the worker continues to work after any of the tasks panics.
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					errCounter.Inc()
 				}
 			}()
-		}
-	}
-}
-
-// muxChannels starts a goroutine that listens to all given channels and multiplexes them to a single one.
-// It closes the result channel when all input channels are closed.
-func muxChannels(wg *sync.WaitGroup, channels ...<-chan error) <-chan error {
-	if len(channels) == 0 {
-		return nil
-	}
-
-	res := make(chan error)
-	closedChannels := make(map[int]struct{}, len(channels))
-	wg.Add(1)
-
-	// Starting separate goroutine to listen to all channels and multiplexing them to a single one.
-	go func() {
-		defer wg.Done()
-		defer close(res)
-
-		for len(closedChannels) < len(channels) {
-			// Listening to each channel once without blocking.
-			for i, ch := range channels {
-				if _, ok := closedChannels[i]; ok {
-					continue
-				}
-				select {
-				case v, ok := <-ch:
-					if !ok {
-						closedChannels[i] = struct{}{}
-						continue
-					}
-					res <- v
-				default:
-					continue
-				}
+			if errCounter.IsExceeded() {
+				return
 			}
-		}
-	}()
-
-	return res
-}
-
-// runWorkers starts n goroutines that consume tasks from taskPool and send the results to the returned channel.
-func runWorkers(ctx context.Context, wg *sync.WaitGroup, taskPool <-chan Task, n int) []<-chan error {
-	res := make([]<-chan error, n)
-
-	for i := 0; i < n; i++ {
-		workerRes := make(chan error) // Initializing worker response channel.
-		wg.Add(1)
-		go worker(ctx, wg, taskPool, workerRes)
-		res[i] = workerRes // Casting workerRes to <-workerRes.
-	}
-
-	return res
-}
-
-// processTaskResults listens for errors on the receiver channel and counts them until an error limit is reached.
-// If the limit is reached, it cancels the context to stop further task execution and returns ErrErrorsLimitExceeded.
-//
-// If m is greater than 0, it treats m as the maximum allowable error count.
-//
-// If the count of errors reaches or exceeds m, it returns ErrErrorsLimitExceeded.
-//
-// If m is 0 or negative, it ignores the error count and processes all results until the channel is closed.
-func processTaskResults(cancel context.CancelFunc, receiver <-chan error, m int) error {
-	ignoreErrors := m <= 0
-	var res error
-
-	counter := 0
-
-	for v := range receiver {
-		// Task completed without errors.
-		if v == nil {
-			continue
-		}
-
-		counter++
-		// Limit of errors exceeded.
-		if !ignoreErrors && counter == m {
-			cancel()
-			res = ErrErrorsLimitExceeded
+			if res := task(); res != nil {
+				errCounter.Inc()
+			}
+		}()
+		if errCounter.IsExceeded() {
+			return
 		}
 	}
+}
 
-	return res
+// sendTasks sends tasks to the taskPool and stops when all tasks have been sent or the error limit has been exceeded.
+func sendTasks(wg *sync.WaitGroup, taskPool chan<- Task, errCounter *errorCounter, tasks []Task) {
+	defer wg.Done()
+	defer close(taskPool)
+	sentCount := 0
+	for sentCount < len(tasks) {
+		if errCounter.IsExceeded() {
+			return
+		}
+		select {
+		case taskPool <- tasks[sentCount]:
+			sentCount++
+		default:
+		}
+	}
 }
