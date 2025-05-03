@@ -96,8 +96,5 @@ func worker(wg *sync.WaitGroup, taskPool <-chan Task, errCounter *errorCounter) 
 				atomic.AddInt64(&errCounter.count, 1)
 			}
 		}()
-		if errCounter.IsExceeded() {
-			return
-		}
 	}
 }
