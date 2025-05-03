@@ -31,14 +31,7 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 		prevStageChan = transits[i]
 	}
 
-	// Awaiting for cancel signal or end of processing.
-	res := make(Bi)
-	if done != nil {
-		go listenRes(cancel, prevStageChan, res, done)
-	} else {
-		go listenRes(cancel, prevStageChan, res, make(In)) // Stubbing done channel if no stop is required.
-	}
-	return res
+	return setResult(cancel, done, prevStageChan)
 }
 
 func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
@@ -47,7 +40,7 @@ func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
 	var localOut Out
 
 	// Stage panic protection.
-	localOut = func(in In) (out Out) {
+	localOut = func() (out Out) {
 		// Returning a closed channel on stage running panic.
 		defer func() {
 			if r := recover(); r != nil {
@@ -59,7 +52,7 @@ func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
 
 		localOut = stage(in)
 		return localOut
-	}(in)
+	}()
 
 	// Delivering results from one stage to another.
 	for {
@@ -81,25 +74,35 @@ func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
 	}
 }
 
-func listenRes(cancel context.CancelFunc, prevStageChan In, res chan<- interface{}, done In) {
-	defer close(res)
-	defer cancel()
-	for {
-		select {
-		case <-done:
-			return
-		case v, ok := <-prevStageChan:
-			if !ok {
-				return
-			}
+func setResult(cancel context.CancelFunc, done In, prevStageChan In) Out {
+	res := make(Bi)
+	go func() {
+		// Lazy init of done channel.
+		if done == nil {
+			tmpDone := make(Bi)
+			defer close(tmpDone)
+			done = tmpDone
+		}
+		defer close(res)
+		defer cancel()
+		for {
 			select {
 			case <-done:
 				return
-			case res <- v:
-				// Passing the value to the next stage.
+			case v, ok := <-prevStageChan:
+				if !ok {
+					return
+				}
+				select {
+				case <-done:
+					return
+				case res <- v:
+					// Passing the value to the next stage.
+				}
 			}
 		}
-	}
+	}()
+	return res
 }
 
 func getSource(ctx context.Context, in In) Out {
@@ -129,6 +132,6 @@ func getSource(ctx context.Context, in In) Out {
 	return out
 }
 
-// listenRes - переименовать, подумать, как сделать последние строчки ExecutePipeline чуть более graceful.
-//
 // Разделить runStage на 2 части???
+//
+// Нужно добавить обход промежуточных каналов с их вычитыванием
