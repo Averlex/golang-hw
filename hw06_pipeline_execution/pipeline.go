@@ -42,7 +42,7 @@ func runStage(stage Stage, in In) Out {
 		}()
 
 		out = stage(in)
-		return out
+		return
 	}()
 }
 
