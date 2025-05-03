@@ -21,7 +21,7 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	ctx, cancel := context.WithCancel(context.Background())
 	transits := make([]Bi, len(stages))
 
-	prevStageChan := in
+	prevStageChan := getSource(ctx, in)
 
 	for i, stage := range stages {
 		//nolint:copyloopvar
@@ -34,9 +34,9 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	// Awaiting for cancel signal or end of processing.
 	res := make(Bi)
 	if done != nil {
-		go listenRes(prevStageChan, res, done, cancel)
+		go listenRes(cancel, prevStageChan, res, done)
 	} else {
-		go listenRes(prevStageChan, res, make(In), cancel) // Stubbing done channel if no stop is required.
+		go listenRes(cancel, prevStageChan, res, make(In)) // Stubbing done channel if no stop is required.
 	}
 	return res
 }
@@ -81,7 +81,7 @@ func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
 	}
 }
 
-func listenRes(prevStageChan In, res chan<- interface{}, done In, cancel context.CancelFunc) {
+func listenRes(cancel context.CancelFunc, prevStageChan In, res chan<- interface{}, done In) {
 	defer close(res)
 	defer cancel()
 	for {
@@ -102,10 +102,33 @@ func listenRes(prevStageChan In, res chan<- interface{}, done In, cancel context
 	}
 }
 
+func getSource(ctx context.Context, in In) Out {
+	out := make(Bi)
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-ctx.Done():
+				for range in {
+				} // Reading all values from the pipeline input channel.
+				return
+			case v, ok := <-in:
+				if !ok {
+					return
+				}
+				select {
+				case <-ctx.Done():
+					for range in {
+					}
+					return
+				case out <- v:
+				}
+			}
+		}
+	}()
+	return out
+}
+
 // listenRes - переименовать, подумать, как сделать последние строчки ExecutePipeline чуть более graceful.
-//
-// ПРОБЛЕМА в том, что в тесте идёт отправка всех значений из набора, горутина блокируется,
-// т.к. канал перестают слушать. Для решения ПРОБЛЕМЫ нужно обернуть входной канал по аналогии
-// с выходным - его надо вычитывать полностью вне зависимости от сигнала отмены. --- написать в чат об этом моменте в тесте
 //
 // Разделить runStage на 2 части???
