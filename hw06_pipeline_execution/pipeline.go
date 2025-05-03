@@ -19,28 +19,19 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	transits := make([]Bi, len(stages))
 
 	prevStageChan := getSource(ctx, in)
 
-	for i, stage := range stages {
-		//nolint:copyloopvar
-		i := i
-		transits[i] = make(Bi)
-		go runStage(ctx, stage, prevStageChan, transits[i])
-		prevStageChan = transits[i]
+	for _, stage := range stages {
+		prevStageChan = runStage(stage, prevStageChan)
 	}
 
 	return setResult(cancel, done, prevStageChan)
 }
 
-func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
-	defer close(out)
-
-	var localOut Out
-
+func runStage(stage Stage, in In) Out {
 	// Stage panic protection.
-	localOut = func() (out Out) {
+	return func() (out Out) {
 		// Returning a closed channel on stage running panic.
 		defer func() {
 			if r := recover(); r != nil {
@@ -50,28 +41,9 @@ func runStage(ctx context.Context, stage Stage, in In, out chan<- interface{}) {
 			}
 		}()
 
-		localOut = stage(in)
-		return localOut
+		out = stage(in)
+		return out
 	}()
-
-	// Delivering results from one stage to another.
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case v, ok := <-localOut:
-			// Extracting the value from the current stage.
-			if !ok {
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case out <- v:
-				// Passing the value to the next stage.
-			}
-		}
-	}
 }
 
 func setResult(cancel context.CancelFunc, done In, prevStageChan In) Out {
@@ -83,6 +55,7 @@ func setResult(cancel context.CancelFunc, done In, prevStageChan In) Out {
 			defer close(tmpDone)
 			done = tmpDone
 		}
+		defer awaitChannel(prevStageChan)
 		defer close(res)
 		defer cancel()
 		for {
@@ -108,12 +81,11 @@ func setResult(cancel context.CancelFunc, done In, prevStageChan In) Out {
 func getSource(ctx context.Context, in In) Out {
 	out := make(Bi)
 	go func() {
+		defer awaitChannel(in)
 		defer close(out)
 		for {
 			select {
 			case <-ctx.Done():
-				for range in {
-				} // Reading all values from the pipeline input channel.
 				return
 			case v, ok := <-in:
 				if !ok {
@@ -121,8 +93,6 @@ func getSource(ctx context.Context, in In) Out {
 				}
 				select {
 				case <-ctx.Done():
-					for range in {
-					}
 					return
 				case out <- v:
 				}
@@ -132,6 +102,9 @@ func getSource(ctx context.Context, in In) Out {
 	return out
 }
 
-// Разделить runStage на 2 части???
-//
-// Нужно добавить обход промежуточных каналов с их вычитыванием
+func awaitChannel(in In) {
+	go func() {
+		for range in {
+		}
+	}()
+}
