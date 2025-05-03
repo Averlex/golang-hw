@@ -62,10 +62,16 @@ func Run(tasks []Task, n, m int) error {
 		go worker(wg, taskPool, errCounter)
 	}
 
-	// Sending tasks.
-	wg.Add(1)
-	go sendTasks(wg, taskPool, errCounter, tasks)
+	sentCount := 0
+	for sentCount < len(tasks) && !errCounter.IsExceeded() {
+		select {
+		case taskPool <- tasks[sentCount]:
+			sentCount++
+		default:
+		}
+	}
 
+	close(taskPool)
 	wg.Wait()
 
 	if errCounter.IsExceeded() {
@@ -97,23 +103,6 @@ func worker(wg *sync.WaitGroup, taskPool <-chan Task, errCounter *errorCounter) 
 		}()
 		if errCounter.IsExceeded() {
 			return
-		}
-	}
-}
-
-// sendTasks sends tasks to the taskPool and stops when all tasks have been sent or the error limit has been exceeded.
-func sendTasks(wg *sync.WaitGroup, taskPool chan<- Task, errCounter *errorCounter, tasks []Task) {
-	defer wg.Done()
-	defer close(taskPool)
-	sentCount := 0
-	for sentCount < len(tasks) {
-		if errCounter.IsExceeded() {
-			return
-		}
-		select {
-		case taskPool <- tasks[sentCount]:
-			sentCount++
-		default:
 		}
 	}
 }
