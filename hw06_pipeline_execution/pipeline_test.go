@@ -152,3 +152,105 @@ func TestAllStageStop(t *testing.T) {
 		require.Len(t, result, 0)
 	})
 }
+
+func TestIncorrectArguments(t *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	in := make(Bi)
+	defer close(in)
+
+	testCases := []struct {
+		name   string
+		in     Bi
+		done   Bi
+		stages []Stage
+	}{
+		{"nil input channel", nil, nil, []Stage{g(wg, "Dummy", func(v interface{}) interface{} { return v })}},
+		{"empty stages slice", in, nil, nil},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := ExecutePipeline(tC.in, tC.done, tC.stages...)
+			require.Nil(t, got, "unexpected not-nil channel received from the pipeline")
+		})
+	}
+
+	wg.Wait()
+}
+
+func TestPanicingStages(t *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	testCases := []struct {
+		name   string
+		done   Bi
+		stages []Stage
+	}{
+		{"1 stage", nil, []Stage{panicingG("Dummy", func(v interface{}) interface{} { return v })}},
+		{"2 stages/1st panics", nil, []Stage{
+			panicingG("Dummy", func(v interface{}) interface{} { return v }),
+			g(wg, "Dummy", func(v interface{}) interface{} { return v }),
+		}},
+		{"2 stages/2nd panics", nil, []Stage{
+			g(wg, "Dummy", func(v interface{}) interface{} { return v }),
+			panicingG("Dummy", func(v interface{}) interface{} { return v }),
+		}},
+		{"many stages/many panics", nil, []Stage{
+			g(wg, "Dummy", func(v interface{}) interface{} { return v }),
+			panicingG("Dummy", func(v interface{}) interface{} { return v }),
+			g(wg, "Dummy", func(v interface{}) interface{} { return v }),
+			panicingG("Dummy", func(v interface{}) interface{} { return v }),
+			g(wg, "Dummy", func(v interface{}) interface{} { return v }),
+			panicingG("Dummy", func(v interface{}) interface{} { return v }),
+			g(wg, "Dummy", func(v interface{}) interface{} { return v }),
+		}},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			in := make(Bi)
+			data := []int{1, 2, 3, 4, 5}
+			go func() {
+				for _, v := range data {
+					in <- v
+				}
+				close(in)
+			}()
+
+			result := make([]string, 0, 10)
+
+			for s := range ExecutePipeline(in, tC.done, tC.stages...) {
+				result = append(result, s.(string))
+			}
+
+			require.Len(t, result, 0)
+		})
+	}
+
+	wg.Wait()
+}
+
+// Stage generator.
+func g(wg *sync.WaitGroup, _ string, f func(v interface{}) interface{}) Stage {
+	return func(in In) Out {
+		out := make(Bi)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer close(out)
+			for v := range in {
+				time.Sleep(sleepPerStage)
+				out <- f(v)
+			}
+		}()
+		return out
+	}
+}
+
+// Stage generator which panics in process.
+func panicingG(_ string, _ func(v interface{}) interface{}) Stage {
+	return func(_ In) Out {
+		panic("42")
+	}
+}
