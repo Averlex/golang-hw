@@ -20,13 +20,13 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	prevStageChan := getSource(ctx, in)
+	prevStageChan := listenInput(ctx, in)
 
 	for _, stage := range stages {
 		prevStageChan = runStage(stage, prevStageChan)
 	}
 
-	return setResult(cancel, done, prevStageChan)
+	return sendToOutput(cancel, done, prevStageChan)
 }
 
 func runStage(stage Stage, in In) Out {
@@ -46,7 +46,7 @@ func runStage(stage Stage, in In) Out {
 	}()
 }
 
-func setResult(cancel context.CancelFunc, done In, prevStageChan In) Out {
+func sendToOutput(cancel context.CancelFunc, done In, prevStageChan In) Out {
 	res := make(Bi)
 	go func() {
 		// Lazy init of done channel.
@@ -78,7 +78,7 @@ func setResult(cancel context.CancelFunc, done In, prevStageChan In) Out {
 	return res
 }
 
-func getSource(ctx context.Context, in In) Out {
+func listenInput(ctx context.Context, in In) Out {
 	out := make(Bi)
 	go func() {
 		defer awaitChannel(in)
