@@ -38,6 +38,7 @@ func runStage(stage Stage, in In) Out {
 				tmpChan := make(Bi)
 				close(tmpChan)
 				out = tmpChan
+				awaitChannel(in)
 			}
 		}()
 
