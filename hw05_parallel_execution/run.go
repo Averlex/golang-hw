@@ -25,11 +25,6 @@ type errorCounter struct {
 	m     int64
 }
 
-// Inc atomically increments the error counter and returns its new value.
-func (ec *errorCounter) Inc() int64 {
-	return atomic.AddInt64(&ec.count, 1)
-}
-
 // IsExceeded checks if the number of errors exceeds the limit.
 // Returns false if the number of errors is less than limit, true otherwise.
 func (ec *errorCounter) IsExceeded() bool {
@@ -91,14 +86,14 @@ func worker(wg *sync.WaitGroup, taskPool <-chan Task, errCounter *errorCounter) 
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					errCounter.Inc()
+					atomic.AddInt64(&errCounter.count, 1)
 				}
 			}()
 			if errCounter.IsExceeded() {
 				return
 			}
 			if res := task(); res != nil {
-				errCounter.Inc()
+				atomic.AddInt64(&errCounter.count, 1)
 			}
 		}()
 		if errCounter.IsExceeded() {
