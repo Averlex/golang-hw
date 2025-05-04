@@ -1,3 +1,4 @@
+//nolint:revive
 package main
 
 // При желании конфигурацию можно вынести в internal/config.
