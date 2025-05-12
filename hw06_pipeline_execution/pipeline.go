@@ -37,8 +37,10 @@ func runStage(stage Stage, in In, done In) Out {
 
 		// Draining the channel in case of stop signal.
 		defer func() {
-			for range in {
-			}
+			go func() {
+				for range in {
+				}
+			}()
 		}()
 
 		for {
@@ -58,7 +60,5 @@ func runStage(stage Stage, in In, done In) Out {
 		}
 	}()
 
-	out := stage(transit)
-
-	return out
+	return stage(transit)
 }
