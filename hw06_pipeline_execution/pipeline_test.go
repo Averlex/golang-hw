@@ -150,6 +150,88 @@ func TestAllStageStop(t *testing.T) {
 		wg.Wait()
 
 		require.Len(t, result, 0)
-
 	})
+}
+
+func TestIncorrectArguments(t *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	in := make(Bi)
+	defer close(in)
+
+	testCases := []struct {
+		name   string
+		in     Bi
+		done   Bi
+		stages []Stage
+	}{
+		{"nil input channel", nil, nil, []Stage{g(wg, func(v interface{}) interface{} { return v })}},
+		{"empty stages slice", in, nil, nil},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			got := ExecutePipeline(tC.in, tC.done, tC.stages...)
+			require.Nil(t, got, "unexpected not-nil channel received from the pipeline")
+		})
+	}
+
+	wg.Wait()
+}
+
+// Stage generator.
+func g(wg *sync.WaitGroup, f func(v interface{}) interface{}) Stage {
+	return func(in In) Out {
+		out := make(Bi)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer close(out)
+			for v := range in {
+				time.Sleep(sleepPerStage)
+				out <- f(v)
+			}
+		}()
+		return out
+	}
+}
+
+func TestLongPipeline(t *testing.T) {
+	wg := &sync.WaitGroup{}
+
+	in := make(Bi)
+	data := make([]int, 100)
+	for i := range data {
+		data[i] = i
+	}
+
+	stages := make([]Stage, 100)
+	for i := range stages {
+		stages[i] = g(wg, func(v interface{}) interface{} { return v.(int) + 1 })
+	}
+
+	go func() {
+		defer close(in)
+		for _, v := range data {
+			in <- v
+		}
+	}()
+
+	res := make([]int, 0, len(data))
+	for s := range ExecutePipeline(in, nil, stages...) {
+		res = append(res, s.(int))
+	}
+
+	require.Equal(t, len(data), len(res))
+	require.Equal(t, sum(data)+len(stages)*len(data), sum(res))
+
+	wg.Wait()
+}
+
+func sum[T any](arr []T) int {
+	var res int
+	for _, v := range arr {
+		res += any(v).(int)
+	}
+	return res
 }
