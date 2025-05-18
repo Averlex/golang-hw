@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard,nolintlint
 )
 
+func TestCopy(t *testing.T) {
+	testDirPath := "./tmp"
+	if _, err := os.Stat(testDirPath); err == nil {
+		os.RemoveAll(testDirPath)
+	}
+	os.Mkdir(testDirPath, os.ModePerm)
+	defer os.RemoveAll(testDirPath)
+
+	incorrectFile(t, testDirPath)
+	incorrectPath(t, testDirPath)
+}
+
 func incorrectFile(t *testing.T, testDirPath string) {
 	t.Helper()
 
@@ -38,9 +50,6 @@ func incorrectFile(t *testing.T, testDirPath string) {
 
 		for _, tC := range testCases {
 			t.Run(tC.name, func(t *testing.T) {
-				if tC.name == "undefined file size" {
-					fmt.Println(tC.fname)
-				}
 				res := Copy(tC.fname, output, 0, 0)
 				if res == nil {
 					require.Fail(t, "expected error, got nil")
@@ -51,13 +60,66 @@ func incorrectFile(t *testing.T, testDirPath string) {
 	})
 }
 
-func TestCopy(t *testing.T) {
-	testDirPath := "./tmp"
-	if _, err := os.Stat(testDirPath); err == nil {
-		os.RemoveAll(testDirPath)
-	}
-	os.Mkdir(testDirPath, os.ModePerm)
-	defer os.RemoveAll(testDirPath)
+func incorrectPath(t *testing.T, testDirPath string) {
+	t.Helper()
 
-	incorrectFile(t, testDirPath)
+	want := ErrUnsupportedPath
+	validInput := "./testdata/input.txt"
+	validOutput := "./testdata/output.txt"
+	testCases := []struct {
+		name   string
+		source string
+	}{
+		{"proc", "/proc/self/cmdline"},
+		{"sys", "/sys/devices/system/cpu/online"},
+		{"run", "/run/utmp"},
+	}
+
+	// Test preparations.
+	folderPath := testDirPath + "/some_folder"
+	err := os.Mkdir(folderPath, os.ModePerm)
+	if err != nil {
+		require.Fail(t, "unable to create a folder: "+err.Error())
+	}
+
+	t.Run("system source path", func(t *testing.T) {
+		for _, tC := range testCases {
+			t.Run(tC.name, func(t *testing.T) {
+				if tC.name == "proc" {
+					fmt.Println("proc")
+				}
+				res := Copy(tC.source, validOutput, 0, 0)
+				if res == nil {
+					require.Fail(t, "expected error, got nil")
+				}
+				require.ErrorIs(t, res, want)
+			})
+		}
+	})
+
+	t.Run("invalid destination path", func(t *testing.T) {
+		for _, tC := range testCases {
+			t.Run(tC.name, func(t *testing.T) {
+				res := Copy(validInput, tC.source, 0, 0)
+				if res == nil {
+					require.Fail(t, "expected error, got nil")
+				}
+				require.ErrorIs(t, res, want)
+			})
+		}
+		t.Run("dev/null", func(t *testing.T) {
+			res := Copy(validInput, folderPath, 0, 0)
+			if res == nil {
+				require.Fail(t, "expected error, got nil")
+			}
+			require.ErrorIs(t, res, want)
+		})
+		t.Run("toPath is a folder", func(t *testing.T) {
+			res := Copy(validInput, folderPath, 0, 0)
+			if res == nil {
+				require.Fail(t, "expected error, got nil")
+			}
+			require.ErrorIs(t, res, want)
+		})
+	})
 }
