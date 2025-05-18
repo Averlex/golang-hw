@@ -59,7 +59,7 @@ func isInvalidToPath(path string) bool {
 	res := isSystemPath(path)
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return res
+		return true
 	}
 	return res || fileInfo.IsDir()
 }

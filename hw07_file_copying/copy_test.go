@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -85,9 +84,6 @@ func incorrectPath(t *testing.T, testDirPath string) {
 	t.Run("system source path", func(t *testing.T) {
 		for _, tC := range testCases {
 			t.Run(tC.name, func(t *testing.T) {
-				if tC.name == "proc" {
-					fmt.Println("proc")
-				}
 				res := Copy(tC.source, validOutput, 0, 0)
 				if res == nil {
 					require.Fail(t, "expected error, got nil")
@@ -95,6 +91,13 @@ func incorrectPath(t *testing.T, testDirPath string) {
 				require.ErrorIs(t, res, want)
 			})
 		}
+		t.Run("empty source path", func(t *testing.T) {
+			res := Copy("", validOutput, 0, 0)
+			if res == nil {
+				require.Fail(t, "expected error, got nil")
+			}
+			require.ErrorIs(t, res, ErrUnsupportedFile)
+		})
 	})
 
 	t.Run("invalid destination path", func(t *testing.T) {
@@ -116,6 +119,13 @@ func incorrectPath(t *testing.T, testDirPath string) {
 		})
 		t.Run("toPath is a folder", func(t *testing.T) {
 			res := Copy(validInput, folderPath, 0, 0)
+			if res == nil {
+				require.Fail(t, "expected error, got nil")
+			}
+			require.ErrorIs(t, res, want)
+		})
+		t.Run("empty source path", func(t *testing.T) {
+			res := Copy(validInput, "", 0, 0)
 			if res == nil {
 				require.Fail(t, "expected error, got nil")
 			}
