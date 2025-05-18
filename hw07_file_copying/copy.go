@@ -59,12 +59,12 @@ func isSystemPath(path string) bool {
 }
 
 func isInvalidToPath(path string) bool {
-	res := isSystemPath(path)
+	res := isSystemPath(path) || path == ""
 	fileInfo, err := os.Stat(path)
-	if err != nil {
-		return true
+	if err == nil {
+		return res || fileInfo.IsDir()
 	}
-	return res || fileInfo.IsDir()
+	return res
 }
 
 func argCorrection(val *int64) {
