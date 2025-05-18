@@ -17,6 +17,56 @@ func TestCopy(t *testing.T) {
 
 	incorrectFile(t, testDirPath)
 	incorrectPath(t, testDirPath)
+
+	t.Run("testdata directory default contents", func(t *testing.T) {
+		source := "./testdata/input.txt"
+		testCases := []struct {
+			name           string
+			templateOutput string
+			output         string
+			offset         int64
+			limit          int64
+		}{
+			{
+				"offset 0, limit 0", "./testdata/out_offset0_limit0.txt",
+				testDirPath + "/out_offset0_limit0.txt", 0, 0,
+			},
+			{
+				"offset 0, limit 10", "./testdata/out_offset0_limit10.txt",
+				testDirPath + "/out_offset0_limit10.txt", 0, 10,
+			},
+			{
+				"offset 0, limit 1000", "./testdata/out_offset0_limit1000.txt",
+				testDirPath + "/out_offset0_limit1000.txt", 0, 1000,
+			},
+			{
+				"offset 0, limit 10000", "./testdata/out_offset0_limit10000.txt",
+				testDirPath + "/out_offset0_limit10000.txt", 0, 10000,
+			},
+			{
+				"offset 100, limit 1000", "./testdata/out_offset100_limit1000.txt",
+				testDirPath + "/out_offset100_limit1000.txt", 100, 1000,
+			},
+			{
+				"offset 6000, limit 1000", "./testdata/out_offset6000_limit1000.txt",
+				testDirPath + "/out_offset6000_limit1000.txt", 6000, 1000,
+			},
+		}
+		for _, tC := range testCases {
+			t.Run(tC.name, func(t *testing.T) {
+				Copy(source, tC.output, tC.offset, tC.limit)
+				output, err := os.ReadFile(tC.output)
+				if err != nil {
+					require.Fail(t, "unable to read output file: "+err.Error())
+				}
+				templateOutput, err := os.ReadFile(tC.templateOutput)
+				if err != nil {
+					require.Fail(t, "unable to read template output file: "+err.Error())
+				}
+				require.Equal(t, output, templateOutput)
+			})
+		}
+	})
 }
 
 func incorrectFile(t *testing.T, testDirPath string) {
@@ -133,3 +183,7 @@ func incorrectPath(t *testing.T, testDirPath string) {
 		})
 	})
 }
+
+// offset < 0
+// limit < 0
+// offset > file size

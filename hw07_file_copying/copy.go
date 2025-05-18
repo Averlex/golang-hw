@@ -6,12 +6,15 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/cheggaaa/pb/v3" //nolint:depguard
 )
 
 var (
 	ErrUnsupportedFile       = errors.New("unsupported file") //nolint:revive
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
 	ErrUnsupportedPath       = errors.New("unsupported path")
+	ErrOSError               = errors.New("os error")
 )
 
 var unsupportedPathPrefixes = []string{
@@ -64,6 +67,12 @@ func isInvalidToPath(path string) bool {
 	return res || fileInfo.IsDir()
 }
 
+func argCorrection(val *int64) {
+	if *val < 0 {
+		*val = 0
+	}
+}
+
 //nolint:revive
 func Copy(fromPath, toPath string, offset, limit int64) error {
 	if isUnsupportedFile(fromPath) {
@@ -76,6 +85,40 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 
 	if isInvalidToPath(toPath) {
 		return ErrUnsupportedPath
+	}
+
+	argCorrection(&offset)
+	argCorrection(&limit)
+
+	sourceFile, _ := os.Open(fromPath)
+	defer sourceFile.Close()
+
+	// Offset validation.
+	fileInfo, _ := os.Stat(fromPath)
+	if offset >= fileInfo.Size() {
+		return ErrOffsetExceedsFileSize
+	}
+
+	destFile, err := os.Create(toPath)
+	if err != nil {
+		return ErrOSError
+	}
+	defer destFile.Close()
+
+	sourceFile.Seek(offset, io.SeekStart)
+	bytesToCopy := fileInfo.Size() - offset
+	if offset+limit < fileInfo.Size() {
+		bytesToCopy = limit
+	}
+
+	bar := pb.Full.Start64(bytesToCopy)
+	defer bar.Finish()
+	for i := int64(0); i < offset; i++ {
+		n, err := io.CopyN(destFile, sourceFile, 1)
+		if err != nil {
+			return ErrOSError
+		}
+		bar.Add64(n)
 	}
 
 	return nil
