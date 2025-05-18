@@ -8,13 +8,8 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard,nolintlint
 )
 
-func TestCopy(t *testing.T) {
-	testDirPath := "./tmp"
-	if _, err := os.Stat(testDirPath); err == nil {
-		os.RemoveAll(testDirPath)
-	}
-	os.Mkdir(testDirPath, os.ModePerm)
-	defer os.RemoveAll(testDirPath)
+func incorrectFile(t *testing.T, testDirPath string) {
+	t.Helper()
 
 	t.Run("incorrect source file", func(t *testing.T) {
 		want := ErrUnsupportedFile
@@ -54,4 +49,15 @@ func TestCopy(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestCopy(t *testing.T) {
+	testDirPath := "./tmp"
+	if _, err := os.Stat(testDirPath); err == nil {
+		os.RemoveAll(testDirPath)
+	}
+	os.Mkdir(testDirPath, os.ModePerm)
+	defer os.RemoveAll(testDirPath)
+
+	incorrectFile(t, testDirPath)
 }
