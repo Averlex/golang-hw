@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 )
 
 var (
@@ -12,6 +13,15 @@ var (
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
 	ErrUnsupportedPath       = errors.New("unsupported path")
 )
+
+var unsupportedPathPrefixes = []string{
+	"/dev",
+	"/proc",
+	"/sys",
+	"/run",
+	"/var/run",
+	"/var/lock",
+}
 
 func isUnsupportedFile(fromPath string) bool {
 	fileInfo, err := os.Lstat(fromPath)
@@ -36,18 +46,37 @@ func isUnsupportedFile(fromPath string) bool {
 	return err != nil
 }
 
+func isSystemPath(path string) bool {
+	for _, prefix := range unsupportedPathPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isInvalidToPath(path string) bool {
+	res := isSystemPath(path)
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return res
+	}
+	return res || fileInfo.IsDir()
+}
+
 //nolint:revive
 func Copy(fromPath, toPath string, offset, limit int64) error {
 	if isUnsupportedFile(fromPath) {
 		return ErrUnsupportedFile
 	}
 
-	// fmt.Println(fromPath, toPath, offset, limit)
-	// stat, err := os.Stat(fromPath)
-	// fmt.Println(stat.Mode().IsDir(), stat.Mode().IsRegular(), stat.Size())
-	// if err != nil {
-	// 	return ErrUnsupportedFile
-	// }
-	// fmt.Println(stat)
+	if isSystemPath(fromPath) {
+		return ErrUnsupportedPath
+	}
+
+	if isInvalidToPath(toPath) {
+		return ErrUnsupportedPath
+	}
+
 	return nil
 }
