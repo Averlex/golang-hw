@@ -21,6 +21,17 @@ func TestCopy(t *testing.T) {
 	incorrectPath(t, testDirPath)
 	defaultTestdata(t, testDirPath)
 	offsetLimit(t, testDirPath)
+
+	t.Run("nested folder creation", func(t *testing.T) {
+		source := defaultInputFile
+		templateOutput := "./testdata/out_offset0_limit0.txt"
+		output := testDirPath + "/folder/another_folder/one_more/output.txt"
+		res := Copy(source, output, 0, 0)
+		if res != nil {
+			require.Fail(t, "expected nil, got error: "+res.Error())
+		}
+		compare(t, output, templateOutput)
+	})
 }
 
 func incorrectFile(t *testing.T, testDirPath string) {
@@ -178,15 +189,7 @@ func defaultTestdata(t *testing.T, testDirPath string) {
 		for _, tC := range testCases {
 			t.Run(tC.name, func(t *testing.T) {
 				Copy(source, tC.output, tC.offset, tC.limit)
-				output, err := os.ReadFile(tC.output)
-				if err != nil {
-					require.Fail(t, "unable to read output file: "+err.Error())
-				}
-				templateOutput, err := os.ReadFile(tC.templateOutput)
-				if err != nil {
-					require.Fail(t, "unable to read template output file: "+err.Error())
-				}
-				require.Equal(t, output, templateOutput)
+				compare(t, tC.output, tC.templateOutput)
 			})
 		}
 	})
@@ -198,20 +201,6 @@ func offsetLimit(t *testing.T, testDirPath string) {
 	t.Run("offset and limit", func(t *testing.T) {
 		source := defaultInputFile
 		output := testDirPath + "/output.txt"
-
-		compare := func(t *testing.T, dst, tmplDst string) {
-			t.Helper()
-
-			output, err := os.ReadFile(dst)
-			if err != nil {
-				require.Fail(t, "unable to read output file: "+err.Error())
-			}
-			templateOutput, err := os.ReadFile(tmplDst)
-			if err != nil {
-				require.Fail(t, "unable to read template output file: "+err.Error())
-			}
-			require.Equal(t, output, templateOutput)
-		}
 
 		testCases := []struct {
 			name   string
@@ -240,4 +229,18 @@ func offsetLimit(t *testing.T, testDirPath string) {
 			require.ErrorIs(t, res, ErrOffsetExceedsFileSize)
 		})
 	})
+}
+
+func compare(t *testing.T, dst, tmplDst string) {
+	t.Helper()
+
+	output, err := os.ReadFile(dst)
+	if err != nil {
+		require.Fail(t, "unable to read output file: "+err.Error())
+	}
+	templateOutput, err := os.ReadFile(tmplDst)
+	if err != nil {
+		require.Fail(t, "unable to read template output file: "+err.Error())
+	}
+	require.Equal(t, output, templateOutput)
 }
