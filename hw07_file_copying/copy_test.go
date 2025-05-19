@@ -18,6 +18,7 @@ func TestCopy(t *testing.T) {
 	incorrectFile(t, testDirPath)
 	incorrectPath(t, testDirPath)
 	defaultTestdata(t, testDirPath)
+	offsetLimit(t, testDirPath)
 }
 
 func incorrectFile(t *testing.T, testDirPath string) {
@@ -189,6 +190,52 @@ func defaultTestdata(t *testing.T, testDirPath string) {
 	})
 }
 
-// offset < 0
-// limit < 0
-// offset > file size
+func offsetLimit(t *testing.T, testDirPath string) {
+	t.Helper()
+
+	t.Run("offset and limit", func(t *testing.T) {
+		source := "./testdata/input.txt"
+		output := testDirPath + "/output.txt"
+
+		compare := func(t *testing.T, dst, tmplDst string) {
+			t.Helper()
+
+			output, err := os.ReadFile(dst)
+			if err != nil {
+				require.Fail(t, "unable to read output file: "+err.Error())
+			}
+			templateOutput, err := os.ReadFile(tmplDst)
+			if err != nil {
+				require.Fail(t, "unable to read template output file: "+err.Error())
+			}
+			require.Equal(t, output, templateOutput)
+		}
+
+		testCases := []struct {
+			name   string
+			offset int64
+			limit  int64
+		}{
+			{"negative offset", -1, 0},
+			{"negative limit", 0, -1},
+		}
+
+		for _, tC := range testCases {
+			t.Run(tC.name, func(t *testing.T) {
+				res := Copy(source, output, tC.offset, tC.limit)
+				if res != nil {
+					require.Fail(t, "expected nil, got error: "+res.Error())
+				}
+				compare(t, output, "./testdata/out_offset0_limit0.txt")
+			})
+		}
+
+		t.Run("offset greater than file size", func(t *testing.T) {
+			res := Copy(source, output, 1000000, 0)
+			if res == nil {
+				require.Fail(t, "expected error, got nil")
+			}
+			require.ErrorIs(t, res, ErrOffsetExceedsFileSize)
+		})
+	})
+}
