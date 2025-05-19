@@ -1,17 +1,18 @@
-//nolint:revive
 package main
 
 import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/cheggaaa/pb/v3" //nolint:depguard
 )
 
+//nolint:revive,nolintlint
 var (
-	ErrUnsupportedFile       = errors.New("unsupported file") //nolint:revive
+	ErrUnsupportedFile       = errors.New("unsupported file")
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
 	ErrUnsupportedPath       = errors.New("unsupported path")
 	ErrOSError               = errors.New("os error")
@@ -67,13 +68,11 @@ func isInvalidToPath(path string) bool {
 	return res
 }
 
-func argCorrection(val *int64) {
-	if *val < 0 {
-		*val = 0
-	}
-}
-
-//nolint:revive
+// Copy copies a file from a source path to a destination path with optional offset and limit.
+// It returns an error if the source file is unsupported, the source or destination path is invalid,
+// the offset exceeds the file size, or if an OS error occurs during the process.
+// The function also creates the necessary directory structure for the destination path if it doesn't exist.
+// Progress is shown using a progress bar.
 func Copy(fromPath, toPath string, offset, limit int64) error {
 	if isUnsupportedFile(fromPath) {
 		return ErrUnsupportedFile
@@ -87,11 +86,11 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 		return ErrUnsupportedPath
 	}
 
-	argCorrection(&offset)
-	argCorrection(&limit)
+	offset = max(0, offset)
+	limit = max(0, limit)
 
-	sourceFile, _ := os.Open(fromPath)
-	defer sourceFile.Close()
+	src, _ := os.Open(fromPath)
+	defer src.Close()
 
 	// Offset validation.
 	fileInfo, _ := os.Stat(fromPath)
@@ -99,26 +98,33 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 		return ErrOffsetExceedsFileSize
 	}
 
-	destFile, err := os.Create(toPath)
+	// Creating directory tree if it doesn't exist.
+	dir := filepath.Dir(toPath)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return ErrOSError
+	}
+
+	// Creating destination file.
+	dst, err := os.Create(toPath)
 	if err != nil {
 		return ErrOSError
 	}
-	defer destFile.Close()
+	defer dst.Close()
 
-	sourceFile.Seek(offset, io.SeekStart)
+	// Applying offset and calculating real limit.
+	src.Seek(offset, io.SeekStart) // The possibility of using Seek() on src was checked above.
 	bytesToCopy := fileInfo.Size() - offset
-	if offset+limit < fileInfo.Size() {
+	if limit < fileInfo.Size()-offset && limit > 0 {
 		bytesToCopy = limit
 	}
 
+	// Copying.
 	bar := pb.Full.Start64(bytesToCopy)
 	defer bar.Finish()
-	for i := int64(0); i < offset; i++ {
-		n, err := io.CopyN(destFile, sourceFile, 1)
-		if err != nil {
-			return ErrOSError
-		}
-		bar.Add64(n)
+	reader := bar.NewProxyReader(src)
+	_, err = io.CopyN(dst, reader, bytesToCopy)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return ErrOSError
 	}
 
 	return nil
