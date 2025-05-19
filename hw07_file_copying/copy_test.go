@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require" //nolint:depguard,nolintlint
 )
 
+const defaultInputFile = "./testdata/input.txt"
+
 func TestCopy(t *testing.T) {
 	testDirPath := "./tmp"
 	if _, err := os.Stat(testDirPath); err == nil {
@@ -65,7 +67,7 @@ func incorrectPath(t *testing.T, testDirPath string) {
 	t.Helper()
 
 	want := ErrUnsupportedPath
-	validInput := "./testdata/input.txt"
+	validInput := defaultInputFile
 	validOutput := "./testdata/output.txt"
 	testCases := []struct {
 		name   string
@@ -140,7 +142,7 @@ func defaultTestdata(t *testing.T, testDirPath string) {
 	t.Helper()
 
 	t.Run("testdata directory default contents", func(t *testing.T) {
-		source := "./testdata/input.txt"
+		source := defaultInputFile
 		testCases := []struct {
 			name           string
 			templateOutput string
@@ -194,7 +196,7 @@ func offsetLimit(t *testing.T, testDirPath string) {
 	t.Helper()
 
 	t.Run("offset and limit", func(t *testing.T) {
-		source := "./testdata/input.txt"
+		source := defaultInputFile
 		output := testDirPath + "/output.txt"
 
 		compare := func(t *testing.T, dst, tmplDst string) {
