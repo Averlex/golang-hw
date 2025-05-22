@@ -91,7 +91,9 @@ func readFile(path string) (string, error) {
 	reader := bufio.NewReader(f)
 	line, err := reader.ReadString('\n')
 	if err != nil {
-		return "", err
+		if !errors.Is(err, io.EOF) {
+			return "", err
+		}
 	}
 	return line, nil
 }
@@ -110,7 +112,7 @@ func ReadDir(dir string) (Environment, error) {
 	}
 
 	entries, err := os.ReadDir(dir)
-	if err != nil {
+	if err != nil || len(entries) == 0 {
 		return nil, ErrFSError
 	}
 
@@ -127,8 +129,8 @@ func ReadDir(dir string) (Environment, error) {
 			return nil, ErrFSError
 		}
 
-		if containsEqualSign(line) {
-			return nil, ErrIncorrectPath
+		if containsEqualSign(entry.Name()) {
+			return nil, ErrUnsupportedFile
 		}
 
 		line = strings.TrimRight(line, " \t")
