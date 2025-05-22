@@ -23,7 +23,7 @@ func TestReadDir(t *testing.T) {
 	})
 
 	t.Run("valid cases", func(t *testing.T) {
-		validCases(t, testDirPath)
+		validReadDirCases(t, testDirPath)
 	})
 }
 
@@ -80,7 +80,7 @@ func incorrectFolderContents(t *testing.T, testDirPath string) {
 	}
 }
 
-func validCases(t *testing.T, testDirPath string) {
+func validReadDirCases(t *testing.T, testDirPath string) {
 	t.Helper()
 
 	path := testDirPath + "/valid_cases"
