@@ -133,6 +133,8 @@ func ReadDir(dir string) (Environment, error) {
 			return nil, ErrUnsupportedFile
 		}
 
+		line = strings.ReplaceAll(line, "\r\n", "\n")
+		line = strings.ReplaceAll(line, "\n", "")
 		line = strings.TrimRight(line, " \t")
 		line = strings.ReplaceAll(line, "\x00", "\n")
 
