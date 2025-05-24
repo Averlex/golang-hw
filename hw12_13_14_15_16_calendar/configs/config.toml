@@ -1,0 +1,12 @@
+[logger]
+level = "INFO"
+format = "json"
+
+[storage]
+type = "in-memory"
+
+[server]
+shutdown_timeout = "3s"
+
+# TODO
+# ...
