@@ -1,12 +1,17 @@
-[logger]
-level = "INFO"
-format = "json"
+[app]
+env = "dev"           # dev, prod
+log_stream = "stdout" # stdout, stderr
 
-[storage]
-type = "in-memory"
+[logger]
+level = "info"  # debug, info, warn, error
+format = "json" # json, text
 
 [server]
 shutdown_timeout = "3s"
+
+[storage]
+type = "in-memory" # in-memory, sql
+
 
 # TODO
 # ...
