@@ -1,21 +1,33 @@
-//nolint:revive
 package main
 
-// При желании конфигурацию можно вынести в internal/config.
-// Организация конфига в main принуждает нас сужать API компонентов, использовать
-// при их конструировании только необходимые параметры, а также уменьшает вероятность циклической зависимости.
+import "time"
+
+// Config is a config for calendar service.
 type Config struct {
-	Logger LoggerConf
-	// TODO
+	Logger  LoggerConf  `mapstructure:"logger"`
+	Storage StorageConf `mapstructure:"storage"`
+	Server  ServerConf  `mapstructure:"server"`
+	App     AppConf     `mapstructure:"app"`
 }
 
+// LoggerConf is a config for logger.
 type LoggerConf struct {
-	Level string
-	// TODO
+	Level  string `mapstructure:"level"`
+	Format string `mapstructure:"format"`
 }
 
-func NewConfig() Config {
-	return Config{}
+// ServerConf is a config for the global server settings.
+type ServerConf struct {
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
 
-// TODO
+// StorageConf is a config for storage containing storage type.
+type StorageConf struct {
+	Type string `mapstructure:"type"`
+}
+
+// AppConf is a config for the global app settings, like environment (dev/prod) and log stream.
+type AppConf struct {
+	Env       string `mapstructure:"env"`
+	LogStream string `mapstructure:"log_stream"`
+}
