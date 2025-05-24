@@ -4,6 +4,7 @@ package logger
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"os"
 )
@@ -18,12 +19,20 @@ var (
 	ErrInvalidLogType = errors.New("invalid log type")
 	// ErrInvalidLogLevel is an error that is returned when the log level is invalid.
 	ErrInvalidLogLevel = errors.New("invalid log level")
+	// ErrInvalidEnv is an error that is returned when the environment setting is invalid.
+	ErrInvalidEnv = errors.New("invalid application environment value")
+	// ErrInvalidWriter is an error that is returned when the writer is not set.
+	ErrInvalidWriter = errors.New("invalid writer set")
 )
 
 // New returns a new Logger with the given log type and level.
 // The log type can be "text" or "json". The log level can be "debug", "info", "warn" or "error".
 // If the log type or level is unknown, it returns an error.
-func New(logType, level string) (*Logger, error) {
+func New(logType, level, appEnv string, w io.Writer) (*Logger, error) {
+	if w == nil {
+		return nil, ErrInvalidWriter
+	}
+
 	var logHandler slog.Handler
 	var logLevel slog.Level
 
@@ -36,15 +45,31 @@ func New(logType, level string) (*Logger, error) {
 		logLevel = slog.LevelWarn
 	case "error":
 		logLevel = slog.LevelError
+	case "":
+		switch appEnv {
+		case "dev":
+			logLevel = slog.LevelDebug
+		case "prod":
+			logLevel = slog.LevelInfo
+		default:
+			return nil, ErrInvalidEnv
+		}
 	default:
 		return nil, ErrInvalidLogLevel
 	}
 
 	switch logType {
 	case "json":
-		logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+		logHandler = slog.NewJSONHandler(w, &slog.HandlerOptions{Level: logLevel})
 	case "text":
-		logHandler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+		logHandler = slog.NewTextHandler(w, &slog.HandlerOptions{Level: logLevel})
+	case "":
+		switch appEnv {
+		case "dev", "prod":
+			logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+		default:
+			return nil, ErrInvalidEnv
+		}
 	default:
 		return nil, ErrInvalidLogType
 	}
@@ -75,5 +100,3 @@ func (logg Logger) Warn(msg string, args ...any) {
 func (logg Logger) With(args ...any) *Logger {
 	return &Logger{logg.l.With(args...)}
 }
-
-// TODO
