@@ -101,6 +101,7 @@ func run(cfg *Config) error {
 	}
 	logg.Debug("logger created successfully")
 
+	// TODO: обернуть в фабрику стораджей
 	storage := memorystorage.New() // TODO: choose depending on flags
 	calendar := app.New(logg, storage)
 
