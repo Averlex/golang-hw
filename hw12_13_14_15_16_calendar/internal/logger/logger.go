@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 )
 
 // Logger is a wrapper structure for an underlying logger.
@@ -33,6 +34,9 @@ func New(logType, level string, w io.Writer) (*Logger, error) {
 	if w == nil {
 		return nil, ErrInvalidWriter
 	}
+
+	logType = strings.ToLower(logType)
+	level = strings.ToLower(level)
 
 	var logHandler slog.Handler
 	var logLevel slog.Level

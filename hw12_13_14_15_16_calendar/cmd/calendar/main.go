@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -46,6 +47,8 @@ func main() {
 	rootCmd.Flags().StringP("config", "c", defaultConfigFile, "Path to configuration file")
 	rootCmd.Flags().BoolP("version", "v", false, "Show version info")
 
+	viper.AutomaticEnv()
+
 	if err := viper.BindPFlag("config", rootCmd.Flags().Lookup("config")); err != nil {
 		tmpLogger.Error("failed to bind config flag", "error", err)
 		os.Exit(exitCodeError)
@@ -75,7 +78,6 @@ func main() {
 			tmpLogger.Error("failed to unmarshal main config", "error", err)
 			os.Exit(exitCodeError)
 		}
-		viper.AutomaticEnv()
 	}
 
 	if err := rootCmd.Execute(); err != nil {
@@ -86,7 +88,7 @@ func main() {
 
 func run(cfg *Config) error {
 	var w io.Writer
-	switch cfg.App.LogStream {
+	switch strings.ToLower(cfg.App.LogStream) {
 	case "stdout":
 		w = os.Stdout
 	case "stderr":
