@@ -4,15 +4,19 @@ package logger
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 )
 
 // Logger is a wrapper structure for an underlying logger.
 type Logger struct {
 	l *slog.Logger
 }
+
+const defaultTimeTemplate = "02.01.2006 15:04:05.000"
 
 var (
 	// ErrInvalidLogType  is an error that is returned when the log type is invalid.
@@ -21,16 +25,18 @@ var (
 	ErrInvalidLogLevel = errors.New("invalid log level")
 	// ErrInvalidWriter is an error that is returned when the writer is not set.
 	ErrInvalidWriter = errors.New("invalid writer set")
+	// ErrInvalidTimeTemplate is an error that is returned when the time template cannot be parsed by time package.
+	ErrInvalidTimeTemplate = errors.New("invalid time template")
 )
 
-// New returns a new Logger with the given log type and level.
+// NewLogger returns a new Logger with the given log type and level.
 //
 // The log type can be "text" or "json". The log level can be "debug", "info", "warn" or "error".
 //
 // Empty log level corresponds to "error", as well as empty log type corresponds to "json".
 //
 // If the log type or level is unknown, it returns an error.
-func NewLogger(logType, level string, w io.Writer) (*Logger, error) {
+func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error) {
 	if w == nil {
 		return nil, ErrInvalidWriter
 	}
@@ -41,6 +47,7 @@ func NewLogger(logType, level string, w io.Writer) (*Logger, error) {
 	var logHandler slog.Handler
 	var logLevel slog.Level
 
+	// Log level validation.
 	switch level {
 	case "debug":
 		logLevel = slog.LevelDebug
@@ -51,17 +58,43 @@ func NewLogger(logType, level string, w io.Writer) (*Logger, error) {
 	case "error", "":
 		logLevel = slog.LevelError
 	default:
-		return nil, ErrInvalidLogLevel
+		return nil, fmt.Errorf("%w: %s", ErrInvalidLogLevel, level)
 	}
 
+	// Time format validation.
+	switch timeTemplate {
+	case "":
+		timeTemplate = defaultTimeTemplate
+	default:
+		testTime := time.Now()
+		if _, err := time.Parse(timeTemplate, testTime.Format(timeTemplate)); err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidTimeTemplate, timeTemplate)
+		}
+	}
+
+	// Setting up log handlers options.
+	opts := &slog.HandlerOptions{
+		Level: logLevel,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				if t, ok := a.Value.Any().(time.Time); ok {
+					a.Value = slog.StringValue(t.Format(timeTemplate))
+				}
+			}
+			return a
+		},
+	}
+
+	// Log type validation.
 	switch logType {
 	case "json", "":
-		logHandler = slog.NewJSONHandler(w, &slog.HandlerOptions{Level: logLevel})
+		logHandler = slog.NewJSONHandler(w, opts)
 	case "text":
-		logHandler = slog.NewTextHandler(w, &slog.HandlerOptions{Level: logLevel})
+		logHandler = slog.NewTextHandler(w, opts)
 	default:
-		return nil, ErrInvalidLogType
+		return nil, fmt.Errorf("%w: %s", ErrInvalidLogType, logType)
 	}
+
 	return &Logger{slog.New(logHandler)}, nil
 }
 

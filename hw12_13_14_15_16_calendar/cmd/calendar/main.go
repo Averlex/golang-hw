@@ -28,9 +28,9 @@ const (
 var defaultConfigFile = "configs/config.toml"
 
 func main() {
-	var cfg *Config
+	cfg := &Config{}
 
-	tmpLogger, err := logger.NewLogger("", "", os.Stdout)
+	tmpLogger, err := logger.NewLogger("", "", "", os.Stdout)
 	if err != nil {
 		log.Fatalf("failed to create temporarylogger: %v", err)
 	}
@@ -112,7 +112,7 @@ func run(cfg *Config) error {
 		return fmt.Errorf("unknown log stream: %s", cfg.App.LogStream)
 	}
 
-	logg, err := logger.NewLogger(cfg.Logger.Level, cfg.Logger.Format, w)
+	logg, err := logger.NewLogger(cfg.Logger.Format, cfg.Logger.Level, cfg.Logger.TimeTemplate, w)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)
 	}
