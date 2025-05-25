@@ -30,7 +30,7 @@ var (
 // Empty log level corresponds to "error", as well as empty log type corresponds to "json".
 //
 // If the log type or level is unknown, it returns an error.
-func New(logType, level string, w io.Writer) (*Logger, error) {
+func NewLogger(logType, level string, w io.Writer) (*Logger, error) {
 	if w == nil {
 		return nil, ErrInvalidWriter
 	}

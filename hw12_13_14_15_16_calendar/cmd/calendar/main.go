@@ -28,7 +28,7 @@ const (
 
 func main() {
 	var cfg *Config
-	tmpLogger, err := logger.New("", "", os.Stdout)
+	tmpLogger, err := logger.NewLogger("", "", os.Stdout)
 	if err != nil {
 		log.Fatalf("failed to create temporarylogger: %v", err)
 	}
@@ -51,6 +51,11 @@ func main() {
 
 	if err := viper.BindPFlag("config", rootCmd.Flags().Lookup("config")); err != nil {
 		tmpLogger.Error("failed to bind config flag", "error", err)
+		os.Exit(exitCodeError)
+	}
+
+	if err := viper.BindPFlag("version", rootCmd.Flags().Lookup("version")); err != nil {
+		tmpLogger.Error("failed to bind version flag", "error", err)
 		os.Exit(exitCodeError)
 	}
 
@@ -97,7 +102,7 @@ func run(cfg *Config) error {
 		return fmt.Errorf("unknown log stream: %s", cfg.App.LogStream)
 	}
 
-	logg, err := logger.New(cfg.Logger.Level, cfg.Logger.Format, w)
+	logg, err := logger.NewLogger(cfg.Logger.Level, cfg.Logger.Format, w)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)
 	}
