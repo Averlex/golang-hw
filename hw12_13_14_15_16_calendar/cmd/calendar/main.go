@@ -21,17 +21,27 @@ import (
 )
 
 const (
-	exitCodeSuccess   = 0
-	exitCodeError     = 1
-	defaultConfigFile = "/configs/config.toml"
+	exitCodeSuccess = 0
+	exitCodeError   = 1
 )
+
+var defaultConfigFile = "configs/config.toml"
 
 func main() {
 	var cfg *Config
+
 	tmpLogger, err := logger.NewLogger("", "", os.Stdout)
 	if err != nil {
 		log.Fatalf("failed to create temporarylogger: %v", err)
 	}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		tmpLogger.Error("failed to get current directory", "error", err)
+		os.Exit(exitCodeError)
+	}
+	defaultConfigFile = pwd + "/../" + defaultConfigFile
+
 	rootCmd := &cobra.Command{
 		Use:   "calendar",
 		Short: "Calendar service",
