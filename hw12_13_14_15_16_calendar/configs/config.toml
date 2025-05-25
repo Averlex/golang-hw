@@ -2,8 +2,9 @@
 log_stream = "stdout" # stdout, stderr
 
 [logger]
-level = "info"  # debug, info, warn, error
-format = "json" # json, text
+level = "debug"                           # debug, info, warn, error
+format = "text"                           # json, text
+time_template = "02.01.2006 15:04:05.000" # any valid time template
 
 [server]
 shutdown_timeout = "3s"
