@@ -1,5 +1,4 @@
 [app]
-env = "dev"           # dev, prod
 log_stream = "stdout" # stdout, stderr
 
 [logger]

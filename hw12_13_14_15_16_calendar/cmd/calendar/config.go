@@ -28,6 +28,5 @@ type StorageConf struct {
 
 // AppConf is a config for the global app settings, like environment (dev/prod) and log stream.
 type AppConf struct {
-	Env       string `mapstructure:"env"`
 	LogStream string `mapstructure:"log_stream"`
 }

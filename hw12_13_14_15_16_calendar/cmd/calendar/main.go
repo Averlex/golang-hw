@@ -27,7 +27,7 @@ const (
 
 func main() {
 	var cfg *Config
-	tmpLogger, err := logger.New("", "error", "prod", os.Stdout)
+	tmpLogger, err := logger.New("", "", os.Stdout)
 	if err != nil {
 		log.Fatalf("failed to create temporarylogger: %v", err)
 	}
@@ -95,7 +95,7 @@ func run(cfg *Config) error {
 		return fmt.Errorf("unknown log stream: %s", cfg.App.LogStream)
 	}
 
-	logg, err := logger.New(cfg.Logger.Level, cfg.Logger.Format, cfg.App.Env, w)
+	logg, err := logger.New(cfg.Logger.Level, cfg.Logger.Format, w)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)
 	}
