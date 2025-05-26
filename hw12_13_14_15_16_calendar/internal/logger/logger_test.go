@@ -48,6 +48,7 @@ func TestLogger(t *testing.T) {
 	t.Run("log level", logLevelTest)
 	t.Run("log type", logTypeTest)
 	t.Run("time template", timeTemplateTest)
+	t.Run("additional args", loggerWithAdditionalFieldsTest)
 }
 
 func emptyParamsTest(t *testing.T) {
@@ -259,6 +260,82 @@ func timeTemplateTest(t *testing.T) {
 	}
 }
 
-// additional args
-// incorrect args
+func loggerWithAdditionalFieldsTest(t *testing.T) {
+	t.Helper()
+	w := newCustomWriter()
+
+	testCases := []struct {
+		name     string
+		msg      string
+		fields   []any // As a key-value pairs.
+		expected map[string]any
+	}{
+		{
+			name:   "single field",
+			msg:    "user login",
+			fields: []any{"user_id", 123},
+			expected: map[string]any{
+				"msg":     "user login",
+				"user_id": float64(123),
+			},
+		},
+		{
+			name:   "multiple fields",
+			msg:    "request processed",
+			fields: []any{"method", "GET", "path", "/api", "status", 200},
+			expected: map[string]any{
+				"msg":    "request processed",
+				"method": "GET",
+				"path":   "/api",
+				"status": float64(200),
+			},
+		},
+		{
+			name:   "nested fields",
+			msg:    "system event",
+			fields: []any{"details", map[string]any{"service": "auth", "code": "E100"}},
+			expected: map[string]any{
+				"msg": "system event",
+				"details": map[string]any{
+					"service": "auth",
+					"code":    "E100",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w.CleanUp()
+			l, err := NewLogger("json", "debug", time.UnixDate, w)
+			require.NoError(t, err)
+
+			l.Info(tc.msg, tc.fields...)
+
+			require.Len(t, w.arr, 1, "unexpected amount of logs received")
+
+			// JSON decoding.
+			var logData map[string]any
+			err = json.Unmarshal(w.arr[0], &logData)
+			require.NoError(t, err, "got error, expected nil")
+
+			// Checking necessary fields.
+			require.Equal(t, "INFO", logData["level"])
+			require.Equal(t, tc.msg, logData["msg"])
+			_, err = time.Parse(time.UnixDate, logData["time"].(string))
+			require.NoError(t, err, "got error, expected nil")
+
+			// Checking additional fields.
+			for key, expectedValue := range tc.expected {
+				if key == "msg" {
+					continue
+				}
+				actualValue := logData[key]
+				require.Equal(t, expectedValue, actualValue,
+					"invalid value for %s", key)
+			}
+		})
+	}
+}
+
 // With()
