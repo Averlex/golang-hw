@@ -33,7 +33,10 @@ var (
 //
 // The log type can be "text" or "json". The log level can be "debug", "info", "warn" or "error".
 //
+// timeTemplate is a time format string. Any format which is valid for time.Time format is acceptable.
+//
 // Empty log level corresponds to "error", as well as empty log type corresponds to "json".
+// Empty time format is equal to the default value which is "02.01.2006 15:04:05.000".
 //
 // If the log type or level is unknown, it returns an error.
 func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error) {
