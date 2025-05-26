@@ -69,8 +69,11 @@ func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error
 	case "":
 		timeTemplate = defaultTimeTemplate
 	default:
-		testTime := time.Now()
-		if _, err := time.Parse(timeTemplate, testTime.Format(timeTemplate)); err != nil {
+		// Trying to format the test time and parse it afterwards.
+		testTime := time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
+		formatted := testTime.Format(timeTemplate)
+		parsedTime, err := time.Parse(timeTemplate, formatted)
+		if err != nil || !parsedTime.Equal(testTime) {
 			return nil, fmt.Errorf("%w: %s", ErrInvalidTimeTemplate, timeTemplate)
 		}
 	}
