@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -10,12 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type logEntry struct {
+	Msg   string `json:"msg"`
+	Level string `json:"level"`
+	Time  string `json:"time"`
+}
+
 type customWriter struct {
 	arr [][]byte
 }
 
 func (w *customWriter) Write(data []byte) (int, error) {
-	w.arr = append(w.arr, data)
+	copied := make([]byte, len(data))
+	copy(copied, data)
+	w.arr = append(w.arr, copied)
 	return len(data), nil
 }
 
@@ -29,18 +36,19 @@ func newCustomWriter() *customWriter {
 	return &w
 }
 
-func decodeJSON(data []byte) (map[string]interface{}, error) {
-	var js map[string]interface{}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	err := decoder.Decode(&js)
-	return js, err
+func decodeJSON(data []byte) (*logEntry, error) {
+	var buffer logEntry
+	err := json.Unmarshal(data, &buffer)
+	return &buffer, err
 }
 
 func TestLogger(t *testing.T) {
-	t.Run("default logger", emptyParams)
+	t.Run("default logger", emptyParamsTest)
+	t.Run("log level", logLevelTest)
+	t.Run("log type", logTypeTest)
 }
 
-func emptyParams(t *testing.T) {
+func emptyParamsTest(t *testing.T) {
 	t.Helper()
 	w := newCustomWriter()
 
@@ -56,12 +64,10 @@ func emptyParams(t *testing.T) {
 		l.Info("test")
 		require.Len(t, w.arr, 1)
 
-		js, err := decodeJSON(w.arr[0])
+		entry, err := decodeJSON(w.arr[0])
 		require.NoError(t, err, "got error, expected nil")
 
-		msg, ok := js["msg"].(string)
-		require.True(t, ok, "unable cast msg to string")
-		require.Equal(t, "test", msg)
+		require.Equal(t, "test", entry.Msg)
 	})
 	w.CleanUp()
 
@@ -75,12 +81,10 @@ func emptyParams(t *testing.T) {
 		l.Error("error")
 		require.Len(t, w.arr, 1)
 
-		js, err := decodeJSON(w.arr[0])
+		entry, err := decodeJSON(w.arr[0])
 		require.NoError(t, err, "got error, expected nil")
 
-		lvl, ok := js["level"].(string)
-		require.True(t, ok, "unable cast level to string")
-		require.Equal(t, "error", strings.ToLower(lvl))
+		require.Equal(t, "error", strings.ToLower(entry.Level))
 	})
 	w.CleanUp()
 
@@ -91,15 +95,104 @@ func emptyParams(t *testing.T) {
 		l.Info("test")
 		require.Len(t, w.arr, 1)
 
-		js, err := decodeJSON(w.arr[0])
+		entry, err := decodeJSON(w.arr[0])
 		require.NoError(t, err, "got error, expected nil")
 
-		msg, ok := js["time"].(string)
-		require.True(t, ok, "unable cast time to string")
-
-		logTime, err := time.ParseInLocation("02.01.2006 15:04:05.000", msg, time.Local)
+		logTime, err := time.ParseInLocation("02.01.2006 15:04:05.000", entry.Time, time.Local)
 		require.NoError(t, err, "got error, expected nil")
 		require.InDelta(t, time.Now().UnixMilli(), logTime.UnixMilli(), float64(500),
 			"measured time doesn't match the logged one") // Comparing with an error margin of 500ms.
 	})
+	w.CleanUp()
 }
+
+func logLevelTest(t *testing.T) {
+	t.Helper()
+	w := newCustomWriter()
+
+	callOrder := []string{"debug", "info", "warn", "error"}
+	testCases := []struct {
+		name         string
+		level        string
+		msg          string
+		expectedSize int
+	}{
+		{"debug", "debug", "debug-test", 4},
+		{"info", "info", "info-test", 3},
+		{"warn", "warn", "warn-test", 2},
+		{"error", "error", "error-test", 1},
+		{"case insensitivity", "dEbUg", "dEbUg-test", 4},
+		{"unknown", "unknown", "unknown-test", 0},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			w.CleanUp()
+			l, err := NewLogger("json", tC.level, time.UnixDate, w)
+			if tC.name == "unknown" {
+				require.ErrorIs(t, err, ErrInvalidLogLevel, "unexpected error received: "+err.Error())
+				return
+			}
+			require.NoError(t, err, "got error, expected nil")
+
+			l.Debug(tC.msg)
+			l.Info(tC.msg)
+			l.Warn(tC.msg)
+			l.Error(tC.msg)
+
+			require.Len(t, w.arr, tC.expectedSize)
+			for i := 0; i < len(w.arr); i++ {
+				entry, err := decodeJSON(w.arr[i])
+				require.NoError(t, err, "got error, expected nil")
+
+				require.Equal(t, tC.msg, entry.Msg, "unexpected log message")
+				require.Equal(t, callOrder[len(callOrder)-tC.expectedSize:][i], strings.ToLower(entry.Level),
+					"unexpected log level")
+			}
+		})
+	}
+}
+
+func logTypeTest(t *testing.T) {
+	t.Helper()
+	w := newCustomWriter()
+
+	testCases := []struct {
+		name                   string
+		logType                string
+		msg                    string
+		expectConstructorError bool
+		expectDecodingError    bool
+	}{
+		{"text", "text", "text-test", false, true},
+		{"json", "json", "json-test", false, false},
+		{"unknown", "unknown", "unknown-test", true, false},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			w.CleanUp()
+			l, err := NewLogger(tC.logType, "info", time.UnixDate, w)
+			if tC.expectConstructorError {
+				require.ErrorIs(t, err, ErrInvalidLogType, "got nil, expected error")
+				return
+			}
+			require.NoError(t, err, "got error, expected nil")
+
+			l.Info(tC.msg)
+
+			require.Len(t, w.arr, 1)
+			_, err = decodeJSON(w.arr[0])
+			if tC.expectDecodingError {
+				require.Error(t, err, "got nil, expected error")
+				return
+			}
+			require.NoError(t, err, "got error, expected nil")
+		})
+	}
+}
+
+// timeTemplate
+// additional args
+// incorrect args
+// With()
