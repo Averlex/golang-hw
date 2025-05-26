@@ -2,6 +2,7 @@ package logger
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,7 @@ func TestLogger(t *testing.T) {
 	t.Run("default logger", emptyParamsTest)
 	t.Run("log level", logLevelTest)
 	t.Run("log type", logTypeTest)
+	t.Run("time template", timeTemplateTest)
 }
 
 func emptyParamsTest(t *testing.T) {
@@ -192,7 +194,71 @@ func logTypeTest(t *testing.T) {
 	}
 }
 
-// timeTemplate
+func timeTemplateTest(t *testing.T) {
+	t.Helper()
+	w := newCustomWriter()
+
+	testCases := []struct {
+		name        string
+		template    string
+		expectedFmt string
+		expectError bool
+	}{
+		{
+			name:        "unix format",
+			template:    time.UnixDate,
+			expectedFmt: "Mon Jan _2 15:04:05 MST 2006",
+			expectError: false,
+		},
+		{
+			name:        "custom format",
+			template:    "02.01.2006 15:04:05.000",
+			expectedFmt: "02.01.2006 15:04:05.000",
+			expectError: false,
+		},
+		{
+			name:        "empty format",
+			template:    "",
+			expectedFmt: "02.01.2006 15:04:05.000",
+			expectError: false,
+		},
+		{
+			name:        "invalid format",
+			template:    "invalid",
+			expectError: true,
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.name, func(t *testing.T) {
+			w.CleanUp()
+			if tC.name == "invalid format" {
+				fmt.Println()
+			}
+			l, err := NewLogger("json", "info", tC.template, w)
+
+			if tC.expectError {
+				require.Error(t, err, "got nil, expected error")
+				return
+			}
+			require.NoError(t, err, "unexpected error received")
+
+			testMsg := "time test"
+			l.Info(testMsg)
+			require.Len(t, w.arr, 1, "unexpected amount of logs received")
+
+			var entry logEntry
+			err = json.Unmarshal(w.arr[0], &entry)
+			require.NoError(t, err, "failed to unmarshal log entry")
+
+			require.Equal(t, testMsg, entry.Msg, "unexpected log message")
+
+			_, err = time.Parse(tC.expectedFmt, entry.Time)
+			require.NoError(t, err, "unexpected time format")
+		})
+	}
+}
+
 // additional args
 // incorrect args
 // With()
