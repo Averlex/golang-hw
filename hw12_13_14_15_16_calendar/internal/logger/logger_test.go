@@ -16,6 +16,7 @@ type logEntry struct {
 	Time  string `json:"time"`
 }
 
+// customWriter is a log entries collector.
 type customWriter struct {
 	arr [][]byte
 }
@@ -44,15 +45,12 @@ func decodeJSON(data []byte) (*logEntry, error) {
 }
 
 func TestLogger(t *testing.T) {
-	t.Run("default logger", emptyParamsTest)
 	t.Run("log level", logLevelTest)
 	t.Run("log type", logTypeTest)
 	t.Run("time template", timeTemplateTest)
-	t.Run("additional args", loggerWithAdditionalFieldsTest)
 }
 
-func emptyParamsTest(t *testing.T) {
-	t.Helper()
+func TestLogger_default(t *testing.T) {
 	w := newCustomWriter()
 
 	t.Run("nil writer", func(t *testing.T) {
@@ -260,8 +258,7 @@ func timeTemplateTest(t *testing.T) {
 	}
 }
 
-func loggerWithAdditionalFieldsTest(t *testing.T) {
-	t.Helper()
+func TestLogger_additionalFields(t *testing.T) {
 	w := newCustomWriter()
 
 	testCases := []struct {
@@ -338,4 +335,30 @@ func loggerWithAdditionalFieldsTest(t *testing.T) {
 	}
 }
 
-// With()
+func TestLogger_With(t *testing.T) {
+	w := newCustomWriter()
+	l, err := NewLogger("json", "debug", time.UnixDate, w)
+	require.NoError(t, err)
+
+	loggerWithFields := l.With("user_id", 123, "service", "auth")
+
+	testMsg := "operation completed"
+	loggerWithFields.Info(testMsg)
+
+	require.Len(t, w.arr, 1)
+
+	var logData struct {
+		Level   string `json:"level"`
+		Msg     string `json:"msg"`
+		UserID  int    `json:"user_id"` //nolint:tagliatelle
+		Service string `json:"service"`
+	}
+
+	err = json.Unmarshal(w.arr[0], &logData)
+	require.NoError(t, err)
+
+	require.Equal(t, "INFO", logData.Level)
+	require.Equal(t, testMsg, logData.Msg)
+	require.Equal(t, 123, logData.UserID)
+	require.Equal(t, "auth", logData.Service)
+}
