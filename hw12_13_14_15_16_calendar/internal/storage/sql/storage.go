@@ -130,13 +130,12 @@ func (s *Storage) Close(_ context.Context) error {
 // isExists checks if the given event ID already exists in the database.
 // Method does not depend on database driver.
 func (s *Storage) isExists(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (bool, error) {
-	var exists bool
-
-	query := "SELECT EXISTS(SELECT 1 FROM events WHERE id = $1)"
+	var count int
+	query := "SELECT COUNT(*) FROM events WHERE id = ?"
 	query = tx.Rebind(query)
-	err := tx.GetContext(ctx, &exists, query, id)
+	err := tx.GetContext(ctx, &count, query, id)
 	if err != nil {
 		return false, fmt.Errorf("event existence check: %w", err)
 	}
-	return exists, nil
+	return count > 0, nil
 }
