@@ -14,6 +14,8 @@ import (
 )
 
 var (
+	// ErrNoData is returned when no data is passed to any of the CRUD methods.
+	ErrNoData = errors.New("no data passed")
 	// ErrTimeoutExceeded is returned when the operation execution times out.
 	ErrTimeoutExceeded = errors.New("timeout exceeded")
 	// ErrQeuryError is returned when the query execution fails.
