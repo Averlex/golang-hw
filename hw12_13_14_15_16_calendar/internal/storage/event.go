@@ -15,7 +15,7 @@ var (
 	ErrGenerateID       = errors.New("failed to generate new event id")
 )
 
-type eventData struct {
+type EventData struct {
 	Title       string
 	Datetime    time.Time
 	Duration    time.Duration
@@ -26,12 +26,12 @@ type eventData struct {
 
 type Event struct {
 	ID uuid.UUID `db:"id" json:"id"`
-	eventData
+	EventData
 }
 
 func NewEventData(title string, datetime time.Time, duration time.Duration,
 	description string, userID string, remindIn time.Duration,
-) (*eventData, error) {
+) (*EventData, error) {
 	var desc string
 	var remind time.Duration
 
@@ -54,7 +54,7 @@ func NewEventData(title string, datetime time.Time, duration time.Duration,
 		return nil, ErrNegativeRemind
 	}
 
-	return &eventData{
+	return &EventData{
 		Title:       title,
 		Datetime:    datetime,
 		Duration:    duration,
@@ -84,7 +84,18 @@ func NewEvent(title string, datetime time.Time, duration time.Duration,
 
 	res = &Event{
 		ID:        id,
-		eventData: *data,
+		EventData: *data,
 	}
 	return
+}
+
+func UpdateEvent(id uuid.UUID, data *EventData) (*Event, error) {
+	if data == nil {
+		return nil, errors.New("no data passed to update event")
+	}
+
+	return &Event{
+		ID:        id,
+		EventData: *data,
+	}, nil
 }
