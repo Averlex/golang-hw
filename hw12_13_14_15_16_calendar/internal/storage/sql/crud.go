@@ -20,13 +20,18 @@ import (
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) CreateEvent(ctx context.Context, title string, datetime time.Time, duration time.Duration,
 	description string, userID string, remindIn time.Duration,
-) error {
-	event, err := storage.NewEventData(title, datetime, duration, description, userID, remindIn)
+) (*storage.Event, error) {
+	eventData, err := storage.NewEventData(title, datetime, duration, description, userID, remindIn)
 	if err != nil {
-		return fmt.Errorf("create new event: %w", err)
+		return nil, fmt.Errorf("create new event: %w", err)
 	}
 
-	return s.withTimeout(ctx, func(localCtx context.Context) error {
+	event, err := storage.NewEvent(title, eventData)
+	if err != nil {
+		return nil, fmt.Errorf("create new event: %w", err)
+	}
+
+	err = s.withTimeout(ctx, func(localCtx context.Context) error {
 		tx, err := s.db.BeginTxx(localCtx, nil)
 		if err != nil {
 			return fmt.Errorf("transaction begin: %w", err)
@@ -63,4 +68,9 @@ func (s *Storage) CreateEvent(ctx context.Context, title string, datetime time.T
 		}
 		return rollbackErr
 	})
+	return event, err
 }
+
+// func UpdateEvent(ctx context.Context, title string, datetime time.Time, duration time.Duration,
+// 	description string, userID string, remindIn time.Duration,
+// ) error {
