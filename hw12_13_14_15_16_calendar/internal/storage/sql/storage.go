@@ -10,6 +10,7 @@ import (
 
 	//nolint:depguard,nolintlint
 	//nolint:depguard,nolintlint
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx" //nolint:depguard,nolintlint
 )
 
@@ -22,6 +23,8 @@ var (
 	ErrQeuryError = errors.New("query execution")
 	// ErrDataExists is returned on event ID collision on DB insertion.
 	ErrDataExists = errors.New("event data already exists")
+	// ErrNotExists is returned when the event with requested ID does not exist in the DB.
+	ErrNotExists = errors.New("event does not exist")
 )
 
 const defaultDriver = "postgres"
@@ -122,4 +125,18 @@ func (s *Storage) Close(_ context.Context) error {
 
 	s.db.Close()
 	return nil
+}
+
+// isExists checks if the given event ID already exists in the database.
+// Method does not depend on database driver.
+func (s *Storage) isExists(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (bool, error) {
+	var exists bool
+
+	query := "SELECT EXISTS(SELECT 1 FROM events WHERE id = $1)"
+	query = tx.Rebind(query)
+	err := tx.GetContext(ctx, &exists, query, id)
+	if err != nil {
+		return false, fmt.Errorf("event existence check: %w", err)
+	}
+	return exists, nil
 }

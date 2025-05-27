@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                               //nolint:depguard,nolintlint
 )
 
 // CreateEvent creates a new event in the database. Method uses context with timeout set for Storage.
@@ -62,6 +63,65 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 	return event, err
 }
 
-// func UpdateEvent(ctx context.Context, title string, datetime time.Time, duration time.Duration,
-// 	description string, userID string, remindIn time.Duration,
-// ) error {
+// UpdateEvent updates the event with the given ID in the database. Method uses context with timeout set for Storage.
+//
+// Returns a wrapped ErrNoData error if no data passed.
+//
+// If the query is successful but the given ID is not present in the DB, it returns ErrNotExists.
+//
+// Method uses transaction to ensure the atomicity of the operation over DB.
+func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.EventData) (*storage.Event, error) {
+	if data == nil {
+		return nil, fmt.Errorf("update event: %w", ErrNoData)
+	}
+
+	err := s.withTimeout(ctx, func(localCtx context.Context) error {
+		tx, err := s.db.BeginTxx(localCtx, nil)
+		if err != nil {
+			return fmt.Errorf("transaction begin: %w", err)
+		}
+
+		var rollbackErr error
+		defer func() {
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				rollbackErr = fmt.Errorf("transaction rollback: %w", err)
+			}
+		}()
+
+		ok, err := s.isExists(localCtx, tx, id)
+		if err != nil {
+			return fmt.Errorf("update event: %w", err)
+		}
+		if !ok {
+			return ErrNotExists
+		}
+
+		query := `
+		UPDATE events
+		SET title = :title, datetime = :datetime, duration = :duration, 
+		description = :description, user_id = :user_id, remind_in = :remind_in
+		WHERE id = :id
+		`
+		res, err := tx.NamedExecContext(localCtx, query, *data)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+		}
+
+		n, err := res.RowsAffected()
+		if err != nil || n == 0 {
+			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("transaction commit: %w", err)
+		}
+		return rollbackErr
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	event, _ := storage.UpdateEvent(id, data)
+
+	return event, nil
+}
