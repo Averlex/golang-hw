@@ -6,11 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	
 )
 
 var (
-	ErrNoData           = errors.New("no event data received")
 	ErrEmptyField       = errors.New("empty event field values received")
 	ErrNegativeDuration = errors.New("event duration is negative")
 	ErrNegativeRemind   = errors.New("event remind duration is negative")
@@ -66,7 +64,9 @@ func NewEventData(title string, datetime time.Time, duration time.Duration,
 	}, nil
 }
 
-func NewEvent(title string, data *eventData) (res *Event, err error) {
+func NewEvent(title string, datetime time.Time, duration time.Duration,
+	description string, userID string, remindIn time.Duration,
+) (res *Event, err error) {
 	// uuid.New() panic protection.
 	defer func() {
 		if r := recover(); r != nil {
@@ -75,8 +75,9 @@ func NewEvent(title string, data *eventData) (res *Event, err error) {
 		}
 	}()
 
-	if data == nil {
-		return nil, ErrNoData
+	data, err := NewEventData(title, datetime, duration, description, userID, remindIn)
+	if err != nil {
+		return nil, err
 	}
 
 	id := uuid.New()
