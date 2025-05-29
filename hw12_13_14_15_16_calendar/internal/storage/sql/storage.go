@@ -77,11 +77,15 @@ func NewStorage(args *DBConf) (*Storage, error) {
 
 // withTimeout wraps the given function in a context.WithTimeout call.
 func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) error) error {
-	if s.timeout == 0 {
+	s.mu.RLock()
+	timeout := s.timeout
+	s.mu.RUnlock()
+
+	if timeout == 0 {
 		return fn(ctx)
 	}
 
-	localCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	localCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	err := fn(localCtx)
