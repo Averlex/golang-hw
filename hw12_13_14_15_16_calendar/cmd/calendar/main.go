@@ -119,8 +119,7 @@ func run(cfg *config.Config) error {
 	}
 	logg.Debug("logger created successfully")
 
-	// TODO: обернуть в фабрику стораджей
-	storage, _ := storage.NewStorage(cfg.Storage.ToMap()) // TODO: choose depending on flags
+	storage, _ := storage.NewStorage(cfg.Storage.ToMap())
 	calendar := app.New(logg, storage)
 
 	server := internalhttp.NewServer(logg, calendar)
