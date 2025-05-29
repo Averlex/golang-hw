@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                               //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                              //nolint:depguard,nolintlint
+	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
 )
 
 // CreateEvent creates a new event in the database. Method uses context with timeout set for Storage.
@@ -18,9 +18,9 @@ import (
 // it returns ErrDataExists.
 //
 // Method uses transaction to ensure the atomicity of the operation over DB.
-func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*storage.Event, error) {
+func (s *Storage) CreateEvent(ctx context.Context, event *sttypes.Event) (*sttypes.Event, error) {
 	if event == nil {
-		return nil, fmt.Errorf("create new event: %w", storage.ErrNoData)
+		return nil, fmt.Errorf("create new event: %w", sttypes.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
@@ -30,7 +30,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 			return fmt.Errorf("create event: %w", err)
 		}
 		if ok {
-			return storage.ErrDataExists
+			return sttypes.ErrDataExists
 		}
 
 		query := `
@@ -39,11 +39,11 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 		`
 		res, err := tx.NamedExecContext(localCtx, query, *event)
 		if err != nil {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 
 		return nil
@@ -58,9 +58,9 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 // If the query is successful but the given ID is not present in the DB, it returns ErrNotExists.
 //
 // Method uses transaction to ensure the atomicity of the operation over DB.
-func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.EventData) (*storage.Event, error) {
+func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.EventData) (*sttypes.Event, error) {
 	if data == nil {
-		return nil, fmt.Errorf("update event: %w", storage.ErrNoData)
+		return nil, fmt.Errorf("update event: %w", sttypes.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
@@ -69,7 +69,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 			return fmt.Errorf("update event: %w", err)
 		}
 		if !ok {
-			return storage.ErrNotExists
+			return sttypes.ErrNotExists
 		}
 
 		query := `
@@ -80,11 +80,11 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 		`
 		res, err := tx.NamedExecContext(localCtx, query, *data)
 		if err != nil {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 
 		return nil
@@ -93,7 +93,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 		return nil, err
 	}
 
-	event, _ := storage.UpdateEvent(id, data)
+	event, _ := sttypes.UpdateEvent(id, data)
 
 	return event, nil
 }
@@ -110,17 +110,17 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("delete event: %w", err)
 		}
 		if !ok {
-			return storage.ErrNotExists
+			return sttypes.ErrNotExists
 		}
 
 		query := "DELETE FROM events WHERE id = :id"
 		res, err := tx.NamedExecContext(localCtx, query, id)
 		if err != nil {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 
 		return nil
@@ -141,7 +141,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 //
 // Returns a slice (possibly an empty one) of Event pointers and nil on success.
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 0, 1)
 
@@ -157,7 +157,7 @@ func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*stora
 //
 // Returns a slice (possibly an empty one) of Event pointers and nil on success.
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
 	// Weekday considering Monday as the first day of the week.
 	weekday := (int(date.Weekday()-time.Monday) + 7) % 7
 
@@ -177,7 +177,7 @@ func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*stor
 //
 // Returns a slice (possibly an empty one) of Event pointers and nil on success.
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
 	// Truncating the date to the start of the month.
 	dateStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 1, 0)
@@ -193,8 +193,8 @@ func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*sto
 //
 // Returns a slice (possibly an empty one) of Event pointers and nil on success.
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) getEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time) ([]*storage.Event, error) {
-	var events []*storage.Event
+func (s *Storage) getEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time) ([]*sttypes.Event, error) {
+	var events []*sttypes.Event
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		type Params struct {
 			DateStart time.Time `db:"date_start"`
@@ -211,14 +211,14 @@ func (s *Storage) getEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 
 		err := tx.SelectContext(localCtx, &events, query, params)
 		if err != nil {
-			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 		}
 		return nil
 	})
 
 	// If no events found, return empty slice instead of nil.
 	if len(events) == 0 && err != nil {
-		events = []*storage.Event{}
+		events = []*sttypes.Event{}
 	}
 	// If error occurred, return nil istead of any possible results.
 	if err != nil {

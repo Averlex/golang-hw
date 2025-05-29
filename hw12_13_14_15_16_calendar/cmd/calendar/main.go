@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/app"                          //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/config"                       //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/logger"                       //nolint:depguard
-	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/server/http"     //nolint:depguard
-	memorystorage "github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage/memory" //nolint:depguard
-	"github.com/spf13/cobra"                                                                    //nolint:depguard
-	"github.com/spf13/viper"                                                                    //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app"                      //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                   //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                   //nolint:depguard
+	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http" //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                  //nolint:depguard
+	"github.com/spf13/cobra"                                                                   //nolint:depguard
+	"github.com/spf13/viper"                                                                   //nolint:depguard
 )
 
 const (
@@ -120,7 +120,7 @@ func run(cfg *config.Config) error {
 	logg.Debug("logger created successfully")
 
 	// TODO: обернуть в фабрику стораджей
-	storage := memorystorage.NewStorage() // TODO: choose depending on flags
+	storage, _ := storage.NewStorage(cfg.Storage.ToMap()) // TODO: choose depending on flags
 	calendar := app.New(logg, storage)
 
 	server := internalhttp.NewServer(logg, calendar)

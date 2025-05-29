@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/config"  //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                               //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                              //nolint:depguard,nolintlint
+	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
 )
 
 const defaultDriver = "postgres"
@@ -26,28 +25,22 @@ type Storage struct {
 	timeout time.Duration
 }
 
-// NewStorage creates a new Storage instance based on the given DBConf.
+// NewStorage creates a new Storage instance based on the given args.
 //
 // If the arguments are empty, it returns an error.
 //
 // The function constructs a DSN based on the given arguments and
 // the default driver. No connection is established upon the call.
-func NewStorage(args *config.DBConf) (*Storage, error) {
-	if args == nil {
-		return nil, errors.New("no database args reveived")
-	}
-
-	timeout := max(0, args.Timeout)
-
+func NewStorage(timeout time.Duration, host, port, user, password, dbname string) (*Storage, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable connect_timeout=%d",
-		args.Host, args.Port, args.User, args.Password, args.DBname, int(timeout.Seconds()),
+		host, port, user, password, dbname, int(timeout.Seconds()),
 	)
 
 	return &Storage{
 		driver:  defaultDriver,
 		dsn:     dsn,
-		timeout: args.Timeout,
+		timeout: timeout,
 	}, nil
 }
 
@@ -67,7 +60,7 @@ func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) erro
 	err := fn(localCtx)
 	if err != nil {
 		if errors.Is(localCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("%w: %w", storage.ErrTimeoutExceeded, err)
+			return fmt.Errorf("%w: %w", sttypes.ErrTimeoutExceeded, err)
 		}
 		return err
 	}
