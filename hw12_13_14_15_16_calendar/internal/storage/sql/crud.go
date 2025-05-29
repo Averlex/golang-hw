@@ -36,10 +36,18 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 			}
 		}()
 
+		// Check if given ID is already present in DB.
+		ok, err := s.isExists(localCtx, tx, event.ID)
+		if err != nil {
+			return fmt.Errorf("create event: %w", err)
+		}
+		if ok {
+			return ErrDataExists
+		}
+
 		query := `
 		INSERT INTO events (title, datetime, duration, description, user_id, remind_in)
 		VALUES (:title, :datetime, :duration, :description, :user_id, :remind_in)
-		ON CONFLICT (id) DO NOTHING
 		`
 		res, err := tx.NamedExecContext(localCtx, query, *event)
 		if err != nil {
@@ -47,12 +55,8 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 		}
 
 		n, err := res.RowsAffected()
-		if err != nil {
+		if err != nil || n == 0 {
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
-		}
-		// Transaction successful but given ID is already present in DB.
-		if n == 0 {
-			return ErrDataExists
 		}
 
 		if err := tx.Commit(); err != nil {
