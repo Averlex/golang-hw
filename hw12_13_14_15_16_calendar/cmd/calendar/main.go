@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/app"                          //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/config"                       //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/logger"                       //nolint:depguard
 	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/server/http"     //nolint:depguard
 	memorystorage "github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage/memory" //nolint:depguard
@@ -28,7 +29,7 @@ const (
 var defaultConfigFile = "configs/config.toml"
 
 func main() {
-	cfg := &Config{}
+	cfg := &config.Config{}
 
 	tmpLogger, err := logger.NewLogger("", "", "", os.Stdout)
 	if err != nil {
@@ -101,7 +102,7 @@ func main() {
 	}
 }
 
-func run(cfg *Config) error {
+func run(cfg *config.Config) error {
 	var w io.Writer
 	switch strings.ToLower(cfg.App.LogStream) {
 	case "stdout":
@@ -119,7 +120,7 @@ func run(cfg *Config) error {
 	logg.Debug("logger created successfully")
 
 	// TODO: обернуть в фабрику стораджей
-	storage := memorystorage.New() // TODO: choose depending on flags
+	storage := memorystorage.NewStorage() // TODO: choose depending on flags
 	calendar := app.New(logg, storage)
 
 	server := internalhttp.NewServer(logg, calendar)

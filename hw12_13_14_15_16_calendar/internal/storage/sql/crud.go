@@ -20,7 +20,7 @@ import (
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*storage.Event, error) {
 	if event == nil {
-		return nil, fmt.Errorf("create new event: %w", ErrNoData)
+		return nil, fmt.Errorf("create new event: %w", storage.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
@@ -30,7 +30,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 			return fmt.Errorf("create event: %w", err)
 		}
 		if ok {
-			return ErrDataExists
+			return storage.ErrDataExists
 		}
 
 		query := `
@@ -39,11 +39,11 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 		`
 		res, err := tx.NamedExecContext(localCtx, query, *event)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 
 		return nil
@@ -60,7 +60,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.EventData) (*storage.Event, error) {
 	if data == nil {
-		return nil, fmt.Errorf("update event: %w", ErrNoData)
+		return nil, fmt.Errorf("update event: %w", storage.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
@@ -69,7 +69,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 			return fmt.Errorf("update event: %w", err)
 		}
 		if !ok {
-			return ErrNotExists
+			return storage.ErrNotExists
 		}
 
 		query := `
@@ -80,11 +80,11 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 		`
 		res, err := tx.NamedExecContext(localCtx, query, *data)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 
 		return nil
@@ -110,17 +110,17 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("delete event: %w", err)
 		}
 		if !ok {
-			return ErrNotExists
+			return storage.ErrNotExists
 		}
 
 		query := "DELETE FROM events WHERE id = :id"
 		res, err := tx.NamedExecContext(localCtx, query, id)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 
 		return nil
@@ -211,7 +211,7 @@ func (s *Storage) getEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 
 		err := tx.SelectContext(localCtx, &events, query, params)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", storage.ErrQeuryError, err)
 		}
 		return nil
 	})

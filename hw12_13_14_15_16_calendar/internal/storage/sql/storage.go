@@ -9,23 +9,10 @@ import (
 	"sync"
 	"time"
 
-	//nolint:depguard,nolintlint
-	//nolint:depguard,nolintlint
-	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx" //nolint:depguard,nolintlint
-)
-
-var (
-	// ErrNoData is returned when no data is passed to any of the CRUD methods.
-	ErrNoData = errors.New("no data passed")
-	// ErrTimeoutExceeded is returned when the operation execution times out.
-	ErrTimeoutExceeded = errors.New("timeout exceeded")
-	// ErrQeuryError is returned when the query execution fails.
-	ErrQeuryError = errors.New("query execution")
-	// ErrDataExists is returned on event ID collision on DB insertion.
-	ErrDataExists = errors.New("event data already exists")
-	// ErrNotExists is returned when the event with requested ID does not exist in the DB.
-	ErrNotExists = errors.New("event does not exist")
+	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/config"  //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                               //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                              //nolint:depguard,nolintlint
 )
 
 const defaultDriver = "postgres"
@@ -39,23 +26,13 @@ type Storage struct {
 	timeout time.Duration
 }
 
-// DBConf represents a database configuration used to build DSN string.
-type DBConf struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Timeout  time.Duration // In seconds. 0 means timeout will be disabled.
-	DBname   string
-}
-
 // NewStorage creates a new Storage instance based on the given DBConf.
 //
 // If the arguments are empty, it returns an error.
 //
 // The function constructs a DSN based on the given arguments and
 // the default driver. No connection is established upon the call.
-func NewStorage(args *DBConf) (*Storage, error) {
+func NewStorage(args *config.DBConf) (*Storage, error) {
 	if args == nil {
 		return nil, errors.New("no database args reveived")
 	}
@@ -90,7 +67,7 @@ func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) erro
 	err := fn(localCtx)
 	if err != nil {
 		if errors.Is(localCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("%w: %w", ErrTimeoutExceeded, err)
+			return fmt.Errorf("%w: %w", storage.ErrTimeoutExceeded, err)
 		}
 		return err
 	}
