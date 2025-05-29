@@ -3,6 +3,7 @@ package sqlstorage
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                               //nolint:depguard,nolintlint
@@ -129,4 +130,40 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+// GetEventsForDay retrieves all events occurring on the specified date from the database.
+// The method uses a transaction with a context and timeouts as configured in Storage.
+//
+// It fetches events where the datetime falls within the start and end of the given date,
+// ordered by datetime in ascending order.
+//
+// Returns a slice of Event pointers and any error encountered during the transaction or query execution.
+func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+	var events []*storage.Event
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+		dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+		dateEnd := dateStart.Add(time.Hour * 24)
+
+		type Params struct {
+			DateStart time.Time `db:"date_start"`
+			DateEnd   time.Time `db:"date_end"`
+		}
+		params := Params{dateStart, dateEnd}
+
+		query := `
+		SELECT *
+		FROM events
+		WHERE datetime >= :date_start AND datetime < :date_end
+		ORDER BY datetime ASC
+		`
+
+		err := tx.SelectContext(localCtx, &events, query, params)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+		}
+		return nil
+	})
+
+	return events, err
 }
