@@ -41,10 +41,10 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
 		}
 
-		n, err := res.RowsAffected()
-		if err != nil || n == 0 {
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
 		}
+
 		return nil
 	})
 	return event, err
@@ -82,8 +82,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
 		}
 
-		n, err := res.RowsAffected()
-		if err != nil || n == 0 {
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
 		}
 
@@ -96,4 +95,38 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 	event, _ := storage.UpdateEvent(id, data)
 
 	return event, nil
+}
+
+// DeleteEvent deletes the event with the given ID from the database. Method uses context with timeout set for Storage.
+//
+// If the query is successful but the given ID is not present in the DB, it returns ErrNotExists.
+//
+// Method uses transaction to ensure the atomicity of the operation over DB.
+func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+		ok, err := s.isExists(localCtx, tx, id)
+		if err != nil {
+			return fmt.Errorf("delete event: %w", err)
+		}
+		if !ok {
+			return ErrNotExists
+		}
+
+		query := "DELETE FROM events WHERE id = :id"
+		res, err := tx.NamedExecContext(localCtx, query, id)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+		}
+
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
+			return fmt.Errorf("%w: %w", ErrQeuryError, err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
