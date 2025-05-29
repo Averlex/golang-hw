@@ -60,13 +60,11 @@ func NewStorage(args *DBConf) (*Storage, error) {
 		return nil, errors.New("no database args reveived")
 	}
 
-	if args.Timeout < 0 {
-		return nil, errors.New("negative timeout received")
-	}
+	timeout := max(0, args.Timeout)
 
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable connect_timeout=%d",
-		args.Host, args.Port, args.User, args.Password, args.DBname, int(args.Timeout.Seconds()),
+		args.Host, args.Port, args.User, args.Password, args.DBname, int(timeout.Seconds()),
 	)
 
 	return &Storage{
