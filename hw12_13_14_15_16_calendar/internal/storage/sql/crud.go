@@ -137,14 +137,65 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 //
 // It fetches events where the datetime falls within the start and end of the given date,
 // ordered by datetime in ascending order.
+// Method truncates any given date to the start of the day.
 //
-// Returns a slice of Event pointers and any error encountered during the transaction or query execution.
+// Returns a slice (possibly an empty one) of Event pointers and nil on success.
+// Returns nil and any error encountered during the transaction or query execution.
 func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	dateEnd := dateStart.AddDate(0, 0, 1)
+
+	return s.getEventsForPeriod(ctx, dateStart, dateEnd)
+}
+
+// GetEventsForWeek retrieves all events occurring on the calendar week of the specified date from the database.
+// The method uses a transaction with a context and timeouts as configured in Storage.
+//
+// It fetches events where the datetime falls within the start and end of the calendar week of the given date,
+// ordered by datetime in ascending order.
+// Method truncates any given date to the start of the calendar week.
+//
+// Returns a slice (possibly an empty one) of Event pointers and nil on success.
+// Returns nil and any error encountered during the transaction or query execution.
+func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+	// Weekday considering Monday as the first day of the week.
+	weekday := (int(date.Weekday()-time.Monday) + 7) % 7
+
+	// Truncating the date to the start of the week.
+	dateStart := date.AddDate(0, 0, -weekday).Truncate(24 * time.Hour)
+	dateEnd := dateStart.AddDate(0, 0, 7)
+
+	return s.getEventsForPeriod(ctx, dateStart, dateEnd)
+}
+
+// GetEventsForMonth retrieves all events occurring on the calendar month of the specified date from the database.
+// The method uses a transaction with a context and timeouts as configured in Storage.
+//
+// It fetches events where the datetime falls within the start and end of the calendar month of the given date,
+// ordered by datetime in ascending order.
+// Method truncates any given date to the start of the calendar month.
+//
+// Returns a slice (possibly an empty one) of Event pointers and nil on success.
+// Returns nil and any error encountered during the transaction or query execution.
+func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*storage.Event, error) {
+	// Truncating the date to the start of the month.
+	dateStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
+	dateEnd := dateStart.AddDate(0, 1, 0)
+
+	return s.getEventsForPeriod(ctx, dateStart, dateEnd)
+}
+
+// getEventsForPeriod retrieves all events occurring on the given period from the database.
+// The method uses a transaction with a context and timeouts as configured in Storage.
+//
+// It fetches events where the datetime falls within the start and end of the given period,
+// ordered by datetime in ascending order.
+//
+// Returns a slice (possibly an empty one) of Event pointers and nil on success.
+// Returns nil and any error encountered during the transaction or query execution.
+func (s *Storage) getEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time) ([]*storage.Event, error) {
 	var events []*storage.Event
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
-		dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		dateEnd := dateStart.Add(time.Hour * 24)
-
 		type Params struct {
 			DateStart time.Time `db:"date_start"`
 			DateEnd   time.Time `db:"date_end"`
@@ -164,6 +215,15 @@ func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*stora
 		}
 		return nil
 	})
+
+	// If no events found, return empty slice instead of nil.
+	if len(events) == 0 && err != nil {
+		events = []*storage.Event{}
+	}
+	// If error occurred, return nil istead of any possible results.
+	if err != nil {
+		events = nil
+	}
 
 	return events, err
 }
