@@ -3,6 +3,7 @@ package sqlstorage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -142,4 +143,35 @@ func (s *Storage) isExists(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (bool
 		return false, fmt.Errorf("event existence check: %w", err)
 	}
 	return count > 0, nil
+}
+
+// execInTransaction executes the given function in a transaction.
+//
+// If the function returns an error, the transaction is rolled back and the error
+// is returned. If the function succeeds, the transaction is committed and
+// any error that occurs during the commit is returned after the rollback.
+func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, *sqlx.Tx) error) error {
+	return s.withTimeout(ctx, func(localCtx context.Context) error {
+		tx, err := s.db.BeginTxx(localCtx, nil)
+		if err != nil {
+			return fmt.Errorf("transaction begin: %w", err)
+		}
+
+		// To ensure we don't mute the possible error.
+		var rollbackErr error
+		defer func() {
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				rollbackErr = fmt.Errorf("transaction rollback: %w", err)
+			}
+		}()
+
+		if err := fn(localCtx, tx); err != nil {
+			return err
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("transaction commit: %w", err)
+		}
+		return rollbackErr
+	})
 }

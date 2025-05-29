@@ -2,12 +2,11 @@ package sqlstorage
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                               //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                              //nolint:depguard,nolintlint
 )
 
 // CreateEvent creates a new event in the database. Method uses context with timeout set for Storage.
@@ -23,19 +22,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 		return nil, fmt.Errorf("create new event: %w", ErrNoData)
 	}
 
-	err := s.withTimeout(ctx, func(localCtx context.Context) error {
-		tx, err := s.db.BeginTxx(localCtx, nil)
-		if err != nil {
-			return fmt.Errorf("transaction begin: %w", err)
-		}
-
-		var rollbackErr error
-		defer func() {
-			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-				rollbackErr = fmt.Errorf("transaction rollback: %w", err)
-			}
-		}()
-
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		// Check if given ID is already present in DB.
 		ok, err := s.isExists(localCtx, tx, event.ID)
 		if err != nil {
@@ -58,11 +45,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *storage.Event) (*stora
 		if err != nil || n == 0 {
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
 		}
-
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("transaction commit: %w", err)
-		}
-		return rollbackErr
+		return nil
 	})
 	return event, err
 }
@@ -79,19 +62,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 		return nil, fmt.Errorf("update event: %w", ErrNoData)
 	}
 
-	err := s.withTimeout(ctx, func(localCtx context.Context) error {
-		tx, err := s.db.BeginTxx(localCtx, nil)
-		if err != nil {
-			return fmt.Errorf("transaction begin: %w", err)
-		}
-
-		var rollbackErr error
-		defer func() {
-			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-				rollbackErr = fmt.Errorf("transaction rollback: %w", err)
-			}
-		}()
-
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		ok, err := s.isExists(localCtx, tx, id)
 		if err != nil {
 			return fmt.Errorf("update event: %w", err)
@@ -116,10 +87,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *storage.E
 			return fmt.Errorf("%w: %w", ErrQeuryError, err)
 		}
 
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("transaction commit: %w", err)
-		}
-		return rollbackErr
+		return nil
 	})
 	if err != nil {
 		return nil, err
