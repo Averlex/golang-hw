@@ -93,12 +93,14 @@ func (s *Storage) Connect(ctx context.Context) error {
 
 // Close closes the connection to the database.
 //
-// It pings the database to check if the connection is alive before closing it.
-// If any error occurs during the connection or pinging, it returns an error with
-// ErrDBConnection wrapped around the original error.
+// If the connection is already closed or DB object is nil, it returns nil.
 func (s *Storage) Close(_ context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.db == nil {
+		return nil
+	}
 
 	s.db.Close()
 	return nil
