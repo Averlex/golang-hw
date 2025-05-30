@@ -1,12 +1,12 @@
-package sqlstorage
+package sql
 
 import (
 	"context"
 	"fmt"
 
-	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 // SQL queries for basic CRUD operations on events.
@@ -32,9 +32,9 @@ const (
 // it returns ErrDataExists.
 //
 // Method uses transaction to ensure the atomicity of the operation over DB.
-func (s *Storage) CreateEvent(ctx context.Context, event *sttypes.Event) (*sttypes.Event, error) {
+func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error) {
 	if event == nil {
-		return nil, fmt.Errorf("create new event: %w", sttypes.ErrNoData)
+		return nil, fmt.Errorf("create new event: %w", types.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
@@ -44,7 +44,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *sttypes.Event) (*sttyp
 			return fmt.Errorf("create event: %w", err)
 		}
 		if existingEvent != nil {
-			return sttypes.ErrDataExists
+			return types.ErrDataExists
 		}
 
 		isOverlaps, err := s.isOverlaps(localCtx, tx, event)
@@ -52,17 +52,17 @@ func (s *Storage) CreateEvent(ctx context.Context, event *sttypes.Event) (*sttyp
 			return fmt.Errorf("create event: %w", err)
 		}
 		if isOverlaps {
-			return sttypes.ErrDateBusy
+			return types.ErrDateBusy
 		}
 
 		query := queryCreateEvent
 		res, err := tx.NamedExecContext(localCtx, query, *event)
 		if err != nil {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 		}
 
 		return nil
@@ -77,12 +77,12 @@ func (s *Storage) CreateEvent(ctx context.Context, event *sttypes.Event) (*sttyp
 // If the query is successful but the given ID is not present in the DB, it returns ErrNotExists.
 //
 // Method uses transaction to ensure the atomicity of the operation over DB.
-func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.EventData) (*sttypes.Event, error) {
+func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.EventData) (*types.Event, error) {
 	if data == nil {
-		return nil, fmt.Errorf("update event: %w", sttypes.ErrNoData)
+		return nil, fmt.Errorf("update event: %w", types.ErrNoData)
 	}
 
-	event, _ := sttypes.UpdateEvent(id, data)
+	event, _ := types.UpdateEvent(id, data)
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		// Ensuring the event exists.
@@ -91,12 +91,12 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.E
 			return fmt.Errorf("update event: %w", err)
 		}
 		if existingEvent == nil {
-			return sttypes.ErrEventNotFound
+			return types.ErrEventNotFound
 		}
 
 		// Ensuring the event doesn't belong to another user.
 		if existingEvent.UserID != event.UserID {
-			return sttypes.ErrPermissionDenied
+			return types.ErrPermissionDenied
 		}
 
 		// Ensuring the event doesn't overlap with another one.
@@ -105,17 +105,17 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.E
 			return fmt.Errorf("update event: %w", err)
 		}
 		if isOverlaps {
-			return sttypes.ErrDateBusy
+			return types.ErrDateBusy
 		}
 
 		query := queryUpdateEvent
 		res, err := tx.NamedExecContext(localCtx, query, *data)
 		if err != nil {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 		}
 
 		return nil
@@ -139,17 +139,17 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("delete event: %w", err)
 		}
 		if existingEvent == nil {
-			return sttypes.ErrEventNotFound
+			return types.ErrEventNotFound
 		}
 
 		query := queryDeleteEvent
 		res, err := tx.NamedExecContext(localCtx, query, id)
 		if err != nil {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 		}
 
 		return nil

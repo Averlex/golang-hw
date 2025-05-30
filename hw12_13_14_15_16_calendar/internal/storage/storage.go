@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/memorystorage"        //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sqlstorage"           //nolint:depguard,nolintlint
-	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
+	memorystorage "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/memory" //nolint:depguard,nolintlint
+	sqlstorage "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sql"       //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types"                //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
 )
 
@@ -23,11 +23,11 @@ type Storage interface {
 
 	// CreateEvent creates a new event in the storage.
 	// Returns the created event or an error if the operation fails.
-	CreateEvent(ctx context.Context, event *sttypes.Event) (*sttypes.Event, error)
+	CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error)
 
 	// UpdateEvent updates an existing event by ID with the provided data.
 	// Returns the updated event or an error if the operation fails.
-	UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.EventData) (*sttypes.Event, error)
+	UpdateEvent(ctx context.Context, id uuid.UUID, data *types.EventData) (*types.Event, error)
 
 	// DeleteEvent deletes an event by ID.
 	// Returns an error if the operation fails.
@@ -35,27 +35,27 @@ type Storage interface {
 
 	// GetEvent retrieves an event by ID.
 	// Returns the event or an error if not found or the operation fails.
-	GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, error)
+	GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error)
 
 	// GetAllUserEvents retrieves all events for a given user ID.
 	// Returns a slice of events or an error if not found or the operation fails.
-	GetAllUserEvents(ctx context.Context, userID string) ([]*sttypes.Event, error)
+	GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error)
 
 	// GetEventsForDay retrieves events for a specific day, optionally filtered by user ID.
 	// Returns a slice of events or an error if not found or the operation fails.
-	GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error)
+	GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error)
 
 	// GetEventsForWeek retrieves events for a specific week, optionally filtered by user ID.
 	// Returns a slice of events or an error if not found or the operation fails.
-	GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error)
+	GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error)
 
 	// GetEventsForMonth retrieves events for a specific month, optionally filtered by user ID.
 	// Returns a slice of events or an error if not found or the operation fails.
-	GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error)
+	GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error)
 
 	// GetEventsForPeriod retrieves events for a given period, optionally filtered by user ID.
 	// Returns a slice of events or an error if not found or the operation fails.
-	GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time, userID *string) ([]*sttypes.Event, error)
+	GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time, userID *string) ([]*types.Event, error)
 }
 
 //nolint:revive,funlen,nolintlint

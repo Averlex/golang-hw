@@ -1,5 +1,5 @@
-// Package sqlstorage provides a SQL database storage implementation.
-package sqlstorage
+// Package sql provides a SQL database storage implementation.
+package sql
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 // Storage represents a SQL database storage.
@@ -32,7 +32,7 @@ type Storage struct {
 // Currently supported drivers are "postgres" or "postgresql".
 func NewStorage(timeout time.Duration, driver, host, port, user, password, dbname string) (*Storage, error) {
 	if driver != "postgres" && driver != "postgresql" {
-		return nil, sttypes.ErrUnsupportedDriver
+		return nil, types.ErrUnsupportedDriver
 	}
 
 	dsn := fmt.Sprintf(
@@ -50,7 +50,7 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 // withTimeout wraps the given function in a context.WithTimeout call.
 func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) error) error {
 	if s.db == nil {
-		return sttypes.ErrDBuninitialized
+		return types.ErrDBuninitialized
 	}
 
 	s.mu.RLock()
@@ -67,7 +67,7 @@ func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) erro
 	err := fn(localCtx)
 	if err != nil {
 		if errors.Is(localCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("%w: %w", sttypes.ErrTimeoutExceeded, err)
+			return fmt.Errorf("%w: %w", types.ErrTimeoutExceeded, err)
 		}
 		return err
 	}
@@ -115,7 +115,7 @@ func (s *Storage) Close(_ context.Context) error {
 // any error that occurs during the commit is returned after the rollback.
 func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, *sqlx.Tx) error) error {
 	if s.db == nil {
-		return sttypes.ErrDBuninitialized
+		return types.ErrDBuninitialized
 	}
 
 	return s.withTimeout(ctx, func(localCtx context.Context) error {

@@ -1,13 +1,13 @@
-package sqlstorage
+package sql
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 //
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 0, 1)
 
@@ -50,7 +50,7 @@ func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *s
 //
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
 	// Weekday considering Monday as the first day of the week.
 	weekday := (int(date.Weekday()-time.Monday) + 7) % 7
 
@@ -72,7 +72,7 @@ func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *
 //
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
 	// Truncating the date to the start of the month.
 	dateStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 1, 0)
@@ -92,8 +92,8 @@ func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID 
 // Returns nil and any error encountered during the transaction or query execution.
 func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time,
 	userID *string,
-) ([]*sttypes.Event, error) {
-	var events []*sttypes.Event
+) ([]*types.Event, error) {
+	var events []*types.Event
 	type Params struct {
 		UserID    *string   `db:"user_id"` // Optional, can be nil.
 		DateStart time.Time `db:"date_start"`
@@ -110,11 +110,11 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 		return tx.SelectContext(localCtx, &events, query, params)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+		return nil, fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		return nil, sttypes.ErrEventNotFound
+		return nil, types.ErrEventNotFound
 	}
 
 	return events, nil
@@ -125,8 +125,8 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 //
 // Returns a pointer to the Event and nil on success, or nil and any error encountered during the transaction.
 // If no event with the given ID is found, it returns (nil, ErrEventNotFound).
-func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, error) {
-	var event *sttypes.Event
+func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) {
+	var event *types.Event
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		var err error
 		event, err = s.getExistingEvent(localCtx, tx, id)
@@ -136,7 +136,7 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, e
 		return nil, fmt.Errorf("get event: %w", err)
 	}
 	if event == nil {
-		return nil, sttypes.ErrEventNotFound
+		return nil, types.ErrEventNotFound
 	}
 
 	return event, nil
@@ -147,19 +147,19 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, e
 //
 // Returns a slice of Event pointers and nil on success, or nil and any error encountered during the transaction.
 // If no events for the given user ID are found, it returns (nil, ErrEventNotFound).
-func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*sttypes.Event, error) {
-	var events []*sttypes.Event
+func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
+	var events []*types.Event
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		args := map[string]any{"user_id": userID}
 		query := queryGetAllUserEvents
 		return tx.SelectContext(localCtx, &events, query, args)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+		return nil, fmt.Errorf("%w: %w", types.ErrQeuryError, err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		return nil, sttypes.ErrEventNotFound
+		return nil, types.ErrEventNotFound
 	}
 
 	return events, nil

@@ -1,4 +1,4 @@
-package sqlstorage
+package sql
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 const (
@@ -27,9 +27,9 @@ const (
 // getExistingEvent gets the event with the given ID from the database.
 // Method does not depend on database driver.
 //
-// Returns (nil, nil) or (*sttypes.Event, nil) if no errors occurred, (nil, error) otherwise.
-func (s *Storage) getExistingEvent(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*sttypes.Event, error) {
-	var event sttypes.Event
+// Returns (nil, nil) or (*types.Event, nil) if no errors occurred, (nil, error) otherwise.
+func (s *Storage) getExistingEvent(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*types.Event, error) {
+	var event types.Event
 	args := map[string]any{"id": id}
 	query := queryGetExistingEvent
 	err := tx.GetContext(ctx, &event, query, args)
@@ -43,7 +43,7 @@ func (s *Storage) getExistingEvent(ctx context.Context, tx *sqlx.Tx, id uuid.UUI
 }
 
 // isOverlaps checks if the given user event overlaps with any of his existing events in the database.
-func (s *Storage) isOverlaps(ctx context.Context, tx *sqlx.Tx, event *sttypes.Event) (bool, error) {
+func (s *Storage) isOverlaps(ctx context.Context, tx *sqlx.Tx, event *types.Event) (bool, error) {
 	var hasConflicts bool
 	args := map[string]any{
 		"user_id":  event.UserID,
