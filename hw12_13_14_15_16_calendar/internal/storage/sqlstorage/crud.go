@@ -69,7 +69,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.E
 			return fmt.Errorf("update event: %w", err)
 		}
 		if !ok {
-			return sttypes.ErrNotExists
+			return sttypes.ErrEventNotFound
 		}
 
 		query := `
@@ -110,7 +110,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("delete event: %w", err)
 		}
 		if !ok {
-			return sttypes.ErrNotExists
+			return sttypes.ErrEventNotFound
 		}
 
 		query := "DELETE FROM events WHERE id = :id"

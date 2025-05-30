@@ -8,17 +8,6 @@ import (
 	"github.com/google/uuid" //nolint:depguard,nolintlint
 )
 
-var (
-	// ErrEmptyField is returned when no data is passed to any of the necessary fields.
-	ErrEmptyField = errors.New("empty event field values received")
-	// ErrNegativeDuration is returned when the event duration is negative.
-	ErrNegativeDuration = errors.New("event duration is negative")
-	// ErrNegativeRemind is returned when the event remind duration is negative.
-	ErrNegativeRemind = errors.New("event remind duration is negative")
-	// ErrGenerateID is returned when the event ID generation fails.
-	ErrGenerateID = errors.New("failed to generate new event id")
-)
-
 // EventData contains the data of the event whithout its ID.
 // Pointer fields are optional.
 type EventData struct {
