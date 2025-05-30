@@ -292,10 +292,10 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, e
 		return err
 	})
 	if err != nil {
-		if errors.Is(err, sttypes.ErrEventNotFound) {
-			return nil, sttypes.ErrEventNotFound
-		}
 		return nil, fmt.Errorf("get event: %w", err)
+	}
+	if event == nil {
+		return nil, sttypes.ErrEventNotFound
 	}
 
 	return event, nil
