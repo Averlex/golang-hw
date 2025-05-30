@@ -164,13 +164,15 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 // ordered by datetime in ascending order.
 // Method truncates any given date to the start of the day.
 //
+// It accepts an optional userID parameter to filter events by user ID.
+//
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 0, 1)
 
-	return s.GetEventsForPeriod(ctx, dateStart, dateEnd)
+	return s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
 }
 
 // GetEventsForWeek retrieves all events occurring on the calendar week of the specified date from the database.
@@ -180,9 +182,11 @@ func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*sttyp
 // ordered by datetime in ascending order.
 // Method truncates any given date to the start of the calendar week.
 //
+// It accepts an optional userID parameter to filter events by user ID.
+//
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
 	// Weekday considering Monday as the first day of the week.
 	weekday := (int(date.Weekday()-time.Monday) + 7) % 7
 
@@ -190,7 +194,7 @@ func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*stty
 	dateStart := date.AddDate(0, 0, -weekday).Truncate(24 * time.Hour)
 	dateEnd := dateStart.AddDate(0, 0, 7)
 
-	return s.GetEventsForPeriod(ctx, dateStart, dateEnd)
+	return s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
 }
 
 // GetEventsForMonth retrieves all events occurring on the calendar month of the specified date from the database.
@@ -200,14 +204,16 @@ func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*stty
 // ordered by datetime in ascending order.
 // Method truncates any given date to the start of the calendar month.
 //
+// It accepts an optional userID parameter to filter events by user ID.
+//
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
 	// Truncating the date to the start of the month.
 	dateStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 1, 0)
 
-	return s.GetEventsForPeriod(ctx, dateStart, dateEnd)
+	return s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
 }
 
 // GetEventsForPeriod retrieves all events occurring on the given period from the database.
@@ -216,41 +222,43 @@ func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*stt
 // It fetches events where the datetime falls within the start and end of the given period,
 // ordered by datetime in ascending order.
 //
+// It accepts an optional userID parameter to filter events by user ID.
+//
 // Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
 // Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time) ([]*sttypes.Event, error) {
+func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time,
+	userID *string,
+) ([]*sttypes.Event, error) {
 	var events []*sttypes.Event
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
-		type Params struct {
-			DateStart time.Time `db:"date_start"`
-			DateEnd   time.Time `db:"date_end"`
-		}
-		params := Params{dateStart, dateEnd}
+	type Params struct {
+		UserID    *string   `db:"user_id"` // Optional, can be nil.
+		DateStart time.Time `db:"date_start"`
+		DateEnd   time.Time `db:"date_end"`
+	}
+	params := Params{userID, dateStart, dateEnd}
 
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		query := `
 		SELECT *
 		FROM events
 		WHERE datetime >= :date_start AND datetime < :date_end
-		ORDER BY datetime ASC
 		`
-
-		err := tx.SelectContext(localCtx, &events, query, params)
-		if err != nil {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+		if userID != nil {
+			query += "AND user_id = :user_id "
 		}
-		return nil
-	})
+		query += "ORDER BY datetime ASC"
 
+		return tx.SelectContext(localCtx, &events, query, params)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
+	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		err = sttypes.ErrEventNotFound
-	}
-	// If error occurred, return nil istead of any possible results.
-	if err != nil {
-		events = nil
+		return nil, sttypes.ErrEventNotFound
 	}
 
-	return events, err
+	return events, nil
 }
 
 // getExistingEvent gets the event with the given ID from the database.
@@ -321,112 +329,6 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*sttyp
 	}
 
 	return events, nil
-}
-
-// GetUserEventsForPeriod retrieves all events occurring on the given period for a given user ID from the database.
-// The method uses a transaction with a context and timeouts as configured in Storage.
-//
-// It fetches events where the datetime falls within the start and end of the given period,
-// ordered by datetime in ascending order.
-//
-// Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
-// Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetUserEventsForPeriod(ctx context.Context, userID string,
-	dateStart, dateEnd time.Time,
-) ([]*sttypes.Event, error) {
-	var events []*sttypes.Event
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
-		type Params struct {
-			UserID    string    `db:"user_id"`
-			DateStart time.Time `db:"date_start"`
-			DateEnd   time.Time `db:"date_end"`
-		}
-		params := Params{userID, dateStart, dateEnd}
-
-		query := `
-		SELECT *
-		FROM events
-		WHERE user_id = :user_id
-			AND datetime >= :date_start
-			AND datetime < :date_end
-
-		ORDER BY datetime ASC
-		`
-
-		err := tx.SelectContext(localCtx, &events, query, params)
-		if err != nil {
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
-		}
-		return nil
-	})
-
-	// If no events found, return empty slice instead of nil.
-	if len(events) == 0 && err != nil {
-		err = sttypes.ErrEventNotFound
-	}
-	// If error occurred, return nil istead of any possible results.
-	if err != nil {
-		events = nil
-	}
-
-	return events, err
-}
-
-// GetUserEventsForDay retrieves all events occurring on the specified date from the database.
-// The method uses a transaction with a context and timeouts as configured in Storage.
-//
-// It fetches events where the datetime falls within the start and end of the given date,
-// ordered by datetime in ascending order.
-// Method truncates any given date to the start of the day.
-//
-// Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
-// Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetUserEventsForDay(ctx context.Context, userID string, date time.Time) ([]*sttypes.Event, error) {
-	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	dateEnd := dateStart.AddDate(0, 0, 1)
-
-	return s.GetUserEventsForPeriod(ctx, userID, dateStart, dateEnd)
-}
-
-// GetUserEventsForWeek retrieves all events occurring on the calendar week of the specified date from the database.
-// The method uses a transaction with a context and timeouts as configured in Storage.
-//
-// It fetches events where the datetime falls within the start and end of the calendar week of the given date,
-// ordered by datetime in ascending order.
-// Method truncates any given date to the start of the calendar week.
-//
-// Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
-// Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetUserEventsForWeek(ctx context.Context, userID string,
-	date time.Time,
-) ([]*sttypes.Event, error) {
-	// Weekday considering Monday as the first day of the week.
-	weekday := (int(date.Weekday()-time.Monday) + 7) % 7
-
-	// Truncating the date to the start of the week.
-	dateStart := date.AddDate(0, 0, -weekday).Truncate(24 * time.Hour)
-	dateEnd := dateStart.AddDate(0, 0, 7)
-
-	return s.GetUserEventsForPeriod(ctx, userID, dateStart, dateEnd)
-}
-
-// GetUserEventsForMonth retrieves all events occurring on the calendar month of the specified date from the database.
-// The method uses a transaction with a context and timeouts as configured in Storage.
-//
-// It fetches events where the datetime falls within the start and end of the calendar month of the given date,
-// ordered by datetime in ascending order.
-// Method truncates any given date to the start of the calendar month.
-//
-// Returns a slice of Event pointers and nil on success. If no events are found, it returns (nil, ErrEventNotFound).
-// Returns nil and any error encountered during the transaction or query execution.
-func (s *Storage) GetUserEventsForMonth(ctx context.Context, userID string,
-	date time.Time,
-) ([]*sttypes.Event, error) {
-	// Truncating the date to the start of the month.
-	dateStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
-	dateEnd := dateStart.AddDate(0, 1, 0)
-
-	return s.GetUserEventsForPeriod(ctx, userID, dateStart, dateEnd)
 }
 
 // isOverlaps checks if the given user event overlaps with any of his existing events in the database.
