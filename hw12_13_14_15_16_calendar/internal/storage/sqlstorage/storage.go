@@ -75,8 +75,7 @@ func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) erro
 //
 // If the connection is successful, it pings the database
 // to check if the connection is alive. If any error occurs during the connection
-// or pinging, it returns an error with ErrDBConnection wrapped around the
-// original error.
+// or pinging, it returns an error.
 func (s *Storage) Connect(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
