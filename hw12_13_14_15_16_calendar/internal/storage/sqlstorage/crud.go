@@ -86,7 +86,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.E
 		}
 
 		// Ensuring the event doesn't belong to another user.
-		if existingEvent.UserID == event.UserID {
+		if existingEvent.UserID != event.UserID {
 			return sttypes.ErrPermissionDenied
 		}
 
