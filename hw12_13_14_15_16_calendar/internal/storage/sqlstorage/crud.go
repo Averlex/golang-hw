@@ -134,7 +134,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 		if err != nil {
 			return fmt.Errorf("delete event: %w", err)
 		}
-		if existingEvent != nil {
+		if existingEvent == nil {
 			return sttypes.ErrEventNotFound
 		}
 
