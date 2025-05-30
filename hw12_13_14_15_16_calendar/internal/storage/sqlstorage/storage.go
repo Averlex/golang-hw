@@ -117,21 +117,28 @@ func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context
 			return fmt.Errorf("transaction begin: %w", err)
 		}
 
-		// To ensure we don't mute the possible error.
-		var rollbackErr error
+		// This code wraps the original error if it fails to rollback the transaction.
 		defer func() {
-			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-				rollbackErr = fmt.Errorf("transaction rollback: %w", err)
+			// Rollback the transaction in any case except the one without any errors.
+			if err != nil {
+				rErr := tx.Rollback()
+				if rErr != nil && !errors.Is(rErr, sql.ErrTxDone) {
+					rErr = fmt.Errorf("transaction rollback: %w", rErr)
+					err = fmt.Errorf("%w: %w", rErr, err)
+				}
 			}
 		}()
 
-		if err := fn(localCtx, tx); err != nil {
+		err = fn(localCtx, tx)
+		if err != nil {
 			return err
 		}
 
-		if err := tx.Commit(); err != nil {
+		err = tx.Commit()
+		if err != nil {
 			return fmt.Errorf("transaction commit: %w", err)
 		}
-		return rollbackErr
+
+		return nil
 	})
 }
