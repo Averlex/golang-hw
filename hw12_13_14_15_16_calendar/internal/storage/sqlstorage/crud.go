@@ -259,9 +259,9 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 // Returns (nil, nil) or (*sttypes.Event, nil) if no errors occurred, (nil, error) otherwise.
 func (s *Storage) getExistingEvent(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*sttypes.Event, error) {
 	var event sttypes.Event
-	query := "SELECT * FROM events WHERE id = ?"
-	query = tx.Rebind(query)
-	err := tx.GetContext(ctx, &event, query, id)
+	args := map[string]any{"id": id}
+	query := "SELECT * FROM events WHERE id = :id"
+	err := tx.GetContext(ctx, &event, query, args)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -301,9 +301,10 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, e
 func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*sttypes.Event, error) {
 	var events []*sttypes.Event
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
-		query := "SELECT * FROM events WHERE user_id = ?"
+		args := map[string]any{"user_id": userID}
+		query := "SELECT * FROM events WHERE user_id = :user_id"
 		query = tx.Rebind(query)
-		err := tx.SelectContext(localCtx, &events, query, userID)
+		err := tx.SelectContext(localCtx, &events, query, args)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
