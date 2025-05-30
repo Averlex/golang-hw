@@ -242,7 +242,7 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 	})
 
 	// If no events found, set the error to ErrEventNotFound.
-	if len(events) == 0 && err != nil {
+	if len(events) == 0 {
 		err = sttypes.ErrEventNotFound
 	}
 	// If error occurred, return nil istead of any possible results.
