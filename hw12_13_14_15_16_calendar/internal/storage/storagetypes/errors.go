@@ -16,6 +16,8 @@ var (
 	ErrDataExists = errors.New("event data already exists")
 	// ErrUnsupportedDriver is returned when the DB driver is not supported.
 	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
+	// ErrDBuninitialized is returned when the database connection is not initialized.
+	ErrDBuninitialized = errors.New("database is not initialized, initialize connection first")
 )
 
 // Business errors.

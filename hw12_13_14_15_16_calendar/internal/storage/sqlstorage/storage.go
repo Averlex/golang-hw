@@ -50,6 +50,10 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 
 // withTimeout wraps the given function in a context.WithTimeout call.
 func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) error) error {
+	if s.db == nil {
+		return sttypes.ErrDBuninitialized
+	}
+
 	s.mu.RLock()
 	timeout := s.timeout
 	s.mu.RUnlock()
@@ -111,6 +115,10 @@ func (s *Storage) Close(_ context.Context) error {
 // is returned. If the function succeeds, the transaction is committed and
 // any error that occurs during the commit is returned after the rollback.
 func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, *sqlx.Tx) error) error {
+	if s.db == nil {
+		return sttypes.ErrDBuninitialized
+	}
+
 	return s.withTimeout(ctx, func(localCtx context.Context) error {
 		tx, err := s.db.BeginTxx(localCtx, nil)
 		if err != nil {
