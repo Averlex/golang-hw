@@ -35,6 +35,9 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 		return nil, types.ErrUnsupportedDriver
 	}
 
+	// Normalizing driver name to "postgres" for consistency.
+	driver = "postgres"
+
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable connect_timeout=%d",
 		host, port, user, password, dbname, int(timeout.Seconds()),
