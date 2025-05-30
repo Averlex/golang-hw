@@ -19,8 +19,10 @@ var (
 // Business errors.
 var (
 	// ErrEventNotFound is returned when the event with requested ID does not exist in the storage.
-	ErrEventNotFound    = errors.New("requested event was not found")
-	ErrDateBusy         = errors.New("requested event date is already busy")
+	ErrEventNotFound = errors.New("requested event was not found")
+	// ErrDateBusy is returned when the event date is already busy/overlaps with existing events in the storage.
+	ErrDateBusy = errors.New("requested event date is already busy")
+	// ErrPermissionDenied is returned when the user tries to modify another user's event.
 	ErrPermissionDenied = errors.New("cannot modify another user's event")
 )
 

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	sttypes "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/storagetypes" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                                       //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                                      //nolint:depguard,nolintlint
+	//nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx" //nolint:depguard,nolintlint
 )
 
 const defaultDriver = "postgres"
@@ -98,19 +98,6 @@ func (s *Storage) Close(_ context.Context) error {
 
 	s.db.Close()
 	return nil
-}
-
-// isExists checks if the given event ID already exists in the database.
-// Method does not depend on database driver.
-func (s *Storage) isExists(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (bool, error) {
-	var count int
-	query := "SELECT COUNT(*) FROM events WHERE id = ?"
-	query = tx.Rebind(query)
-	err := tx.GetContext(ctx, &count, query, id)
-	if err != nil {
-		return false, fmt.Errorf("event existence check: %w", err)
-	}
-	return count > 0, nil
 }
 
 // execInTransaction executes the given function in a transaction.
