@@ -292,10 +292,10 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, e
 		return err
 	})
 	if err != nil {
+		if errors.Is(err, sttypes.ErrEventNotFound) {
+			return nil, sttypes.ErrEventNotFound
+		}
 		return nil, fmt.Errorf("get event: %w", err)
-	}
-	if event == nil {
-		return nil, sttypes.ErrEventNotFound
 	}
 
 	return event, nil
@@ -311,20 +311,13 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*sttyp
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
 		args := map[string]any{"user_id": userID}
 		query := "SELECT * FROM events WHERE user_id = :user_id"
-		query = tx.Rebind(query)
-		err := tx.SelectContext(localCtx, &events, query, args)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-			return fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
-		}
-		return nil
+		return tx.SelectContext(localCtx, &events, query, args)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get all user events: %w", err)
+		return nil, fmt.Errorf("%w: %w", sttypes.ErrQeuryError, err)
 	}
-	if events == nil {
+	// If no events found, set the error to ErrEventNotFound.
+	if len(events) == 0 {
 		return nil, sttypes.ErrEventNotFound
 	}
 
