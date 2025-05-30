@@ -24,31 +24,50 @@ func NewStorage(_ any) (*Storage, error) {
 }
 
 //nolint:revive
+func (*Storage) Connect(ctx context.Context) error { return nil }
+
+//nolint:revive
+func (*Storage) Close(ctx context.Context) error { return nil }
+
+//nolint:revive
 func (*Storage) CreateEvent(ctx context.Context, event *sttypes.Event) (*sttypes.Event, error) {
-	return event, nil
+	return nil, nil
 }
 
 //nolint:revive
 func (*Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *sttypes.EventData) (*sttypes.Event, error) {
-	return &sttypes.Event{}, nil
-}
-
-//nolint:revive
-func (*Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
-	return nil
-}
-
-//nolint:revive
-func (*Storage) GetEventsForDay(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
 	return nil, nil
 }
 
 //nolint:revive
-func (*Storage) GetEventsForWeek(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
+func (*Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error { return nil }
+
+//nolint:revive
+func (*Storage) GetEvent(ctx context.Context, id uuid.UUID) (*sttypes.Event, error) { return nil, nil }
+
+//nolint:revive
+func (*Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*sttypes.Event, error) {
 	return nil, nil
 }
 
 //nolint:revive
-func (*Storage) GetEventsForMonth(ctx context.Context, date time.Time) ([]*sttypes.Event, error) {
+func (*Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
+	return nil, nil
+}
+
+//nolint:revive
+func (*Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
+	return nil, nil
+}
+
+//nolint:revive
+func (*Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*sttypes.Event, error) {
+	return nil, nil
+}
+
+//nolint:revive
+func (*Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time,
+	userID *string,
+) ([]*sttypes.Event, error) {
 	return nil, nil
 }
