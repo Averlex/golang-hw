@@ -67,6 +67,7 @@ func NewStorage(args map[string]any) (Storage, error) {
 			"user":     "",
 			"password": "",
 			"dbname":   "",
+			"driver":   "postgres",
 		}
 		for k, v := range sqlArgs {
 			val, ok := v.(string)
@@ -81,7 +82,7 @@ func NewStorage(args map[string]any) (Storage, error) {
 			return nil, fmt.Errorf("invalid sql storage arguments: %v", errArgs)
 		}
 
-		s, err = sqlstorage.NewStorage(timeout, callArgs["host"], callArgs["port"],
+		s, err = sqlstorage.NewStorage(timeout, callArgs["driver"], callArgs["host"], callArgs["port"],
 			callArgs["user"], callArgs["password"], callArgs["dbname"])
 
 	default:

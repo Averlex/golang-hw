@@ -14,8 +14,6 @@ import (
 	"github.com/jmoiron/sqlx" //nolint:depguard,nolintlint
 )
 
-const defaultDriver = "postgres"
-
 // Storage represents a SQL database storage.
 type Storage struct {
 	mu      sync.RWMutex
@@ -31,14 +29,20 @@ type Storage struct {
 //
 // The function constructs a DSN based on the given arguments and
 // the default driver. No connection is established upon the call.
-func NewStorage(timeout time.Duration, host, port, user, password, dbname string) (*Storage, error) {
+//
+// Currently supported drivers are "postgres" or "postgresql".
+func NewStorage(timeout time.Duration, driver, host, port, user, password, dbname string) (*Storage, error) {
+	if driver != "postgres" && driver != "postgresql" {
+		return nil, sttypes.ErrUnsupportedDriver
+	}
+
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable connect_timeout=%d",
 		host, port, user, password, dbname, int(timeout.Seconds()),
 	)
 
 	return &Storage{
-		driver:  defaultDriver,
+		driver:  driver,
 		dsn:     dsn,
 		timeout: timeout,
 	}, nil

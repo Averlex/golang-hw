@@ -14,6 +14,8 @@ var (
 	ErrQeuryError = errors.New("query execution")
 	// ErrDataExists is returned on event ID collision on the storage insertion.
 	ErrDataExists = errors.New("event data already exists")
+	// ErrUnsupportedDriver is returned when the DB driver is not supported.
+	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
 )
 
 // Business errors.
