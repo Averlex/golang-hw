@@ -17,7 +17,7 @@ import (
 type Storage struct {
 	mu      sync.RWMutex
 	driver  string
-	db      *sqlx.DB
+	db      DB
 	dsn     string
 	timeout time.Duration
 }
@@ -44,6 +44,7 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 	)
 
 	return &Storage{
+		db:      &SQLXWrapper{},
 		driver:  driver,
 		dsn:     dsn,
 		timeout: timeout,
@@ -87,8 +88,7 @@ func (s *Storage) Connect(ctx context.Context) error {
 	defer s.mu.Unlock()
 
 	return s.withTimeout(ctx, func(localCtx context.Context) error {
-		var err error
-		s.db, err = sqlx.ConnectContext(localCtx, s.driver, s.dsn)
+		_, err := s.db.ConnectContext(localCtx, s.driver, s.dsn)
 		if err != nil {
 			return fmt.Errorf("database connection: %w", err)
 		}
