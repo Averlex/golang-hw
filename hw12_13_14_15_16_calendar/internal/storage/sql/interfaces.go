@@ -1,3 +1,6 @@
+//go:generate mockery --name=DB --dir=. --output=mocks --filename=mock_db.go --with-expecter
+//go:generate mockery --name=Tx --dir=. --output=mocks --filename=mock_tx.go --with-expecter
+
 package sql
 
 import (
