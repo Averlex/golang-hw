@@ -19,7 +19,7 @@ type Storage interface {
 	Connect(ctx context.Context) error
 
 	// Close closes the connection to the storage backend.
-	Close(ctx context.Context) error
+	Close(ctx context.Context)
 
 	// CreateEvent creates a new event in the storage.
 	// Returns the created event or an error if the operation fails.

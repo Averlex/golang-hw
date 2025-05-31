@@ -27,7 +27,7 @@ func NewStorage(_ any) (*Storage, error) {
 func (*Storage) Connect(ctx context.Context) error { return nil }
 
 //nolint:revive
-func (*Storage) Close(ctx context.Context) error { return nil }
+func (*Storage) Close(ctx context.Context) {}
 
 //nolint:revive
 func (*Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error) {
