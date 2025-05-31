@@ -153,3 +153,35 @@ func (s *StorageSuite) TestConnect() {
 		})
 	}
 }
+
+func (s *StorageSuite) TestClose() {
+	testCases := []struct {
+		name      string
+		dbSetup   func()
+		mockSetup func()
+	}{
+		{
+			name:    "successful close",
+			dbSetup: func() {}, // Already initialized in SetupSuite.
+			mockSetup: func() {
+				s.dbMock.On("Close").Return(nil).Once()
+			},
+		},
+		{
+			name:    "nil db",
+			dbSetup: func() { s.storage.db = &SQLXWrapper{} }, // Underlying DB is nil.
+			mockSetup: func() {
+				s.dbMock.On("Close").Return(nil).Maybe()
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.dbSetup()
+			tC.mockSetup()
+			s.storage.Close(context.Background())
+			s.dbMock.AssertExpectations(s.T())
+		})
+	}
+}
