@@ -15,7 +15,7 @@ import (
 type DB interface {
 	ConnectContext(ctx context.Context, driverName, dataSourceName string) (*sqlx.DB, error)
 	BeginTxx(ctx context.Context, opts *sql.TxOptions) (*sqlx.Tx, error)
-	Close() error
+	Close()
 }
 
 // Tx defines the methods of sqlx.Tx used in storage/sql.
@@ -53,9 +53,8 @@ func (w *SQLXWrapper) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*sqlx.
 }
 
 // Close implements DB.Close.
-func (w *SQLXWrapper) Close() error {
-	if w.db == nil {
-		return nil
+func (w *SQLXWrapper) Close() {
+	if w.db != nil {
+		w.db.Close()
 	}
-	return w.db.Close()
 }

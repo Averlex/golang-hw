@@ -84,21 +84,8 @@ func (_c *DB_BeginTxx_Call) RunAndReturn(run func(context.Context, *sql.TxOption
 }
 
 // Close provides a mock function with no fields
-func (_m *DB) Close() error {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Close")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
+func (_m *DB) Close() {
+	_m.Called()
 }
 
 // DB_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
@@ -118,13 +105,13 @@ func (_c *DB_Close_Call) Run(run func()) *DB_Close_Call {
 	return _c
 }
 
-func (_c *DB_Close_Call) Return(_a0 error) *DB_Close_Call {
-	_c.Call.Return(_a0)
+func (_c *DB_Close_Call) Return() *DB_Close_Call {
+	_c.Call.Return()
 	return _c
 }
 
-func (_c *DB_Close_Call) RunAndReturn(run func() error) *DB_Close_Call {
-	_c.Call.Return(run)
+func (_c *DB_Close_Call) RunAndReturn(run func()) *DB_Close_Call {
+	_c.Run(run)
 	return _c
 }
 

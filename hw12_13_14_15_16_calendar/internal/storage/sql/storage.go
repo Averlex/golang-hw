@@ -94,18 +94,14 @@ func (s *Storage) Connect(ctx context.Context) error {
 }
 
 // Close closes the connection to the database.
-//
-// If the connection is already closed or DB object is nil, it returns nil.
-func (s *Storage) Close(_ context.Context) error {
+// Method is safe to call multiple times. No errors are returned.
+func (s *Storage) Close(_ context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.db == nil {
-		return nil
+	if s.db != nil {
+		s.db.Close()
 	}
-
-	s.db.Close()
-	return nil
 }
 
 // execInTransaction executes the given function in a transaction.
