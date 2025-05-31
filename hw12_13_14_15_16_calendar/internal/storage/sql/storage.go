@@ -53,11 +53,11 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 
 // withTimeout wraps the given function in a context.WithTimeout call.
 func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) error) error {
+	s.mu.RLock()
 	if s.db == nil {
 		return types.ErrDBuninitialized
 	}
 
-	s.mu.RLock()
 	timeout := s.timeout
 	s.mu.RUnlock()
 
@@ -84,9 +84,6 @@ func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) erro
 // to check if the connection is alive. If any error occurs during the connection
 // or pinging, it returns an error.
 func (s *Storage) Connect(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	return s.withTimeout(ctx, func(localCtx context.Context) error {
 		_, err := s.db.ConnectContext(localCtx, s.driver, s.dsn)
 		if err != nil {
