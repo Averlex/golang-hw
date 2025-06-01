@@ -79,6 +79,7 @@ func (s *StorageSuite) mockEventExists(event *types.Event) {
 		}).Return(nil).Once()
 }
 
+// mockEventNotExists is a helper function to mock the case when an event does not exist.
 func (s *StorageSuite) mockEventNotExists() {
 	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errNotExists).Once()
 }
@@ -192,7 +193,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			name:  "valid create",
 			event: event,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
@@ -215,7 +216,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			name:  "event exists",
 			event: event,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
@@ -228,7 +229,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			name:  "date busy",
 			event: event,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
@@ -246,7 +247,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			name:  "query error",
 			event: event,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
@@ -262,7 +263,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			name:  commitErrCase,
 			event: event,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
@@ -279,7 +280,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			name:  rollbackErrCase,
 			event: event,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
@@ -329,7 +330,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			name: "valid update",
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -352,7 +353,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			id:   uuid.New(),
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
@@ -365,7 +366,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			id:   event.ID,
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				// Simulate an event with the same ID but different user.
@@ -384,7 +385,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			id:   event.ID,
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -402,7 +403,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			id:   event.ID,
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -418,7 +419,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			id:   event.ID,
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -435,7 +436,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			id:   event.ID,
 			data: dataToUpdate,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
@@ -482,7 +483,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 			name: "valid delete",
 			id:   event.ID,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -496,7 +497,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 			name: "event not found",
 			id:   uuid.New(),
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
@@ -508,7 +509,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 			name: "query error",
 			id:   event.ID,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -522,7 +523,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 			name: commitErrCase,
 			id:   event.ID,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
@@ -537,7 +538,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 			name: rollbackErrCase,
 			id:   event.ID,
 			dbMockFn: func() {
-				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+				s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, nil).Once()
 			},
 			txMockFn: func() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
