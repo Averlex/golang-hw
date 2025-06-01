@@ -14,7 +14,7 @@ import (
 // DB defines the methods of sqlx.DB used in storage/sql.
 type DB interface {
 	ConnectContext(ctx context.Context, driverName, dataSourceName string) (*sqlx.DB, error)
-	BeginTxx(ctx context.Context, opts *sql.TxOptions) (*sqlx.Tx, error)
+	BeginTxx(ctx context.Context, opts *sql.TxOptions) (Tx, error)
 	Close()
 }
 
@@ -45,7 +45,7 @@ func (w *SQLXWrapper) ConnectContext(ctx context.Context, driverName, dataSource
 }
 
 // BeginTxx implements DB.BeginTxx.
-func (w *SQLXWrapper) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*sqlx.Tx, error) {
+func (w *SQLXWrapper) BeginTxx(ctx context.Context, opts *sql.TxOptions) (Tx, error) {
 	if w.db == nil {
 		return nil, types.ErrDBuninitialized
 	}
@@ -57,4 +57,9 @@ func (w *SQLXWrapper) Close() {
 	if w.db != nil {
 		w.db.Close()
 	}
+}
+
+// SetDB implements DB.SetDB for testing purposes.
+func (w *SQLXWrapper) SetDB(db *sqlx.DB) {
+	w.db = db
 }

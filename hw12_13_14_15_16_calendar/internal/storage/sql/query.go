@@ -7,7 +7,6 @@ import (
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 const (
@@ -105,7 +104,7 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 		userIDClause = "AND user_id = :user_id "
 	}
 
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		query := fmt.Sprintf(queryGetEventsForPeriod, userIDClause)
 		return tx.SelectContext(localCtx, &events, query, params)
 	})
@@ -127,7 +126,7 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 // If no event with the given ID is found, it returns (nil, ErrEventNotFound).
 func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) {
 	var event *types.Event
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		var err error
 		event, err = s.getExistingEvent(localCtx, tx, id)
 		return err
@@ -149,7 +148,7 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 // If no events for the given user ID are found, it returns (nil, ErrEventNotFound).
 func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
 	var events []*types.Event
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		args := map[string]any{"user_id": userID}
 		query := queryGetAllUserEvents
 		return tx.SelectContext(localCtx, &events, query, args)

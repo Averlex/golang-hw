@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 // Storage represents a SQL database storage.
@@ -22,6 +21,17 @@ type Storage struct {
 	timeout time.Duration
 }
 
+// StorageOption defines a function that allows to configure underlying Storage DB on construction.
+// Use it for testing purposes to inject a custom DB implementation.
+type StorageOption func(s *Storage)
+
+// WithDB allows to inject a custom DB implementation (for testing).
+func WithDB(db DB) StorageOption {
+	return func(s *Storage) {
+		s.db = db
+	}
+}
+
 // NewStorage creates a new Storage instance based on the given args.
 //
 // If the arguments are empty, it returns an error.
@@ -30,7 +40,9 @@ type Storage struct {
 // the default driver. No connection is established upon the call.
 //
 // Currently supported drivers are "postgres" or "postgresql".
-func NewStorage(timeout time.Duration, driver, host, port, user, password, dbname string) (*Storage, error) {
+func NewStorage(timeout time.Duration, driver, host, port, user, password, dbname string,
+	opts ...StorageOption,
+) (*Storage, error) {
 	if driver != "postgres" && driver != "postgresql" {
 		return nil, types.ErrUnsupportedDriver
 	}
@@ -43,12 +55,17 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 		host, port, user, password, dbname, int(timeout.Seconds()),
 	)
 
-	return &Storage{
+	storage := &Storage{
 		db:      &SQLXWrapper{},
 		driver:  driver,
 		dsn:     dsn,
 		timeout: timeout,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(storage)
+	}
+	return storage, nil
 }
 
 // withTimeout wraps the given function in a context.WithTimeout call.
@@ -109,7 +126,7 @@ func (s *Storage) Close(_ context.Context) {
 // If the function returns an error, the transaction is rolled back and the error
 // is returned. If the function succeeds, the transaction is committed and
 // any error that occurs during the commit is returned after the rollback.
-func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, *sqlx.Tx) error) error {
+func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, Tx) error) error {
 	if s.db == nil {
 		return types.ErrDBuninitialized
 	}

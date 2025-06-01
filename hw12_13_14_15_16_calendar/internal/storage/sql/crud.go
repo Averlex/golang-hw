@@ -6,7 +6,6 @@ import (
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 // SQL queries for basic CRUD operations on events.
@@ -37,7 +36,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 		return nil, fmt.Errorf("create new event: %w", types.ErrNoData)
 	}
 
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		// Check if given ID is already present in DB.
 		existingEvent, err := s.getExistingEvent(localCtx, tx, event.ID)
 		if err != nil {
@@ -67,7 +66,10 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 
 		return nil
 	})
-	return event, err
+	if err != nil {
+		return nil, fmt.Errorf("create event: %w", err)
+	}
+	return event, nil
 }
 
 // UpdateEvent updates the event with the given ID in the database. Method uses context with timeout set for Storage.
@@ -84,7 +86,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 
 	event, _ := types.UpdateEvent(id, data)
 
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		// Ensuring the event exists.
 		existingEvent, err := s.getExistingEvent(localCtx, tx, id)
 		if err != nil {
@@ -133,7 +135,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 //
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
-	err := s.execInTransaction(ctx, func(localCtx context.Context, tx *sqlx.Tx) error {
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		existingEvent, err := s.getExistingEvent(localCtx, tx, id)
 		if err != nil {
 			return fmt.Errorf("delete event: %w", err)

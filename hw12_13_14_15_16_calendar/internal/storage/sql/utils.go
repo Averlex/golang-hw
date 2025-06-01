@@ -8,7 +8,6 @@ import (
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
 )
 
 const (
@@ -28,7 +27,7 @@ const (
 // Method does not depend on database driver.
 //
 // Returns (nil, nil) or (*types.Event, nil) if no errors occurred, (nil, error) otherwise.
-func (s *Storage) getExistingEvent(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (*types.Event, error) {
+func (s *Storage) getExistingEvent(ctx context.Context, tx Tx, id uuid.UUID) (*types.Event, error) {
 	var event types.Event
 	args := map[string]any{"id": id}
 	query := queryGetExistingEvent
@@ -43,7 +42,7 @@ func (s *Storage) getExistingEvent(ctx context.Context, tx *sqlx.Tx, id uuid.UUI
 }
 
 // isOverlaps checks if the given user event overlaps with any of his existing events in the database.
-func (s *Storage) isOverlaps(ctx context.Context, tx *sqlx.Tx, event *types.Event) (bool, error) {
+func (s *Storage) isOverlaps(ctx context.Context, tx Tx, event *types.Event) (bool, error) {
 	var hasConflicts bool
 	args := map[string]any{
 		"user_id":  event.UserID,
@@ -52,11 +51,7 @@ func (s *Storage) isOverlaps(ctx context.Context, tx *sqlx.Tx, event *types.Even
 	}
 	// Check the interval, excluding intersections with the event itself.
 	query := queryIsOverlaps
-	stmt, err := tx.PrepareNamed(query)
-	if err != nil {
-		return false, fmt.Errorf("event overlap check: %w", err)
-	}
-	err = stmt.GetContext(ctx, &hasConflicts, args)
+	err := tx.GetContext(ctx, &hasConflicts, query, args)
 	if err != nil {
 		return false, fmt.Errorf("event overlap check: %w", err)
 	}
