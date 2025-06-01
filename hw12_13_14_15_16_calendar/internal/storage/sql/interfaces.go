@@ -7,8 +7,8 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                       //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                         //nolint:depguard,nolintlint
 )
 
 // DB defines the methods of sqlx.DB used in storage/sql.
@@ -46,7 +46,7 @@ func (w *SQLXWrapper) ConnectContext(ctx context.Context, driverName, dataSource
 // BeginTxx implements DB.BeginTxx.
 func (w *SQLXWrapper) BeginTxx(ctx context.Context, opts *sql.TxOptions) (Tx, error) {
 	if w.db == nil {
-		return nil, types.ErrDBuninitialized
+		return nil, projectErrors.ErrDBuninitialized
 	}
 	return w.db.BeginTxx(ctx, opts)
 }

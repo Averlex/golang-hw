@@ -10,7 +10,8 @@ import (
 
 	tPkg "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sql"  //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sql/mocks" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types"     //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"   //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                  //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                            //nolint:depguard,nolintlint
 	"github.com/jmoiron/sqlx"                                                           //nolint:depguard,nolintlint
 	"github.com/stretchr/testify/mock"                                                  //nolint:depguard,nolintlint
@@ -176,7 +177,7 @@ func (s *StorageSuite) TestNewStorage() {
 		{
 			name:     "unsupported driver",
 			driver:   "mysql",
-			expected: types.ErrUnsupportedDriver,
+			expected: projectErrors.ErrUnsupportedDriver,
 		},
 	}
 
@@ -215,7 +216,7 @@ func (s *StorageSuite) TestConnect() {
 					tPkg.WithDB(s.dbMock))
 				s.dbMock.On("ConnectContext", mock.Anything, "postgres", mock.Anything).Return(nil, context.DeadlineExceeded).Once()
 			},
-			expected: types.ErrTimeoutExceeded,
+			expected: projectErrors.ErrTimeoutExceeded,
 		},
 		{
 			name: "uninitialized db",
@@ -223,9 +224,9 @@ func (s *StorageSuite) TestConnect() {
 				s.storage, _ = tPkg.NewStorage(time.Second, "postgres", "host", "port", "user", "pass", "dbname",
 					tPkg.WithDB(nil))
 				s.dbMock.On("ConnectContext", mock.Anything, "postgres",
-					mock.Anything).Return(nil, types.ErrDBuninitialized).Maybe()
+					mock.Anything).Return(nil, projectErrors.ErrDBuninitialized).Maybe()
 			},
-			expected: types.ErrDBuninitialized,
+			expected: projectErrors.ErrDBuninitialized,
 		},
 	}
 
@@ -280,7 +281,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			event:    nil,
 			dbMockFn: func() {}, // No DB calls expected.
 			txMockFn: func() {}, // No Tx calls expected.
-			expected: types.ErrNoData,
+			expected: projectErrors.ErrNoData,
 		},
 		{
 			name:  "event exists",
@@ -292,7 +293,7 @@ func (s *StorageSuite) TestCreateEvent() {
 				s.mockEventExists(event)
 				s.mockRollback(true)
 			},
-			expected: types.ErrDataExists,
+			expected: projectErrors.ErrDataExists,
 		},
 		{
 			name:  "date busy",
@@ -305,7 +306,7 @@ func (s *StorageSuite) TestCreateEvent() {
 				s.mockEventOverlaps(true)
 				s.mockRollback(true)
 			},
-			expected: types.ErrDateBusy,
+			expected: projectErrors.ErrDateBusy,
 		},
 		{
 			name:  "query error",
@@ -320,7 +321,7 @@ func (s *StorageSuite) TestCreateEvent() {
 					*event).Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 		{
 			name:  "begin transaction error",
@@ -415,7 +416,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			data:     nil,
 			dbMockFn: func() {}, // No DB calls expected.
 			txMockFn: func() {}, // No Tx calls expected.
-			expected: types.ErrNoData,
+			expected: projectErrors.ErrNoData,
 		},
 		{
 			name: "event not found",
@@ -428,7 +429,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 				s.mockEventNotExists()
 				s.mockRollback(true)
 			},
-			expected: types.ErrEventNotFound,
+			expected: projectErrors.ErrEventNotFound,
 		},
 		{
 			name: "permission denied",
@@ -447,7 +448,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 				}).Return(nil).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrPermissionDenied,
+			expected: projectErrors.ErrPermissionDenied,
 		},
 		{
 			name: "date busy",
@@ -461,7 +462,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 				s.mockEventOverlaps(true)
 				s.mockRollback(true)
 			},
-			expected: types.ErrDateBusy,
+			expected: projectErrors.ErrDateBusy,
 		},
 		{
 			name: "query error",
@@ -477,7 +478,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 		{
 			name: commitErrCase,
@@ -566,7 +567,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 				s.mockEventNotExists()
 				s.mockRollback(true)
 			},
-			expected: types.ErrEventNotFound,
+			expected: projectErrors.ErrEventNotFound,
 		},
 		{
 			name: "query error",
@@ -580,7 +581,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 					mock.Anything).Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 		{
 			name: commitErrCase,
@@ -661,7 +662,7 @@ func (s *StorageSuite) TestGetEvent() {
 				s.mockEventNotExists()
 				s.mockCommit(true)
 			},
-			expected: types.ErrEventNotFound,
+			expected: projectErrors.ErrEventNotFound,
 		},
 		{
 			name: "query error",
@@ -673,7 +674,7 @@ func (s *StorageSuite) TestGetEvent() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 	}
 
@@ -730,7 +731,7 @@ func (s *StorageSuite) TestGetAllUserEvents() {
 				s.mockGetEvents(&events, false)
 				s.mockCommit(true)
 			},
-			expected: types.ErrEventNotFound,
+			expected: projectErrors.ErrEventNotFound,
 		},
 		{
 			name:     "query error",
@@ -741,7 +742,7 @@ func (s *StorageSuite) TestGetAllUserEvents() {
 					Return(errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 	}
 
@@ -817,7 +818,7 @@ func (s *StorageSuite) TestGetEventsForPeriod() {
 				s.mockGetEvents(&events, false)
 				s.mockCommit(true)
 			},
-			expected: types.ErrEventNotFound,
+			expected: projectErrors.ErrEventNotFound,
 		},
 		{
 			name:   "no events without user",
@@ -829,7 +830,7 @@ func (s *StorageSuite) TestGetEventsForPeriod() {
 				s.mockGetEvents(&events, false)
 				s.mockCommit(true)
 			},
-			expected: types.ErrEventNotFound,
+			expected: projectErrors.ErrEventNotFound,
 		},
 		{
 			name:   "query error with user",
@@ -842,7 +843,7 @@ func (s *StorageSuite) TestGetEventsForPeriod() {
 					Return(errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 		{
 			name:   "query error without user",
@@ -855,7 +856,7 @@ func (s *StorageSuite) TestGetEventsForPeriod() {
 					Return(errUnknownErr).Once()
 				s.mockRollback(true)
 			},
-			expected: types.ErrQeuryError,
+			expected: projectErrors.ErrQeuryError,
 		},
 	}
 

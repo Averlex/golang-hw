@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
 )
 
 // SQL queries for basic CRUD operations on events.
@@ -33,7 +34,7 @@ const (
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error) {
 	if event == nil {
-		return nil, fmt.Errorf("create new event: %w", types.ErrNoData)
+		return nil, fmt.Errorf("create new event: %w", projectErrors.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
@@ -43,7 +44,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 			return fmt.Errorf("create event: %w", err)
 		}
 		if existingEvent != nil {
-			return types.ErrDataExists
+			return projectErrors.ErrDataExists
 		}
 
 		isOverlaps, err := s.isOverlaps(localCtx, tx, event)
@@ -51,17 +52,17 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 			return fmt.Errorf("create event: %w", err)
 		}
 		if isOverlaps {
-			return types.ErrDateBusy
+			return projectErrors.ErrDateBusy
 		}
 
 		query := queryCreateEvent
 		res, err := tx.NamedExecContext(localCtx, query, *event)
 		if err != nil {
-			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 
 		return nil
@@ -81,7 +82,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.EventData) (*types.Event, error) {
 	if data == nil {
-		return nil, fmt.Errorf("update event: %w", types.ErrNoData)
+		return nil, fmt.Errorf("update event: %w", projectErrors.ErrNoData)
 	}
 
 	event, _ := types.UpdateEvent(id, data)
@@ -93,12 +94,12 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 			return fmt.Errorf("update event: %w", err)
 		}
 		if existingEvent == nil {
-			return types.ErrEventNotFound
+			return projectErrors.ErrEventNotFound
 		}
 
 		// Ensuring the event doesn't belong to another user.
 		if existingEvent.UserID != event.UserID {
-			return types.ErrPermissionDenied
+			return projectErrors.ErrPermissionDenied
 		}
 
 		// Ensuring the event doesn't overlap with another one.
@@ -107,17 +108,17 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 			return fmt.Errorf("update event: %w", err)
 		}
 		if isOverlaps {
-			return types.ErrDateBusy
+			return projectErrors.ErrDateBusy
 		}
 
 		query := queryUpdateEvent
 		res, err := tx.NamedExecContext(localCtx, query, *data)
 		if err != nil {
-			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 
 		return nil
@@ -141,17 +142,17 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return fmt.Errorf("delete event: %w", err)
 		}
 		if existingEvent == nil {
-			return types.ErrEventNotFound
+			return projectErrors.ErrEventNotFound
 		}
 
 		query := queryDeleteEvent
 		res, err := tx.NamedExecContext(localCtx, query, id)
 		if err != nil {
-			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 
 		return nil

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 )
 
 // Storage represents a SQL database storage.
@@ -44,7 +44,7 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 	opts ...StorageOption,
 ) (*Storage, error) {
 	if driver != "postgres" && driver != "postgresql" {
-		return nil, types.ErrUnsupportedDriver
+		return nil, projectErrors.ErrUnsupportedDriver
 	}
 
 	// Normalizing driver name to "postgres" for consistency.
@@ -72,7 +72,7 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) error) error {
 	s.mu.RLock()
 	if s.db == nil {
-		return types.ErrDBuninitialized
+		return projectErrors.ErrDBuninitialized
 	}
 
 	timeout := s.timeout
@@ -88,7 +88,7 @@ func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) erro
 	err := fn(localCtx)
 	if err != nil {
 		if errors.Is(localCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("%w: %w", types.ErrTimeoutExceeded, err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrTimeoutExceeded, err)
 		}
 		return err
 	}
@@ -128,7 +128,7 @@ func (s *Storage) Close(_ context.Context) {
 // any error that occurs during the commit is returned after the rollback.
 func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, Tx) error) error {
 	if s.db == nil {
-		return types.ErrDBuninitialized
+		return projectErrors.ErrDBuninitialized
 	}
 
 	return s.withTimeout(ctx, func(localCtx context.Context) error {

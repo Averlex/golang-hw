@@ -1,3 +1,4 @@
+// Package types contains Event type and its constructor and helper functions.
 package types
 
 import (
@@ -5,7 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid" //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
 )
 
 // EventData contains the data of the event whithout its ID.
@@ -50,15 +52,15 @@ func NewEventData(title string, datetime time.Time, duration time.Duration,
 	}
 
 	if title == "" || datetime.IsZero() || duration == 0 || userID == "" {
-		return nil, ErrEmptyField
+		return nil, projectErrors.ErrEmptyField
 	}
 
 	if duration < 0 {
-		return nil, ErrNegativeDuration
+		return nil, projectErrors.ErrNegativeDuration
 	}
 
 	if remindIn < 0 {
-		return nil, ErrNegativeRemind
+		return nil, projectErrors.ErrNegativeRemind
 	}
 
 	return &EventData{
@@ -83,7 +85,7 @@ func NewEvent(title string, datetime time.Time, duration time.Duration,
 	defer func() {
 		if r := recover(); r != nil {
 			res = nil
-			err = fmt.Errorf("%w: %v", ErrGenerateID, r)
+			err = fmt.Errorf("%w: %v", projectErrors.ErrGenerateID, r)
 		}
 	}()
 

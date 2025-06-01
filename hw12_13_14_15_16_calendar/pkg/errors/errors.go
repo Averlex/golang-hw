@@ -1,6 +1,5 @@
-// Package types contains errors used in the storage package
-// as well as Event type and its constructor and helper functions.
-package types
+// Package errors contains errors used in the project.
+package errors
 
 import "errors"
 

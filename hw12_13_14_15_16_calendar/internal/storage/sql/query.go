@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                        //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
 )
 
 const (
@@ -118,11 +119,11 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+		return nil, fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		return nil, types.ErrEventNotFound
+		return nil, projectErrors.ErrEventNotFound
 	}
 
 	return events, nil
@@ -141,10 +142,10 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get event: %w: %w", types.ErrQeuryError, err)
+		return nil, fmt.Errorf("get event: %w: %w", projectErrors.ErrQeuryError, err)
 	}
 	if event == nil {
-		return nil, types.ErrEventNotFound
+		return nil, projectErrors.ErrEventNotFound
 	}
 
 	return event, nil
@@ -170,11 +171,11 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", types.ErrQeuryError, err)
+		return nil, fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		return nil, types.ErrEventNotFound
+		return nil, projectErrors.ErrEventNotFound
 	}
 
 	return events, nil
