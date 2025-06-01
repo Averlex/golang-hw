@@ -18,10 +18,13 @@ import (
 	"github.com/stretchr/testify/suite"                                                 //nolint:depguard,nolintlint
 )
 
-// Common test cases names.
 const (
+	// Common test cases names.
 	rollbackErrCase = "rollback error"
 	commitErrCase   = "commit error"
+	// Common test data.
+	description        = "Description"
+	duration, remindIn = time.Hour, time.Hour
 )
 
 // Common errors used in tests.
@@ -109,6 +112,18 @@ func (s *StorageSuite) mockRollback(success bool) {
 		return
 	}
 	s.txMock.On("Rollback").Return(errUnknownErr).Once()
+}
+
+// newTestEvent creates a new test event with the given title and userID.
+func (s *StorageSuite) newTestEvent(title, userID string) *types.Event {
+	event, _ := types.NewEvent(title, time.Now(), duration, description, userID, remindIn)
+	return event
+}
+
+// newTestEventData creates a new test event data with the given title and userID.
+func (s *StorageSuite) newTestEventData(title, userID string) *types.EventData {
+	data, _ := types.NewEventData(title, time.Now(), duration, description, userID, remindIn)
+	return data
 }
 
 func (s *StorageSuite) TestNewStorage() {
@@ -205,9 +220,7 @@ func (s *StorageSuite) TestClose() {
 }
 
 func (s *StorageSuite) TestCreateEvent() {
-	description := "Description"
-	remindIn := time.Hour
-	event, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user1", remindIn)
+	event := s.newTestEvent("Create event", "user1")
 
 	testCases := []struct {
 		name     string
@@ -347,12 +360,9 @@ func (s *StorageSuite) TestCreateEvent() {
 }
 
 func (s *StorageSuite) TestUpdateEvent() {
-	description := "Updated Description"
-	remindIn := time.Hour
-	event, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user1", remindIn)
-	dataToUpdate, _ := types.NewEventData("Updated Event", time.Now().Add(time.Hour), 2*time.Hour,
-		description, "user1", remindIn)
-	eventWrongUser, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user2", remindIn)
+	event := s.newTestEvent("Update event", "user1")
+	dataToUpdate := s.newTestEventData("Update event", "user1")
+	eventWrongUser := s.newTestEvent("Update event", "user2")
 
 	testCases := []struct {
 		name     string
@@ -504,9 +514,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 }
 
 func (s *StorageSuite) TestDeleteEvent() {
-	description := "Description"
-	remindIn := time.Hour
-	event, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user1", remindIn)
+	event := s.newTestEvent("Delete event", "user1")
 
 	testCases := []struct {
 		name     string
