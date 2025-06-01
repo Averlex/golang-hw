@@ -104,7 +104,7 @@ func (s *Storage) Connect(ctx context.Context) error {
 	return s.withTimeout(ctx, func(localCtx context.Context) error {
 		_, err := s.db.ConnectContext(localCtx, s.driver, s.dsn)
 		if err != nil {
-			return fmt.Errorf("database connection: %w", err)
+			return fmt.Errorf("storage connection: %w", err)
 		}
 		return nil
 	})

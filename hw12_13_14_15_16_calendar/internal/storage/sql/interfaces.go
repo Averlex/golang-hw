@@ -6,6 +6,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 	"github.com/jmoiron/sqlx"                                                         //nolint:depguard,nolintlint
@@ -46,7 +47,7 @@ func (w *SQLXWrapper) ConnectContext(ctx context.Context, driverName, dataSource
 // BeginTxx implements DB.BeginTxx.
 func (w *SQLXWrapper) BeginTxx(ctx context.Context, opts *sql.TxOptions) (Tx, error) {
 	if w.db == nil {
-		return nil, projectErrors.ErrStorageUninitialized
+		return nil, fmt.Errorf("begin transaction: %w", projectErrors.ErrStorageUninitialized)
 	}
 	return w.db.BeginTxx(ctx, opts)
 }

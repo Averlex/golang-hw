@@ -114,16 +114,16 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
 			}
-			return fmt.Errorf("events existence check: %w", err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
+		return nil, fmt.Errorf("get events for period: %w", err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		return nil, projectErrors.ErrEventNotFound
+		return nil, fmt.Errorf("get events for period: %w", projectErrors.ErrEventNotFound)
 	}
 
 	return events, nil
@@ -145,7 +145,7 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 		return nil, fmt.Errorf("get event: %w: %w", projectErrors.ErrQeuryError, err)
 	}
 	if event == nil {
-		return nil, projectErrors.ErrEventNotFound
+		return nil, fmt.Errorf("get event: %w", projectErrors.ErrEventNotFound)
 	}
 
 	return event, nil
@@ -166,16 +166,16 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
 			}
-			return fmt.Errorf("events existence check: %w", err)
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
+		return nil, fmt.Errorf("get all user events: %w", err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
 	if len(events) == 0 {
-		return nil, projectErrors.ErrEventNotFound
+		return nil, fmt.Errorf("get all user events: %w", projectErrors.ErrEventNotFound)
 	}
 
 	return events, nil

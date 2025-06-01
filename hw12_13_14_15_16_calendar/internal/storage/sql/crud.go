@@ -34,14 +34,14 @@ const (
 // Method uses transaction to ensure the atomicity of the operation over DB.
 func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error) {
 	if event == nil {
-		return nil, fmt.Errorf("create new event: %w", projectErrors.ErrNoData)
+		return nil, fmt.Errorf("create event: %w", projectErrors.ErrNoData)
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		// Check if given ID is already present in DB.
 		existingEvent, err := s.getExistingEvent(localCtx, tx, event.ID)
 		if err != nil {
-			return fmt.Errorf("create event: %w", err)
+			return err
 		}
 		if existingEvent != nil {
 			return projectErrors.ErrDataExists
@@ -49,7 +49,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 
 		isOverlaps, err := s.isOverlaps(localCtx, tx, event)
 		if err != nil {
-			return fmt.Errorf("create event: %w", err)
+			return err
 		}
 		if isOverlaps {
 			return projectErrors.ErrDateBusy
@@ -91,7 +91,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 		// Ensuring the event exists.
 		existingEvent, err := s.getExistingEvent(localCtx, tx, id)
 		if err != nil {
-			return fmt.Errorf("update event: %w", err)
+			return err
 		}
 		if existingEvent == nil {
 			return projectErrors.ErrEventNotFound
@@ -105,7 +105,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 		// Ensuring the event doesn't overlap with another one.
 		isOverlaps, err := s.isOverlaps(localCtx, tx, event)
 		if err != nil {
-			return fmt.Errorf("update event: %w", err)
+			return err
 		}
 		if isOverlaps {
 			return projectErrors.ErrDateBusy
@@ -139,7 +139,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		existingEvent, err := s.getExistingEvent(localCtx, tx, id)
 		if err != nil {
-			return fmt.Errorf("delete event: %w", err)
+			return err
 		}
 		if existingEvent == nil {
 			return projectErrors.ErrEventNotFound
