@@ -32,6 +32,10 @@ func (s *Storage) checkState() error {
 }
 
 func (s *Storage) isOverlaps(arr []*types.Event, elem *types.Event) int {
+	// Нужно проверить, что новый элемент не пересекается с уже существующими.
+	// В том числе исключить кейс, когда он пересекается сам с собой.
+	// Подумать на тему того, что кэш по id с индексом будет лучше, чем с указателем.
+
 	pos := s.findInsertPosition(arr, elem)
 	switch {
 		case pos == 0 && len(arr) != 0:
