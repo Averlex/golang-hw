@@ -101,6 +101,22 @@ func (s *StorageSuite) mockEventOverlaps(isOverlaps bool) {
 	}).Return(nil).Once()
 }
 
+func (s *StorageSuite) mockGetEvents(events *[]*types.Event, isFound bool) {
+	if !isFound {
+		s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				dest := args.Get(1).(*[]*types.Event)
+				*dest = []*types.Event{} // Simulate no events found.
+			}).Return(nil).Once()
+		return
+	}
+	s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			dest := args.Get(1).(*[]*types.Event)
+			*dest = *events
+		}).Return(nil).Once()
+}
+
 // mockBeginTx is a helper function to mock the beginning of a transaction.
 func (s *StorageSuite) mockBeginTx(success bool) {
 	if !success {
@@ -608,6 +624,257 @@ func (s *StorageSuite) TestDeleteEvent() {
 				}
 			} else {
 				s.Require().NoError(err, "expected nil, got error")
+			}
+		})
+	}
+}
+
+func (s *StorageSuite) TestGetEvent() {
+	event := s.newTestEvent("Get event", "user1")
+
+	testCases := []struct {
+		name     string
+		id       uuid.UUID
+		dbMockFn func()
+		txMockFn func()
+		expected error
+	}{
+		{
+			name: "valid get",
+			id:   event.ID,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockEventExists(event)
+				s.mockCommit(true)
+			},
+			expected: nil,
+		},
+		{
+			name: "event not found",
+			id:   uuid.New(),
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockEventNotExists()
+				s.mockCommit(true)
+			},
+			expected: types.ErrEventNotFound,
+		},
+		{
+			name: "query error",
+			id:   event.ID,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errUnknownErr).Once()
+				s.mockRollback(true)
+			},
+			expected: types.ErrQeuryError,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.dbMockFn()
+			tC.txMockFn()
+			result, err := s.storage.GetEvent(s.ctx, tC.id)
+			if tC.expected != nil {
+				s.Require().Error(err, "expected error, got nil")
+				if tC.name != rollbackErrCase && tC.name != commitErrCase {
+					s.Require().ErrorIs(err, tC.expected, "expected error does not match")
+				}
+				s.Require().Nil(result, "expected nil result, got non-nil")
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+				s.Require().Equal(event, result, "event does not match the expected one")
+			}
+		})
+	}
+}
+
+func (s *StorageSuite) TestGetAllUserEvents() {
+	userID := "user1"
+	events := []*types.Event{
+		s.newTestEvent("Event 1", userID),
+		s.newTestEvent("Event 2", userID),
+	}
+
+	testCases := []struct {
+		name     string
+		userID   string
+		dbMockFn func()
+		txMockFn func()
+		expected error
+	}{
+		{
+			name:   "valid get all",
+			userID: userID,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockGetEvents(&events, true)
+				s.mockCommit(true)
+			},
+			expected: nil,
+		},
+		{
+			name:     "no events",
+			userID:   userID,
+			dbMockFn: func() { s.mockBeginTx(true) },
+			txMockFn: func() {
+				s.mockGetEvents(&events, false)
+				s.mockCommit(true)
+			},
+			expected: types.ErrEventNotFound,
+		},
+		{
+			name:     "query error",
+			userID:   userID,
+			dbMockFn: func() { s.mockBeginTx(true) },
+			txMockFn: func() {
+				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(errUnknownErr).Once()
+				s.mockRollback(true)
+			},
+			expected: types.ErrQeuryError,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.dbMockFn()
+			tC.txMockFn()
+			result, err := s.storage.GetAllUserEvents(s.ctx, tC.userID)
+			if tC.expected != nil {
+				s.Require().Error(err, "expected error, got nil")
+				s.Require().ErrorIs(err, tC.expected, "expected error does not match")
+				s.Require().Nil(result, "expected nil result, got non-nil")
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+				if tC.name == "no events" {
+					s.Require().Empty(result, "expected empty result, got non-empty")
+				} else {
+					s.Require().Equal(events, result, "events do not match the expected ones")
+				}
+			}
+		})
+	}
+}
+
+func (s *StorageSuite) TestGetEventsForPeriod() {
+	userID := "user1"
+	start := time.Now()
+	end := start.Add(24 * time.Hour)
+	events := []*types.Event{
+		s.newTestEvent("Event 1", userID),
+		s.newTestEvent("Event 2", userID),
+	}
+	userIDPtr := &userID
+
+	testCases := []struct {
+		name     string
+		userID   *string
+		dbMockFn func()
+		txMockFn func()
+		expected error
+	}{
+		{
+			name:   "valid get with user",
+			userID: userIDPtr,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockGetEvents(&events, true)
+				s.mockCommit(true)
+			},
+			expected: nil,
+		},
+		{
+			name:   "valid get without user",
+			userID: nil,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockGetEvents(&events, true)
+				s.mockCommit(true)
+			},
+			expected: nil,
+		},
+		{
+			name:   "no events with user",
+			userID: userIDPtr,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockGetEvents(&events, false)
+				s.mockCommit(true)
+			},
+			expected: types.ErrEventNotFound,
+		},
+		{
+			name:   "no events without user",
+			userID: nil,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.mockGetEvents(&events, false)
+				s.mockCommit(true)
+			},
+			expected: types.ErrEventNotFound,
+		},
+		{
+			name:   "query error with user",
+			userID: userIDPtr,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(errUnknownErr).Once()
+				s.mockRollback(true)
+			},
+			expected: types.ErrQeuryError,
+		},
+		{
+			name:   "query error without user",
+			userID: nil,
+			dbMockFn: func() {
+				s.mockBeginTx(true)
+			},
+			txMockFn: func() {
+				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(errUnknownErr).Once()
+				s.mockRollback(true)
+			},
+			expected: types.ErrQeuryError,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.dbMockFn()
+			tC.txMockFn()
+			result, err := s.storage.GetEventsForPeriod(s.ctx, start, end, tC.userID)
+			if tC.expected != nil {
+				s.Require().Error(err, "expected error, got nil")
+				s.Require().ErrorIs(err, tC.expected, "expected error does not match")
+				s.Require().Nil(result, "expected nil result, got non-nil")
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+				if tC.name == "no events with user" || tC.name == "no events without user" {
+					s.Require().Empty(result, "expected empty result, got non-empty")
+				} else {
+					s.Require().Equal(events, result, "events do not match the expected ones")
+				}
 			}
 		})
 	}

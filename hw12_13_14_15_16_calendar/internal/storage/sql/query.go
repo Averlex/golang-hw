@@ -2,6 +2,8 @@ package sql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -101,12 +103,19 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 	params := Params{userID, dateStart, dateEnd}
 	userIDClause := ""
 	if userID != nil {
-		userIDClause = "AND user_id = :user_id "
+		userIDClause = "AND user_id = :user_id"
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		query := fmt.Sprintf(queryGetEventsForPeriod, userIDClause)
-		return tx.SelectContext(localCtx, &events, query, params)
+		err := tx.SelectContext(localCtx, &events, query, params)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return fmt.Errorf("events existence check: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", types.ErrQeuryError, err)
@@ -132,7 +141,7 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get event: %w", err)
+		return nil, fmt.Errorf("get event: %w: %w", types.ErrQeuryError, err)
 	}
 	if event == nil {
 		return nil, types.ErrEventNotFound
@@ -151,7 +160,14 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		args := map[string]any{"user_id": userID}
 		query := queryGetAllUserEvents
-		return tx.SelectContext(localCtx, &events, query, args)
+		err := tx.SelectContext(localCtx, &events, query, args)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return fmt.Errorf("events existence check: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", types.ErrQeuryError, err)
