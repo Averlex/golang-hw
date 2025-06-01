@@ -87,6 +87,20 @@ func (s *StorageSuite) mockEventNotExists() {
 	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errNotExists).Once()
 }
 
+func (s *StorageSuite) mockEventOverlaps(isOverlaps bool) {
+	if !isOverlaps {
+		s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+			mock.Anything).Return(nil).Once()
+		return
+	}
+	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+		mock.Anything).Run(func(args mock.Arguments) {
+		// Simulating query returning true for overlapping dates.
+		dest := args.Get(1).(*bool)
+		*dest = true
+	}).Return(nil).Once()
+}
+
 // mockBeginTx is a helper function to mock the beginning of a transaction.
 func (s *StorageSuite) mockBeginTx(success bool) {
 	if !success {
@@ -111,10 +125,11 @@ func (s *StorageSuite) mockRollback(success bool) {
 		s.txMock.On("Rollback").Return(errUnknownErr).Once()
 		return
 	}
-	s.txMock.On("Rollback").Return(errUnknownErr).Once()
+	s.txMock.On("Rollback").Return(nil).Once()
 }
 
 // newTestEvent creates a new test event with the given title and userID.
+// Method uses the common test data for duration, description, and remindIn.
 func (s *StorageSuite) newTestEvent(title, userID string) *types.Event {
 	event, _ := types.NewEvent(title, time.Now(), duration, description, userID, remindIn)
 	return event
@@ -237,8 +252,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Return(nil).Once()
+				s.mockEventOverlaps(false)
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*event).Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(true)
@@ -272,12 +286,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Run(func(args mock.Arguments) {
-					// Simulating query returning true for overlapping dates.
-					dest := args.Get(1).(*bool)
-					*dest = true
-				}).Return(nil).Once()
+				s.mockEventOverlaps(true)
 				s.mockRollback(true)
 			},
 			expected: types.ErrDateBusy,
@@ -290,8 +299,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Return(nil).Once()
+				s.mockEventOverlaps(false)
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*event).Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
 				s.mockRollback(true)
@@ -314,8 +322,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventNotExists()
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Return(nil).Once()
+				s.mockEventOverlaps(false)
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*event).Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(false)
@@ -380,7 +387,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				s.mockEventOverlaps(false)
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(true)
@@ -435,11 +442,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Run(func(args mock.Arguments) {
-					dest := args.Get(1).(*bool)
-					*dest = true
-				}).Return(nil).Once()
+				s.mockEventOverlaps(true)
 				s.mockRollback(true)
 			},
 			expected: types.ErrDateBusy,
@@ -453,7 +456,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				s.mockEventOverlaps(false)
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, errUnknownErr).Once()
 				s.mockRollback(true)
@@ -469,7 +472,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				s.mockEventOverlaps(false)
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(false)
