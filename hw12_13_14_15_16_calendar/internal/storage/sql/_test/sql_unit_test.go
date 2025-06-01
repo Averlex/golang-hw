@@ -11,6 +11,7 @@ import (
 	tPkg "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sql"  //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sql/mocks" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/types"     //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                            //nolint:depguard,nolintlint
 	"github.com/jmoiron/sqlx"                                                           //nolint:depguard,nolintlint
 	"github.com/stretchr/testify/mock"                                                  //nolint:depguard,nolintlint
 	"github.com/stretchr/testify/require"                                               //nolint:depguard,nolintlint
@@ -32,10 +33,15 @@ func (r ResultMock) RowsAffected() (int64, error) {
 
 type StorageSuite struct {
 	suite.Suite
-	dbMock  *mocks.DB
-	txMock  *mocks.Tx
-	storage *tPkg.Storage
-	ctx     context.Context
+	dbMock     *mocks.DB
+	txMock     *mocks.Tx
+	storage    *tPkg.Storage
+	ctx        context.Context
+	unknonwErr error
+}
+
+func (s *StorageSuite) SetupSuite() {
+	s.unknonwErr = errors.New("unknown error")
 }
 
 func (s *StorageSuite) SetupTest() {
@@ -231,7 +237,7 @@ func (s *StorageSuite) TestCreateEvent() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
 					mock.Anything).Return(nil).Once()
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*event).Return(ResultMock{rowsAffected: 0}, errors.New("unknown error")).Once()
+					*event).Return(ResultMock{rowsAffected: 0}, s.unknonwErr).Once()
 				s.txMock.On("Rollback").Return(nil).Once()
 			},
 			expected: types.ErrQeuryError,
@@ -249,10 +255,10 @@ func (s *StorageSuite) TestCreateEvent() {
 					mock.Anything).Return(nil).Once()
 				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
 					*event).Return(ResultMock{rowsAffected: 1}, nil).Once()
-				s.txMock.On("Commit").Return(errors.New("unknown error")).Once()
+				s.txMock.On("Commit").Return(s.unknonwErr).Once()
 				s.txMock.On("Rollback").Return(nil).Once()
 			},
-			expected: errors.New("commit error"),
+			expected: s.unknonwErr,
 		},
 		{
 			name:  "rollback error",
@@ -263,7 +269,7 @@ func (s *StorageSuite) TestCreateEvent() {
 			txMockFn: func() {
 				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
 					mock.Anything).Return(nil).Once()
-				s.txMock.On("Rollback").Return(errors.New("unknown error")).Once()
+				s.txMock.On("Rollback").Return(s.unknonwErr).Once()
 			},
 			expected: errors.New("rollback error"),
 		},
@@ -283,6 +289,293 @@ func (s *StorageSuite) TestCreateEvent() {
 			} else {
 				s.Require().NoError(err, "expected nil, got error")
 				s.Require().Equal(tC.event, result, "event does not match the expected one")
+			}
+		})
+	}
+}
+
+//nolint:funlen
+func (s *StorageSuite) TestUpdateEvent() {
+	description := "Updated Description"
+	remindIn := time.Hour
+	event, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user1", remindIn)
+	dataToUpdate, _ := types.NewEventData("Updated Event", time.Now().Add(time.Hour), 2*time.Hour,
+		description, "user1", remindIn)
+	eventWrongUser, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user2", remindIn)
+	notExists := fmt.Errorf("%w", sql.ErrNoRows)
+
+	testCases := []struct {
+		name     string
+		id       uuid.UUID
+		data     *types.EventData
+		dbMockFn func()
+		txMockFn func()
+		expected error
+	}{
+		{
+			name: "valid update",
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
+					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("Commit").Return(nil).Once()
+			},
+			expected: nil,
+		},
+		{
+			name:     "nil data",
+			data:     nil,
+			dbMockFn: func() {}, // No DB calls expected.
+			txMockFn: func() {}, // No Tx calls expected.
+			expected: types.ErrNoData,
+		},
+		{
+			name: "event not found",
+			id:   uuid.New(),
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(notExists).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: types.ErrEventNotFound,
+		},
+		{
+			name: "permission denied",
+			id:   event.ID,
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				// Simulate an event with the same ID but different user.
+				eventWrongUser.ID = event.ID
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *eventWrongUser // Simulate fetching the existing event with a different user.
+				}).Return(nil).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: types.ErrPermissionDenied,
+		},
+		{
+			name: "date busy",
+			id:   event.ID,
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*bool)
+					*dest = true
+				}).Return(nil).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: types.ErrDateBusy,
+		},
+		{
+			name: "query error",
+			id:   event.ID,
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
+					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, s.unknonwErr).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: types.ErrQeuryError,
+		},
+		{
+			name: "commit error",
+			id:   event.ID,
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
+					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("Commit").Return(s.unknonwErr).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: s.unknonwErr,
+		},
+		{
+			name: "rollback error",
+			id:   event.ID,
+			data: dataToUpdate,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Return(s.unknonwErr).Once()
+				s.txMock.On("Rollback").Return(s.unknonwErr).Once()
+			},
+			expected: errors.New("rollback error"),
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.dbMockFn()
+			tC.txMockFn()
+			result, err := s.storage.UpdateEvent(s.ctx, tC.id, tC.data)
+			if tC.expected != nil {
+				s.Require().Error(err, "expected error, got nil")
+				if tC.name != "rollback error" && tC.name != "commit error" {
+					s.Require().ErrorIs(err, tC.expected, "expected error does not match")
+				}
+				s.Require().Nil(result, "expected nil result, got non-nil")
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+				s.Require().NotNil(result, "expected non-nil result, got nil")
+				s.Require().Equal(tC.id, result.ID, "event ID does not match")
+			}
+		})
+	}
+}
+
+func (s *StorageSuite) TestDeleteEvent() {
+	description := "Description"
+	remindIn := time.Hour
+	event, _ := types.NewEvent("Test Event", time.Now(), time.Hour, description, "user1", remindIn)
+	notExists := fmt.Errorf("%w", sql.ErrNoRows)
+
+	testCases := []struct {
+		name     string
+		id       uuid.UUID
+		dbMockFn func()
+		txMockFn func()
+		expected error
+	}{
+		{
+			name: "valid delete",
+			id:   event.ID,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
+					mock.Anything).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("Commit").Return(nil).Once()
+			},
+			expected: nil,
+		},
+		{
+			name: "event not found",
+			id:   uuid.New(),
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(notExists).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: types.ErrEventNotFound,
+		},
+		{
+			name: "query error",
+			id:   event.ID,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
+					mock.Anything).Return(ResultMock{rowsAffected: 0}, s.unknonwErr).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: types.ErrQeuryError,
+		},
+		{
+			name: "commit error",
+			id:   event.ID,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Run(func(args mock.Arguments) {
+					dest := args.Get(1).(*types.Event)
+					*dest = *event // Simulate fetching the existing event.
+				}).Return(nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
+					mock.Anything).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("Commit").Return(s.unknonwErr).Once()
+				s.txMock.On("Rollback").Return(nil).Once()
+			},
+			expected: s.unknonwErr,
+		},
+		{
+			name: "rollback error",
+			id:   event.ID,
+			dbMockFn: func() {
+				s.dbMock.On("BeginTxx", mock.Anything, (*sql.TxOptions)(nil)).Return(s.txMock, nil).Once()
+			},
+			txMockFn: func() {
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything).Return(s.unknonwErr).Once()
+				s.txMock.On("Rollback").Return(s.unknonwErr).Once()
+			},
+			expected: errors.New("rollback error"),
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.dbMockFn()
+			tC.txMockFn()
+			err := s.storage.DeleteEvent(s.ctx, tC.id)
+			if tC.expected != nil {
+				s.Require().Error(err, "expected error, got nil")
+				if tC.name != "rollback error" && tC.name != "commit error" {
+					s.Require().ErrorIs(err, tC.expected, "expected error does not match")
+				}
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
 			}
 		})
 	}

@@ -123,7 +123,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("update event: %w", err)
 	}
 
 	return event, nil
@@ -157,7 +157,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("delete event: %w", err)
 	}
 
 	return nil
