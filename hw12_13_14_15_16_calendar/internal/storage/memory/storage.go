@@ -44,7 +44,7 @@ func (s *Storage) Connect(ctx context.Context) error {
 	userIndex := make(map[string][]*types.Event)
 
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("%w: %w", projectErrors.ErrTimeoutExceeded, err)
+		return fmt.Errorf("storage connection: %w: %w", projectErrors.ErrTimeoutExceeded, err)
 	}
 
 	s.mu.Lock()
@@ -64,11 +64,6 @@ func (s *Storage) Close(_ context.Context) {
 	s.events = nil
 	s.idIndex = nil
 	s.userIndex = nil
-}
-
-//nolint:revive
-func (*Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error) {
-	return nil, nil
 }
 
 //nolint:revive

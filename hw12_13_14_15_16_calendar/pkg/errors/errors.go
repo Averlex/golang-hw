@@ -17,6 +17,8 @@ var (
 	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
 	// ErrStorageUninitialized is returned when the database connection is not initialized.
 	ErrStorageUninitialized = errors.New("storage is not initialized (initialize connection first?)")
+	// ErrStorageFull is returned when the storage is full and cannot accept new events.
+	ErrStorageFull = errors.New("storage is full")
 )
 
 // Business errors.
