@@ -89,7 +89,7 @@ func NewStorage(args map[string]any) (Storage, error) {
 
 	switch storageType {
 	case "memory":
-		s, err = memorystorage.NewStorage(timeout)
+		s, err = memorystorage.NewStorage(0)
 
 	case "sql":
 		sqlArgs, ok := args["sql"].(map[string]any)
