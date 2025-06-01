@@ -224,9 +224,9 @@ func (s *StorageSuite) TestConnect() {
 				s.storage, _ = tPkg.NewStorage(time.Second, "postgres", "host", "port", "user", "pass", "dbname",
 					tPkg.WithDB(nil))
 				s.dbMock.On("ConnectContext", mock.Anything, "postgres",
-					mock.Anything).Return(nil, projectErrors.ErrDBuninitialized).Maybe()
+					mock.Anything).Return(nil, projectErrors.ErrStorageUninitialized).Maybe()
 			},
-			expected: projectErrors.ErrDBuninitialized,
+			expected: projectErrors.ErrStorageUninitialized,
 		},
 	}
 

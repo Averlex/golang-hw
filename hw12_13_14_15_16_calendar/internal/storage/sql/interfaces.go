@@ -46,7 +46,7 @@ func (w *SQLXWrapper) ConnectContext(ctx context.Context, driverName, dataSource
 // BeginTxx implements DB.BeginTxx.
 func (w *SQLXWrapper) BeginTxx(ctx context.Context, opts *sql.TxOptions) (Tx, error) {
 	if w.db == nil {
-		return nil, projectErrors.ErrDBuninitialized
+		return nil, projectErrors.ErrStorageUninitialized
 	}
 	return w.db.BeginTxx(ctx, opts)
 }

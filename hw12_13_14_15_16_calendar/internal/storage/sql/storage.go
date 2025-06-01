@@ -72,7 +72,7 @@ func NewStorage(timeout time.Duration, driver, host, port, user, password, dbnam
 func (s *Storage) withTimeout(ctx context.Context, fn func(context.Context) error) error {
 	s.mu.RLock()
 	if s.db == nil {
-		return projectErrors.ErrDBuninitialized
+		return projectErrors.ErrStorageUninitialized
 	}
 
 	timeout := s.timeout
@@ -128,7 +128,7 @@ func (s *Storage) Close(_ context.Context) {
 // any error that occurs during the commit is returned after the rollback.
 func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, Tx) error) error {
 	if s.db == nil {
-		return projectErrors.ErrDBuninitialized
+		return projectErrors.ErrStorageUninitialized
 	}
 
 	return s.withTimeout(ctx, func(localCtx context.Context) error {
