@@ -31,31 +31,52 @@ func (s *Storage) checkState() error {
 	return nil
 }
 
-func (s *Storage) isOverlaps(arr []*types.Event, elem *types.Event) int {
-	// Нужно проверить, что новый элемент не пересекается с уже существующими.
-	// В том числе исключить кейс, когда он пересекается сам с собой.
-	// Подумать на тему того, что кэш по id с индексом будет лучше, чем с указателем.
+// isOverlaps checks if the given event overlaps with any event in the sorted slice at the specified insertion position.
+// Returns true if there is an overlap (excluding the event itself), false otherwise.
+func (s *Storage) isOverlaps(arr []*types.Event, elem *types.Event, pos int) bool {
+	elemEnd := elem.Datetime.Add(elem.Duration)
 
-	pos := s.findInsertPosition(arr, elem)
-	switch {
-		case pos == 0 && len(arr) != 0:
-			if arr[0].Datetime.Before(elem.Datetime.Add(elem.Duration)) {
-				return -1
+	// Check for overlap with the previous event (if it exists).
+	if pos > 0 {
+		prev := arr[pos-1]
+		// Skip if prev is the same event.
+		if prev.ID != elem.ID {
+			prevEnd := prev.Datetime.Add(prev.Duration)
+			if !prev.Datetime.After(elemEnd) && !elem.Datetime.After(prevEnd) {
+				return true
 			}
-		case pos == len(arr) && len(arr) != 0:
-			if arr[len(arr)-1].Datetime.Before(elem.Datetime.Add(elem.Duration)) {
-				return pos - 1
-			}
-		case pos
-		default:
-			if arr[pos-1].Datetime.Add(arr[pos-1].Duration).After(elem.Datetime) ||
-				arr[pos].Datetime.Before(elem.Datetime.Add(elem.Duration)) {
-				return pos - 1
-			}
-	}
-	if pos == 0 && len(arr) != 0 {
-		if arr[1].Datetime.Add(arr[1].Duration).After(elem.Datetime) {
-			return pos
 		}
 	}
+
+	// Check for overlap with the next event (if it exists).
+	if pos < len(arr) {
+		next := arr[pos]
+		// Skip if next is the same event.
+		if next.ID != elem.ID {
+			nextEnd := next.Datetime.Add(next.Duration)
+			if !next.Datetime.After(elemEnd) && !elem.Datetime.After(nextEnd) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// insertElem inserts a new event into the sorted slice at the specified position.
+// Returns a new slice with the event inserted. Method avoid additional allocations.
+func (s *Storage) insertElem(arr []*types.Event, elem *types.Event, pos int) []*types.Event {
+	arr = append(arr, nil)
+	copy(arr[pos+1:], arr[pos:])
+	arr[pos] = elem
+	return arr
+}
+
+// deleteElem removes an event from the sorted slice at the specified position.
+// Returns a new slice with the event removed. Method avoid additional allocations.
+func (s *Storage) deleteElem(arr []*types.Event, pos int) []*types.Event {
+	copy(arr[pos:], arr[pos+1:])
+	arr[len(arr)-1] = nil
+	arr = arr[:len(arr)-1]
+	return arr
 }
