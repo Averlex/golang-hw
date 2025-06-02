@@ -99,11 +99,11 @@ func (s *Storage) getIndex(arr []*types.Event, elem *types.Event) int {
 // withLockAndChecks is a helper function that performs common checks and locking for storage operations.
 // It checks if the storage is initialized, acquires a lock, executes the provided function.
 //
-// If any rollback function is provided, it will be called in case of an error during the operation or due to timeout.
-//
 // If any afterCtx function is provided, it will be called after context is checked (same behavior as tx.commit).
 //
-// Both rollback and afterCtx functions are optional and can be nil. They also should not return any errors.
+// If any rollback function is provided, it will be called in case of an error during the operation or due to timeout.
+//
+// Both rollback and afterCtx functions are optional and can be nil. They also should not return any errors and panic.
 func (s *Storage) withLockAndChecks(ctx context.Context, beforeCtx func() error, afterCtx, rollback func()) error {
 	// Check storage init.
 	if err := s.checkState(); err != nil {
