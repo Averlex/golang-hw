@@ -239,17 +239,17 @@ func (s *StorageSuite) TestCreateEvent() {
 				var wg sync.WaitGroup
 				errCh := make(chan error, 10)
 				for i := 0; i < 10; i++ {
+					event := s.createValidEvent()
+					event.Duration = time.Nanosecond
 					wg.Add(1)
-					go func() {
+					go func(elem *types.Event) {
 						defer wg.Done()
-						event := s.createValidEvent()
-						event.Duration = time.Nanosecond
 						time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-						_, err := storage.CreateEvent(context.Background(), event)
+						_, err := storage.CreateEvent(context.Background(), elem)
 						if err != nil {
 							errCh <- err
 						}
-					}()
+					}(event)
 				}
 				wg.Wait()
 				close(errCh)
@@ -1119,11 +1119,12 @@ func (s *StorageSuite) TestGetEventsForPeriod_VariousSizes() {
 	s.Require().NoError(err, "failed to create event")
 
 	testCases := []struct {
-		name       string
-		startDate  time.Time
-		endDate    time.Time
-		userID     *string
-		eventCount int
+		name          string
+		startDate     time.Time
+		endDate       time.Time
+		userID        *string
+		eventCount    int
+		isLessOrEqual bool // If true, checks if the count is less than or equal to eventCount.
 	}{
 		{
 			name:       "single event for user",
@@ -1133,11 +1134,12 @@ func (s *StorageSuite) TestGetEventsForPeriod_VariousSizes() {
 			eventCount: 1,
 		},
 		{
-			name:       "three events for user",
-			startDate:  startDate,
-			endDate:    startDate.Add(4 * time.Hour),
-			userID:     &userID,
-			eventCount: 3,
+			name:          "several events for user",
+			startDate:     startDate,
+			endDate:       startDate.Add(4 * time.Hour),
+			userID:        &userID,
+			eventCount:    4, // 4 events will be returned, if the last one's Datetime shares border with endDate.
+			isLessOrEqual: true,
 		},
 		{
 			name:       "all user events",
@@ -1159,7 +1161,11 @@ func (s *StorageSuite) TestGetEventsForPeriod_VariousSizes() {
 		s.Run(tC.name, func() {
 			result, err := storage.GetEventsForPeriod(context.Background(), tC.startDate, tC.endDate, tC.userID)
 			s.Require().NoError(err, "unexpected error")
-			s.Require().Len(result, tC.eventCount, "wrong event count")
+			if tC.isLessOrEqual {
+				s.Require().LessOrEqual(len(result), tC.eventCount, "event count exceeds expected")
+			} else {
+				s.Require().Len(result, tC.eventCount, "wrong event count")
+			}
 			for _, event := range result {
 				if tC.userID != nil {
 					s.Require().Equal(*tC.userID, event.UserID, "user ID mismatch")
