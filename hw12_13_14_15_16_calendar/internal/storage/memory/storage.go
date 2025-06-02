@@ -67,9 +67,6 @@ func (s *Storage) Close(_ context.Context) {
 }
 
 //nolint:revive
-func (*Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error { return nil }
-
-//nolint:revive
 func (*Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) { return nil, nil }
 
 //nolint:revive

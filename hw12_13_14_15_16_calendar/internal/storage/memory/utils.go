@@ -80,3 +80,16 @@ func (s *Storage) deleteElem(arr []*types.Event, pos int) []*types.Event {
 	arr = arr[:len(arr)-1]
 	return arr
 }
+
+// getIndex returns the index of the event in the sorted slice.
+func (s *Storage) getIndex(arr []*types.Event, elem *types.Event) int {
+	return sort.Search(len(arr), func(i int) bool {
+		if arr[i].Datetime.After(elem.Datetime) {
+			return true
+		}
+		if arr[i].Datetime.Equal(elem.Datetime) {
+			return arr[i].ID.String() >= elem.ID.String()
+		}
+		return false
+	})
+}
