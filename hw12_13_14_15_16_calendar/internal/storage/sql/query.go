@@ -38,7 +38,12 @@ func (s *Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *s
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 0, 1)
 
-	return s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
+	res, err := s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get events for day: %w", err)
+	}
+
+	return res, nil
 }
 
 // GetEventsForWeek retrieves all events occurring on the calendar week of the specified date from the database.
@@ -60,7 +65,12 @@ func (s *Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *
 	dateStart := date.AddDate(0, 0, -weekday).Truncate(24 * time.Hour)
 	dateEnd := dateStart.AddDate(0, 0, 7)
 
-	return s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
+	res, err := s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get events for week: %w", err)
+	}
+
+	return res, nil
 }
 
 // GetEventsForMonth retrieves all events occurring on the calendar month of the specified date from the database.
@@ -79,7 +89,12 @@ func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID 
 	dateStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 	dateEnd := dateStart.AddDate(0, 1, 0)
 
-	return s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
+	res, err := s.GetEventsForPeriod(ctx, dateStart, dateEnd, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get events for month: %w", err)
+	}
+
+	return res, nil
 }
 
 // GetEventsForPeriod retrieves all events occurring on the given period from the database.
