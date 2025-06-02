@@ -711,3 +711,247 @@ func (s *StorageSuite) TestStorageSizeLimits() {
 		})
 	}
 }
+
+func (s *StorageSuite) TestGetEvent() {
+	existingEventID := uuid.New()
+	testCases := []struct {
+		name          string
+		eventID       uuid.UUID
+		ctx           context.Context
+		connect       bool
+		prepare       func(*memory.Storage)
+		withError     bool
+		expectedError error
+	}{
+		{
+			name:    "successful get",
+			eventID: existingEventID,
+			ctx:     context.Background(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for get")
+			},
+			withError: false,
+		},
+		{
+			name:          "event not found",
+			eventID:       uuid.New(),
+			ctx:           context.Background(),
+			connect:       true,
+			withError:     true,
+			expectedError: errors.ErrEventNotFound,
+		},
+		{
+			name:          "uninitialized storage",
+			eventID:       existingEventID,
+			ctx:           context.Background(),
+			connect:       false,
+			withError:     true,
+			expectedError: errors.ErrStorageUninitialized,
+		},
+		{
+			name:    "canceled context",
+			eventID: existingEventID,
+			ctx:     canceledContext(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for canceled context")
+			},
+			withError:     true,
+			expectedError: errors.ErrTimeoutExceeded,
+		},
+		{
+			name:    "concurrent get",
+			eventID: existingEventID,
+			ctx:     context.Background(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for concurrent get")
+				var wg sync.WaitGroup
+				errCh := make(chan error, 10)
+				for i := 0; i < 10; i++ {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						_, err := storage.GetEvent(context.Background(), existingEventID)
+						if err != nil {
+							errCh <- err
+						}
+					}()
+				}
+				wg.Wait()
+				close(errCh)
+				for err := range errCh {
+					if err != nil {
+						s.Require().NoError(err, "unexpected error in concurrent get: %w", err)
+					}
+				}
+			},
+			withError: false,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			storage, err := memory.NewStorage(s.defaultStorageSize)
+			s.Require().NoError(err, "expected nil, got error on NewStorage")
+
+			if tC.connect {
+				err = storage.Connect(context.Background())
+				s.Require().NoError(err, "expected nil, got error on Connect")
+			}
+
+			if tC.prepare != nil {
+				tC.prepare(storage)
+			}
+
+			result, err := storage.GetEvent(tC.ctx, tC.eventID)
+			if tC.withError {
+				s.Require().Error(err, "expected error, got nil")
+				s.Require().Nil(result, "expected nil event, got non-nil")
+				if tC.expectedError != nil {
+					s.Require().ErrorIs(err, tC.expectedError, "unexpected error type")
+				}
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+				s.Require().NotNil(result, "expected non-nil event, got nil")
+				s.Require().Equal(tC.eventID, result.ID, "event ID mismatch")
+			}
+		})
+	}
+}
+
+func (s *StorageSuite) TestGetAllUserEvents() {
+	userID := s.userID
+	nonExistentUserID := "user2"
+	existingEventID := uuid.New()
+	testCases := []struct {
+		name          string
+		userID        string
+		ctx           context.Context
+		connect       bool
+		prepare       func(*memory.Storage)
+		withError     bool
+		expectedError error
+		eventCount    int
+	}{
+		{
+			name:    "successful get",
+			userID:  userID,
+			ctx:     context.Background(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for get")
+			},
+			withError:  false,
+			eventCount: 1,
+		},
+		{
+			name:          "no events for user",
+			userID:        nonExistentUserID,
+			ctx:           context.Background(),
+			connect:       true,
+			withError:     true,
+			expectedError: errors.ErrEventNotFound,
+		},
+		{
+			name:          "uninitialized storage",
+			userID:        userID,
+			ctx:           context.Background(),
+			connect:       false,
+			withError:     true,
+			expectedError: errors.ErrStorageUninitialized,
+		},
+		{
+			name:    "canceled context",
+			userID:  userID,
+			ctx:     canceledContext(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for canceled context")
+			},
+			withError:     true,
+			expectedError: errors.ErrTimeoutExceeded,
+		},
+		{
+			name:    "concurrent get",
+			userID:  userID,
+			ctx:     context.Background(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for concurrent get")
+				var wg sync.WaitGroup
+				errCh := make(chan error, 10)
+				for i := 0; i < 10; i++ {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						_, err := storage.GetAllUserEvents(context.Background(), userID)
+						if err != nil {
+							errCh <- err
+						}
+					}()
+				}
+				wg.Wait()
+				close(errCh)
+				for err := range errCh {
+					if err != nil {
+						s.Require().NoError(err, "unexpected error in concurrent get: %w", err)
+					}
+				}
+			},
+			withError:  false,
+			eventCount: 1,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			storage, err := memory.NewStorage(s.defaultStorageSize)
+			s.Require().NoError(err, "expected nil, got error on NewStorage")
+
+			if tC.connect {
+				err = storage.Connect(context.Background())
+				s.Require().NoError(err, "expected nil, got error on Connect")
+			}
+
+			if tC.prepare != nil {
+				tC.prepare(storage)
+			}
+
+			result, err := storage.GetAllUserEvents(tC.ctx, tC.userID)
+			if tC.withError {
+				s.Require().Error(err, "expected error, got nil")
+				s.Require().Nil(result, "expected nil events, got non-nil")
+				if tC.expectedError != nil {
+					s.Require().ErrorIs(err, tC.expectedError, "unexpected error type")
+				}
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+				s.Require().NotNil(result, "expected non-nil events, got nil")
+				s.Require().Len(result, tC.eventCount, "unexpected number of events")
+				if tC.eventCount > 0 {
+					s.Require().Equal(tC.userID, result[0].UserID, "user ID mismatch")
+				}
+			}
+		})
+	}
+}

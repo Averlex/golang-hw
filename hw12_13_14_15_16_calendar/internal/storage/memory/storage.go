@@ -67,14 +67,6 @@ func (s *Storage) Close(_ context.Context) {
 }
 
 //nolint:revive
-func (*Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) { return nil, nil }
-
-//nolint:revive
-func (*Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
-	return nil, nil
-}
-
-//nolint:revive
 func (*Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
 	return nil, nil
 }
