@@ -121,15 +121,6 @@ func (s *Storage) withLockAndChecks(ctx context.Context,
 	beforeCtx func() error, afterCtx, rollback func(),
 	muMode mutexMode,
 ) error {
-	// Check storage init.
-	if err := s.checkState(); err != nil {
-		return err
-	}
-
-	if beforeCtx == nil {
-		return fmt.Errorf("no action provided to execute")
-	}
-
 	// Acquire lock.
 	if muMode == writeLock {
 		s.mu.Lock()
@@ -137,6 +128,15 @@ func (s *Storage) withLockAndChecks(ctx context.Context,
 	} else {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
+	}
+
+	// Check storage init.
+	if err := s.checkState(); err != nil {
+		return err
+	}
+
+	if beforeCtx == nil {
+		return fmt.Errorf("no action provided to execute")
 	}
 
 	// Execute prepared operation.
