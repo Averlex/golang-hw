@@ -124,7 +124,6 @@ func (s *Storage) withLockAndChecks(ctx context.Context, beforeCtx func() error,
 		// Trying to rollback changes if rollback function is provided.
 		if rollback != nil {
 			rollback()
-			return err
 		}
 		return err
 	}

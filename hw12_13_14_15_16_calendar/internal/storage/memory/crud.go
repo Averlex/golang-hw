@@ -52,7 +52,8 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 			s.idIndex[event.ID] = event
 			s.events = s.insertElem(s.events, event, position)
 			s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, userPosition)
-		}, nil)
+		},
+		nil)
 	if err != nil {
 		return nil, fmt.Errorf(method, err)
 	}
@@ -64,87 +65,71 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 // Method is imitation transactional behaviour, checking the context before applying changes.
 //
 // If the event does not exist, it returns ErrEventNotFound. If it overlaps with another event, it returns ErrDateBusy.
-func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.EventData) (res *types.Event, err error) {
-	// Local error wrapping helper.
-	defer func() {
-		if err != nil {
-			res = nil
-			err = fmt.Errorf("update event: %w", err)
-		}
-	}()
-
+func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.EventData) (*types.Event, error) {
+	method := "update event: %w"
 	if data == nil {
-		err = projectErrors.ErrNoData
-		return
+		return nil, fmt.Errorf(method, projectErrors.ErrNoData)
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	var event *types.Event    // Event to update.
+	var tmpEvent *types.Event // Temporary event to hold the updated data.
+	var sourceIndex int       // Index of the event in the userIndex slice.
+	var userPosition int      // Position for inserting the updated event in the userIndex slice.
+	var isRollbackNeeded bool // Flag to indicate if rollback is needed.
 
-	// Storage init check.
-	err = s.checkState()
-	if err != nil {
-		return
-	}
-
-	var event *types.Event // Event to update.
-	var ok bool
-	// Event with given ID not exists.
-	if event, ok = s.idIndex[id]; !ok {
-		err = projectErrors.ErrEventNotFound
-		return
-	}
-
-	// Attempting to modify another user's event.
-	if event.UserID != data.UserID {
-		err = projectErrors.ErrPermissionDenied
-		return
-	}
-
-	var tmpEvent *types.Event
-	tmpEvent, err = types.UpdateEvent(event.ID, data)
-	if err != nil {
-		err = fmt.Errorf("unexpected error occurred: %w", err)
-		return
-	}
-
-	// Deleting the old event. No other inner structures are modified since the last possible error.
-	sourceIndex := s.getIndex(s.userIndex[event.UserID], event)
-	s.userIndex[event.UserID] = s.deleteElem(s.userIndex[event.UserID], sourceIndex)
-
-	// Rollback in case of error.
-	defer func() {
-		if err != nil {
-			s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, sourceIndex)
+	err := s.withLockAndChecks(ctx, func() error {
+		var ok bool
+		// Event with given ID not exists.
+		if event, ok = s.idIndex[id]; !ok {
+			return projectErrors.ErrEventNotFound
 		}
-	}()
 
-	// Determining if the new event overlaps with existing events.
-	userPosition := s.findInsertPosition(s.userIndex[event.UserID], tmpEvent)
-	if s.isOverlaps(s.userIndex[event.UserID], tmpEvent, userPosition) {
-		err = projectErrors.ErrDateBusy
-		return
+		// Attempting to modify another user's event.
+		if event.UserID != data.UserID {
+			return projectErrors.ErrPermissionDenied
+		}
+
+		var err error
+		tmpEvent, err = types.UpdateEvent(event.ID, data)
+		if err != nil {
+			return fmt.Errorf("unexpected error occurred: %w", err)
+		}
+
+		// Deleting the old event. No other inner structures are modified since the last possible error.
+		sourceIndex = s.getIndex(s.userIndex[event.UserID], event)
+		s.userIndex[event.UserID] = s.deleteElem(s.userIndex[event.UserID], sourceIndex)
+
+		isRollbackNeeded = true // Since data was deleted, rollback is needed if the new event cannot be added.
+
+		// Determining if the new event overlaps with existing events.
+		userPosition = s.findInsertPosition(s.userIndex[event.UserID], tmpEvent)
+		if s.isOverlaps(s.userIndex[event.UserID], tmpEvent, userPosition) {
+			return projectErrors.ErrDateBusy
+		}
+
+		return nil
+	}, func() {
+		// Deleting old event data.
+		delete(s.idIndex, event.ID)
+		oldIndex := s.getIndex(s.events, event)
+		s.events = s.deleteElem(s.events, oldIndex)
+
+		// Adding new event data.
+		s.idIndex[tmpEvent.ID] = tmpEvent
+		newIndex := s.findInsertPosition(s.events, tmpEvent)
+		s.events = s.insertElem(s.events, tmpEvent, newIndex)
+		s.userIndex[tmpEvent.UserID] = s.insertElem(s.userIndex[tmpEvent.UserID], tmpEvent, userPosition)
+	}, func() {
+		if !isRollbackNeeded {
+			return
+		}
+		s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, sourceIndex)
+	})
+	if err != nil {
+		return nil, fmt.Errorf(method, err)
 	}
 
-	// Context check before applying changes.
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		err = fmt.Errorf("%w: %w", projectErrors.ErrTimeoutExceeded, ctxErr)
-		return
-	}
-
-	// Deleting old event data.
-	delete(s.idIndex, event.ID)
-	oldIndex := s.getIndex(s.events, event)
-	s.events = s.deleteElem(s.events, oldIndex)
-
-	// Adding new event data.
-	s.idIndex[tmpEvent.ID] = tmpEvent
-	newIndex := s.findInsertPosition(s.events, tmpEvent)
-	s.events = s.insertElem(s.events, tmpEvent, newIndex)
-	s.userIndex[tmpEvent.UserID] = s.insertElem(s.userIndex[tmpEvent.UserID], tmpEvent, userPosition)
-
-	res = tmpEvent
-	return
+	return tmpEvent, nil
 }
 
 // DeleteEvent deletes the event with the given ID from the in-memory storage.
