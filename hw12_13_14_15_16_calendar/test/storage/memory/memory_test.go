@@ -609,3 +609,105 @@ func (s *StorageSuite) TestDeleteEvent() {
 		})
 	}
 }
+
+func (s *StorageSuite) TestSequentialOperations() {
+	s.Run("sequential create-update-delete", func() {
+		storage, err := memory.NewStorage(s.defaultStorageSize)
+		s.Require().NoError(err, "expected nil, got error on NewStorage")
+
+		err = storage.Connect(context.Background())
+		s.Require().NoError(err, "expected nil, got error on Connect")
+
+		// Create event
+		event := s.createValidEvent()
+		result, err := storage.CreateEvent(context.Background(), event)
+		s.Require().NoError(err, "expected nil, got error on CreateEvent")
+		s.Require().NotNil(result, "expected non-nil event, got nil")
+		s.Require().Equal(event, result, "created event does not match input")
+
+		// Update event
+		data := s.createValidEventData()
+		data.Datetime = time.Now().Add(2 * time.Hour) // Ensure no overlap
+		updated, err := storage.UpdateEvent(context.Background(), event.ID, data)
+		s.Require().NoError(err, "expected nil, got error on UpdateEvent")
+		s.Require().NotNil(updated, "expected non-nil event, got nil")
+		s.Require().Equal(event.ID, updated.ID, "event ID mismatch")
+		s.Require().Equal(data.UserID, updated.UserID, "user ID mismatch")
+		s.Require().Equal(data.Title, updated.Title, "title mismatch")
+		s.Require().Equal(data.Datetime, updated.Datetime, "datetime mismatch")
+
+		// Delete event
+		err = storage.DeleteEvent(context.Background(), event.ID)
+		s.Require().NoError(err, "expected nil, got error on DeleteEvent")
+
+		// Verify event is deleted
+		_, err = storage.UpdateEvent(context.Background(), event.ID, data)
+		s.Require().Error(err, "expected error, got nil on UpdateEvent after delete")
+		s.Require().ErrorIs(err, errors.ErrEventNotFound, "unexpected error type")
+	})
+}
+
+func (s *StorageSuite) TestStorageSizeLimits() {
+	testCases := []struct {
+		name          string
+		storageSize   int
+		eventCount    int
+		withError     bool
+		expectedError error
+		withDelete    bool
+	}{
+		{
+			name:        "small storage success",
+			storageSize: 2,
+			eventCount:  2,
+			withError:   false,
+		},
+		{
+			name:          "storage full",
+			storageSize:   1,
+			eventCount:    2,
+			withError:     true,
+			expectedError: errors.ErrStorageFull,
+		},
+		{
+			name:        "zero storage size",
+			storageSize: 0,
+			eventCount:  1,
+			withError:   false, // Should use default size (1000).
+		},
+		{
+			name:        "stress test",
+			storageSize: 100_000,
+			eventCount:  100_000,
+			withError:   false,
+			withDelete:  true,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			storage, err := memory.NewStorage(tC.storageSize)
+			s.Require().NoError(err, "expected nil, got error on NewStorage")
+
+			err = storage.Connect(context.Background())
+			s.Require().NoError(err, "expected nil, got error on Connect")
+
+			for i := 0; i < tC.eventCount; i++ {
+				event := s.createValidEvent()
+				event.Datetime = time.Now().Add(time.Duration(i+1) * time.Hour) // Avoid overlaps
+				_, err = storage.CreateEvent(context.Background(), event)
+				if i < tC.eventCount-1 || !tC.withError {
+					s.Require().NoError(err, "expected nil, got error on CreateEvent: %w", err)
+				} else {
+					s.Require().Error(err, "expected error, got nil on CreateEvent")
+					s.Require().ErrorIs(err, tC.expectedError, "unexpected error type")
+				}
+
+				if tC.withDelete {
+					err = storage.DeleteEvent(context.Background(), event.ID)
+					s.Require().NoError(err, "expected nil, got error on DeleteEvent")
+				}
+			}
+		})
+	}
+}
