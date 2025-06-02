@@ -17,65 +17,47 @@ import (
 //
 // The event is inserted in a sorted order by Datetime, and if Datetime is equal,
 // it uses ID for deterministic ordering.
-func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (res *types.Event, err error) {
-	// Local error wrapping helper.
-	defer func() {
-		if err != nil {
-			res = nil
-			err = fmt.Errorf("create event: %w", err)
-		}
-	}()
-
+func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.Event, error) {
+	method := "create event: %w"
 	if event == nil {
-		err = projectErrors.ErrNoData
-		return
+		return nil, fmt.Errorf(method, projectErrors.ErrNoData)
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	var position, userPosition int // Positions for inserting the event in the inner data structure.
 
-	// Storage init check.
-	err = s.checkState()
+	err := s.withLockAndChecks(ctx, func() error {
+		// Event with given ID already exists.
+		if _, ok := s.idIndex[event.ID]; ok {
+			return projectErrors.ErrDataExists
+		}
+
+		// Storage is already full.
+		if len(s.events) == s.size {
+			return projectErrors.ErrStorageFull
+		}
+
+		// Processing user events first due to potentially smaller number of events.
+		if s.userIndex[event.UserID] == nil {
+			s.userIndex[event.UserID] = []*types.Event{}
+		}
+		userPosition = s.findInsertPosition(s.userIndex[event.UserID], event)
+		if s.isOverlaps(s.userIndex[event.UserID], event, userPosition) {
+			return projectErrors.ErrDateBusy
+		}
+		position = s.findInsertPosition(s.events, event)
+		return nil
+	},
+		func() {
+			// Applying changes.
+			s.idIndex[event.ID] = event
+			s.events = s.insertElem(s.events, event, position)
+			s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, userPosition)
+		}, nil)
 	if err != nil {
-		return
+		return nil, fmt.Errorf(method, err)
 	}
 
-	// Event with given ID already exists.
-	if _, ok := s.idIndex[event.ID]; ok {
-		err = projectErrors.ErrDataExists
-		return
-	}
-
-	// Storage is already full.
-	if len(s.events) == s.size {
-		err = projectErrors.ErrStorageFull
-		return
-	}
-
-	// Processing user events first due to potentially smaller number of events.
-	if s.userIndex[event.UserID] == nil {
-		s.userIndex[event.UserID] = []*types.Event{}
-	}
-	userPosition := s.findInsertPosition(s.userIndex[event.UserID], event)
-	if s.isOverlaps(s.userIndex[event.UserID], event, userPosition) {
-		err = projectErrors.ErrDateBusy
-		return
-	}
-	position := s.findInsertPosition(s.events, event)
-
-	// Context check before doing anything.
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		err = fmt.Errorf("%w: %w", projectErrors.ErrTimeoutExceeded, ctxErr)
-		return
-	}
-
-	// Applying changes.
-	s.idIndex[event.ID] = event
-	s.events = s.insertElem(s.events, event, position)
-	s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, userPosition)
-
-	res = event
-	return
+	return event, nil
 }
 
 // UpdateEvent updates the event with the given ID in the in-memory storage.
