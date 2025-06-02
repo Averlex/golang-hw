@@ -483,3 +483,129 @@ func (s *StorageSuite) TestUpdateEvent() {
 		})
 	}
 }
+
+func (s *StorageSuite) TestDeleteEvent() {
+	existingEventID := uuid.New()
+	testCases := []struct {
+		name          string
+		eventID       uuid.UUID
+		ctx           context.Context
+		connect       bool
+		prepare       func(*memory.Storage)
+		withError     bool
+		expectedError error
+	}{
+		{
+			name:    "successful delete",
+			eventID: existingEventID,
+			ctx:     context.Background(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for delete")
+			},
+			withError: false,
+		},
+		{
+			name:          "uninitialized storage",
+			eventID:       existingEventID,
+			ctx:           context.Background(),
+			connect:       false,
+			withError:     true,
+			expectedError: errors.ErrStorageUninitialized,
+		},
+		{
+			name:          "event not found",
+			eventID:       uuid.New(),
+			ctx:           context.Background(),
+			connect:       true,
+			withError:     true,
+			expectedError: errors.ErrEventNotFound,
+		},
+		{
+			name:    "canceled context",
+			eventID: existingEventID,
+			ctx:     canceledContext(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for canceled context")
+			},
+			withError:     true,
+			expectedError: errors.ErrTimeoutExceeded,
+		},
+		{
+			name:    "concurrent delete",
+			eventID: existingEventID,
+			ctx:     context.Background(),
+			connect: true,
+			prepare: func(storage *memory.Storage) {
+				events := make([]*types.Event, 0, 5)
+				// Creating 10 valid events to ensure the storage is not empty.
+				for i := 0; i < 10; i++ {
+					events = append(events, s.createValidEvent())
+					events[i].Duration = time.Nanosecond
+					events[i].Datetime = time.Now().Add(time.Duration(i) * time.Hour)
+				}
+				var wg sync.WaitGroup
+				errCh := make(chan error, 10)
+				// Attempting to delete each element concurrently.
+				for i := 0; i < 10; i++ {
+					_, err := storage.CreateEvent(context.Background(), events[i])
+					s.Require().NoError(err, "failed to prepare event for concurrent delete: %w", err)
+					wg.Add(1)
+					go func(elem *types.Event) {
+						defer wg.Done()
+						err := storage.DeleteEvent(context.Background(), elem.ID)
+						if err != nil {
+							errCh <- err
+						}
+					}(events[i])
+				}
+				wg.Wait()
+				close(errCh)
+				for err := range errCh {
+					if err != nil {
+						s.Require().NoError(err, "unexpected error in concurrent delete: %w", err)
+					}
+				}
+				// For upwards compatibility, we ensure that the event with existingEventID is still present.
+				event := s.createValidEvent()
+				event.ID = existingEventID
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event for concurrent delete")
+			},
+			withError: false,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			storage, err := memory.NewStorage(s.defaultStorageSize)
+			s.Require().NoError(err, "expected nil, got error on NewStorage")
+
+			if tC.connect {
+				err = storage.Connect(context.Background())
+				s.Require().NoError(err, "expected nil, got error on Connect")
+			}
+
+			if tC.prepare != nil {
+				tC.prepare(storage)
+			}
+
+			err = storage.DeleteEvent(tC.ctx, tC.eventID)
+			if tC.withError {
+				s.Require().Error(err, "expected error, got nil")
+				if tC.expectedError != nil {
+					s.Require().ErrorIs(err, tC.expectedError, "unexpected error type")
+				}
+			} else {
+				s.Require().NoError(err, "expected nil, got error")
+			}
+		})
+	}
+}
