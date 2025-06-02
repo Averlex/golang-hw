@@ -136,41 +136,28 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 // Method is imitation transactional behaviour, checking the context before applying changes.
 //
 // If the event does not exist, it returns ErrEventNotFound.
-func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) (err error) {
-	// Local error wrapping helper.
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("delete event: %w", err)
+func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
+	method := "delete event: %w"
+
+	var event *types.Event // Event to delete.
+
+	err := s.withLockAndChecks(ctx, func() error {
+		var ok bool
+		// Event with given ID not exists.
+		if event, ok = s.idIndex[id]; !ok {
+			return projectErrors.ErrEventNotFound
 		}
-	}()
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Storage init check.
-	err = s.checkState()
+		return nil
+	}, func() {
+		// Deleting old event data.
+		delete(s.idIndex, event.ID)
+		s.events = s.deleteElem(s.events, s.getIndex(s.events, event))
+		s.userIndex[event.UserID] = s.deleteElem(s.userIndex[event.UserID], s.getIndex(s.userIndex[event.UserID], event))
+	},
+		nil)
 	if err != nil {
-		return
+		return fmt.Errorf(method, err)
 	}
 
-	var event *types.Event
-	var ok bool
-	// Event with given ID not exists.
-	if event, ok = s.idIndex[id]; !ok {
-		err = projectErrors.ErrEventNotFound
-		return
-	}
-
-	// Context check before applying changes.
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		err = fmt.Errorf("%w: %w", projectErrors.ErrTimeoutExceeded, ctxErr)
-		return
-	}
-
-	// Deleting old event data.
-	delete(s.idIndex, event.ID)
-	s.events = s.deleteElem(s.events, s.getIndex(s.events, event))
-	s.userIndex[event.UserID] = s.deleteElem(s.userIndex[event.UserID], s.getIndex(s.userIndex[event.UserID], event))
-
-	return
+	return nil
 }
