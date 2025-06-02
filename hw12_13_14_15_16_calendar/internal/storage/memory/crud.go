@@ -53,7 +53,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 			s.events = s.insertElem(s.events, event, position)
 			s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, userPosition)
 		},
-		nil)
+		nil, writeLock)
 	if err != nil {
 		return nil, fmt.Errorf(method, err)
 	}
@@ -124,7 +124,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 			return
 		}
 		s.userIndex[event.UserID] = s.insertElem(s.userIndex[event.UserID], event, sourceIndex)
-	})
+	}, writeLock)
 	if err != nil {
 		return nil, fmt.Errorf(method, err)
 	}
@@ -153,8 +153,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 		delete(s.idIndex, event.ID)
 		s.events = s.deleteElem(s.events, s.getIndex(s.events, event))
 		s.userIndex[event.UserID] = s.deleteElem(s.userIndex[event.UserID], s.getIndex(s.userIndex[event.UserID], event))
-	},
-		nil)
+	}, nil, writeLock)
 	if err != nil {
 		return fmt.Errorf(method, err)
 	}

@@ -9,6 +9,14 @@ import (
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
 )
 
+type mutexMode int
+
+// Lock types for helper calls.
+const (
+	readLock  mutexMode = iota // For using RLock and RUnlock respectively in read-only operations.
+	writeLock                  // For using Lock and Unlock respectively in write-only operations.
+)
+
 // findInsertPosition finds the index in the events slice where a new event should be inserted
 // to maintain ascending order by Datetime, using binary search.
 // Returns the index where the event should be inserted.
@@ -104,7 +112,10 @@ func (s *Storage) getIndex(arr []*types.Event, elem *types.Event) int {
 // If any rollback function is provided, it will be called in case of an error during the operation or due to timeout.
 //
 // Both rollback and afterCtx functions are optional and can be nil. They also should not return any errors and panic.
-func (s *Storage) withLockAndChecks(ctx context.Context, beforeCtx func() error, afterCtx, rollback func()) error {
+func (s *Storage) withLockAndChecks(ctx context.Context,
+	beforeCtx func() error, afterCtx, rollback func(),
+	muMode mutexMode,
+) error {
 	// Check storage init.
 	if err := s.checkState(); err != nil {
 		return err
@@ -115,8 +126,13 @@ func (s *Storage) withLockAndChecks(ctx context.Context, beforeCtx func() error,
 	}
 
 	// Acquire lock.
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if muMode == writeLock {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+	} else {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+	}
 
 	// Execute prepared operation.
 	err := beforeCtx()
