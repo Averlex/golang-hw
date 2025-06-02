@@ -43,6 +43,11 @@ func (s *Storage) checkState() error {
 
 // isOverlaps checks if the given event overlaps with any event in the sorted slice at the specified insertion position.
 // Returns true if there is an overlap (excluding the event itself), false otherwise.
+//
+// IMPORTANT: case, where nextStart == prevEnd is not considered as overlap.
+// Therefore, if the event starts at the same time as the previous event ends,
+// it is considered as non-overlapping.
+// This behavior is consistent with the original implementation and allows for events to be scheduled back-to-back.
 func (s *Storage) isOverlaps(arr []*types.Event, elem *types.Event, pos int) bool {
 	elemEnd := elem.Datetime.Add(elem.Duration)
 
@@ -52,7 +57,7 @@ func (s *Storage) isOverlaps(arr []*types.Event, elem *types.Event, pos int) boo
 		// Skip if prev is the same event.
 		if prev.ID != elem.ID {
 			prevEnd := prev.Datetime.Add(prev.Duration)
-			if !prev.Datetime.After(elemEnd) && !elem.Datetime.After(prevEnd) {
+			if prevEnd.After(elem.Datetime) && elemEnd.After(prev.Datetime) {
 				return true
 			}
 		}
@@ -64,7 +69,7 @@ func (s *Storage) isOverlaps(arr []*types.Event, elem *types.Event, pos int) boo
 		// Skip if next is the same event.
 		if next.ID != elem.ID {
 			nextEnd := next.Datetime.Add(next.Duration)
-			if !next.Datetime.After(elemEnd) && !elem.Datetime.After(nextEnd) {
+			if nextEnd.After(elem.Datetime) && elemEnd.After(next.Datetime) {
 				return true
 			}
 		}
