@@ -102,7 +102,7 @@ type StorageSuite struct {
 	eventDuration      time.Duration
 	eventDescription   string
 	eventRemindIn      time.Duration
-	userID             string
+	userID, altUserID  string
 }
 
 func (s *StorageSuite) SetupSuite() {
@@ -112,6 +112,7 @@ func (s *StorageSuite) SetupSuite() {
 	s.eventDescription = "Description"
 	s.eventRemindIn = time.Minute * 30
 	s.userID = "user1"
+	s.altUserID = "user2"
 }
 
 func TestStorage(t *testing.T) {
@@ -360,7 +361,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 			eventID: existingEventID,
 			data: func() *types.EventData {
 				data := s.createValidEventData()
-				data.UserID = "user2"
+				data.UserID = s.altUserID
 				return data
 			}(),
 			ctx:     context.Background(),
@@ -832,7 +833,7 @@ func (s *StorageSuite) TestGetEvent() {
 
 func (s *StorageSuite) TestGetAllUserEvents() {
 	userID := s.userID
-	nonExistentUserID := "user2"
+	nonExistentUserID := s.altUserID
 	existingEventID := uuid.New()
 	testCases := []struct {
 		name          string
@@ -954,4 +955,239 @@ func (s *StorageSuite) TestGetAllUserEvents() {
 			}
 		})
 	}
+}
+
+func (s *StorageSuite) TestGetEventsForPeriod() {
+	startDate := time.Now().AddDate(0, 0, 1)
+	endDate := startDate.AddDate(0, 0, 2)
+	userID := s.userID
+	nonExistentUserID := s.altUserID
+	var nilUserID *string
+
+	testCases := []struct {
+		name       string
+		startDate  time.Time
+		endDate    time.Time
+		userID     *string
+		ctx        context.Context
+		connect    bool
+		prepare    func(*memory.Storage)
+		wantErr    error
+		eventCount int
+	}{
+		{
+			name:      "success for user",
+			startDate: startDate,
+			endDate:   endDate,
+			userID:    &userID,
+			ctx:       context.Background(),
+			connect:   true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.Datetime = startDate.Add(time.Hour)
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event")
+			},
+			eventCount: 1,
+		},
+		{
+			name:      "success for all users",
+			startDate: startDate,
+			endDate:   endDate,
+			userID:    nilUserID,
+			ctx:       context.Background(),
+			connect:   true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.Datetime = startDate.Add(time.Hour)
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event")
+			},
+			eventCount: 1,
+		},
+		{
+			name:      "no events in period",
+			startDate: startDate.AddDate(0, 0, 10),
+			endDate:   endDate.AddDate(0, 0, 10),
+			userID:    &userID,
+			ctx:       context.Background(),
+			connect:   true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event")
+			},
+			wantErr: errors.ErrEventNotFound,
+		},
+		{
+			name:      "no events for user",
+			startDate: startDate,
+			endDate:   endDate,
+			userID:    &nonExistentUserID,
+			ctx:       context.Background(),
+			connect:   true,
+			wantErr:   errors.ErrEventNotFound,
+		},
+		{
+			name:      "uninitialized storage",
+			startDate: startDate,
+			endDate:   endDate,
+			userID:    &userID,
+			ctx:       context.Background(),
+			connect:   false,
+			wantErr:   errors.ErrStorageUninitialized,
+		},
+		{
+			name:      "canceled context",
+			startDate: startDate,
+			endDate:   endDate,
+			userID:    &userID,
+			ctx:       canceledContext(),
+			connect:   true,
+			prepare: func(storage *memory.Storage) {
+				event := s.createValidEvent()
+				event.Datetime = startDate.Add(time.Hour)
+				_, err := storage.CreateEvent(context.Background(), event)
+				s.Require().NoError(err, "failed to prepare event")
+			},
+			wantErr: errors.ErrTimeoutExceeded,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			storage, err := memory.NewStorage(s.defaultStorageSize)
+			s.Require().NoError(err, "failed to create storage")
+
+			if tC.connect {
+				err = storage.Connect(context.Background())
+				s.Require().NoError(err, "failed to connect storage")
+			}
+
+			if tC.prepare != nil {
+				tC.prepare(storage)
+			}
+
+			result, err := storage.GetEventsForPeriod(tC.ctx, tC.startDate, tC.endDate, tC.userID)
+			if tC.wantErr != nil {
+				s.Require().ErrorIs(err, tC.wantErr, "unexpected error")
+				s.Require().Nil(result, "expected nil events")
+			} else {
+				s.Require().NoError(err, "unexpected error")
+				s.Require().Len(result, tC.eventCount, "wrong event count")
+				if tC.userID != nil && len(result) > 0 {
+					s.Require().Equal(*tC.userID, result[0].UserID, "user ID mismatch")
+				}
+			}
+		})
+	}
+}
+
+func (s *StorageSuite) TestGetEventsForPeriod_VariousSizes() {
+	startDate := time.Now().AddDate(0, 0, 1)
+	endDate := startDate.AddDate(0, 0, 10)
+	userID := s.userID
+	var nilUserID *string
+
+	// Prepare storage with multiple events
+	storage, err := memory.NewStorage(s.defaultStorageSize)
+	s.Require().NoError(err, "failed to create storage")
+	err = storage.Connect(context.Background())
+	s.Require().NoError(err, "failed to connect storage")
+
+	// Add 5 events for user
+	eventDates := []time.Time{
+		startDate.Add(time.Hour),
+		startDate.Add(2 * time.Hour),
+		startDate.Add(3 * time.Hour),
+		startDate.Add(4 * time.Hour),
+		startDate.Add(5 * time.Hour),
+	}
+	for _, date := range eventDates {
+		event := s.createValidEvent()
+		event.Datetime = date
+		_, err := storage.CreateEvent(context.Background(), event)
+		s.Require().NoError(err, "failed to create event")
+	}
+
+	// Add 1 event for another user
+	anotherUserID := s.altUserID
+	event := s.createValidEvent()
+	event.UserID = anotherUserID
+	event.Datetime = startDate.Add(time.Hour)
+	_, err = storage.CreateEvent(context.Background(), event)
+	s.Require().NoError(err, "failed to create event")
+
+	testCases := []struct {
+		name       string
+		startDate  time.Time
+		endDate    time.Time
+		userID     *string
+		eventCount int
+	}{
+		{
+			name:       "single event for user",
+			startDate:  startDate,
+			endDate:    startDate.Add(90 * time.Minute),
+			userID:     &userID,
+			eventCount: 1,
+		},
+		{
+			name:       "three events for user",
+			startDate:  startDate,
+			endDate:    startDate.Add(4 * time.Hour),
+			userID:     &userID,
+			eventCount: 3,
+		},
+		{
+			name:       "all user events",
+			startDate:  startDate.Add(-time.Hour),
+			endDate:    startDate.Add(6 * time.Hour),
+			userID:     &userID,
+			eventCount: 5,
+		},
+		{
+			name:       "all storage events",
+			startDate:  startDate.Add(-time.Hour),
+			endDate:    startDate.Add(6 * time.Hour),
+			userID:     nilUserID,
+			eventCount: 6,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			result, err := storage.GetEventsForPeriod(context.Background(), tC.startDate, tC.endDate, tC.userID)
+			s.Require().NoError(err, "unexpected error")
+			s.Require().Len(result, tC.eventCount, "wrong event count")
+			for _, event := range result {
+				if tC.userID != nil {
+					s.Require().Equal(*tC.userID, event.UserID, "user ID mismatch")
+				}
+				s.Require().False(event.Datetime.Before(tC.startDate) || event.Datetime.After(tC.endDate),
+					"event datetime outside period")
+			}
+		})
+	}
+
+	// Concurrent access test
+	s.Run("concurrent get", func() {
+		var wg sync.WaitGroup
+		errCh := make(chan error, 10)
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := storage.GetEventsForPeriod(context.Background(), startDate, endDate, &userID)
+				if err != nil {
+					errCh <- err
+				}
+			}()
+		}
+		wg.Wait()
+		close(errCh)
+		for err := range errCh {
+			s.Require().NoError(err, "unexpected error in concurrent get: %s", err)
+		}
+	})
 }

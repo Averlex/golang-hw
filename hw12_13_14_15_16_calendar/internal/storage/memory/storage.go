@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
@@ -64,26 +63,4 @@ func (s *Storage) Close(_ context.Context) {
 	s.events = nil
 	s.idIndex = nil
 	s.userIndex = nil
-}
-
-//nolint:revive
-func (*Storage) GetEventsForDay(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
-	return nil, nil
-}
-
-//nolint:revive
-func (*Storage) GetEventsForWeek(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
-	return nil, nil
-}
-
-//nolint:revive
-func (*Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID *string) ([]*types.Event, error) {
-	return nil, nil
-}
-
-//nolint:revive
-func (*Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time,
-	userID *string,
-) ([]*types.Event, error) {
-	return nil, nil
 }
