@@ -3,12 +3,14 @@
 package logger
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 )
 
 // Logger is a wrapper structure for an underlying logger.
@@ -17,17 +19,6 @@ type Logger struct {
 }
 
 const defaultTimeTemplate = "02.01.2006 15:04:05.000"
-
-var (
-	// ErrInvalidLogType  is an error that is returned when the log type is invalid.
-	ErrInvalidLogType = errors.New("invalid log type")
-	// ErrInvalidLogLevel is an error that is returned when the log level is invalid.
-	ErrInvalidLogLevel = errors.New("invalid log level")
-	// ErrInvalidWriter is an error that is returned when the writer is not set.
-	ErrInvalidWriter = errors.New("invalid writer set")
-	// ErrInvalidTimeTemplate is an error that is returned when the time template cannot be parsed by time package.
-	ErrInvalidTimeTemplate = errors.New("invalid time template")
-)
 
 // NewLogger returns a new Logger with the given log type and level.
 //
@@ -41,7 +32,7 @@ var (
 // If the log type or level is unknown, it returns an error.
 func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error) {
 	if w == nil {
-		return nil, ErrInvalidWriter
+		return nil, errors.ErrInvalidWriter
 	}
 
 	logType = strings.ToLower(logType)
@@ -61,7 +52,7 @@ func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error
 	case "error", "":
 		logLevel = slog.LevelError
 	default:
-		return nil, fmt.Errorf("%w: %s", ErrInvalidLogLevel, level)
+		return nil, fmt.Errorf("%w: %s", errors.ErrInvalidLogLevel, level)
 	}
 
 	// Time format validation.
@@ -74,7 +65,7 @@ func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error
 		formatted := testTime.Format(timeTemplate)
 		parsedTime, err := time.Parse(timeTemplate, formatted)
 		if err != nil || !parsedTime.Equal(testTime) {
-			return nil, fmt.Errorf("%w: %s", ErrInvalidTimeTemplate, timeTemplate)
+			return nil, fmt.Errorf("%w: %s", errors.ErrInvalidTimeTemplate, timeTemplate)
 		}
 	}
 
@@ -98,7 +89,7 @@ func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error
 	case "text":
 		logHandler = slog.NewTextHandler(w, opts)
 	default:
-		return nil, fmt.Errorf("%w: %s", ErrInvalidLogType, logType)
+		return nil, fmt.Errorf("%w: %s", errors.ErrInvalidLogType, logType)
 	}
 
 	return &Logger{slog.New(logHandler)}, nil
@@ -122,6 +113,12 @@ func (logg Logger) Debug(msg string, args ...any) {
 // Warn logs a message with level Warn on the standard logger.
 func (logg Logger) Warn(msg string, args ...any) {
 	logg.l.Warn(msg, args...)
+}
+
+// Fatal logs a message with level Error on the standard logger and then calls os.Exit(1).
+func (logg Logger) Fatal(msg string, args ...any) {
+	logg.l.Error(msg, args...)
+	os.Exit(1)
 }
 
 // With returns a new Logger that adds the given key-value pairs to the logger's context.

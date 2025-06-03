@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/require"                               //nolint:depguard,nolintlint
 )
 
 type logEntry struct {
@@ -55,7 +56,7 @@ func TestLogger_default(t *testing.T) {
 
 	t.Run("nil writer", func(t *testing.T) {
 		_, err := NewLogger("", "", "", nil)
-		require.ErrorIs(t, err, ErrInvalidWriter, "unexpected error received: "+err.Error())
+		require.ErrorIs(t, err, errors.ErrInvalidWriter, "unexpected error received: "+err.Error())
 	})
 
 	t.Run("empty log type", func(t *testing.T) {
@@ -131,7 +132,7 @@ func logLevelTest(t *testing.T) {
 			w.CleanUp()
 			l, err := NewLogger("json", tC.level, time.UnixDate, w)
 			if tC.name == "unknown" {
-				require.ErrorIs(t, err, ErrInvalidLogLevel, "unexpected error received: "+err.Error())
+				require.ErrorIs(t, err, errors.ErrInvalidLogLevel, "unexpected error received: "+err.Error())
 				return
 			}
 			require.NoError(t, err, "got error, expected nil")
@@ -175,7 +176,7 @@ func logTypeTest(t *testing.T) {
 			w.CleanUp()
 			l, err := NewLogger(tC.logType, "info", time.UnixDate, w)
 			if tC.expectConstructorError {
-				require.ErrorIs(t, err, ErrInvalidLogType, "got nil, expected error")
+				require.ErrorIs(t, err, errors.ErrInvalidLogType, "got nil, expected error")
 				return
 			}
 			require.NoError(t, err, "got error, expected nil")
