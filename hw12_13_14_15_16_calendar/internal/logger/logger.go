@@ -15,22 +15,21 @@ import (
 
 const defaultTimeTemplate = "02.01.2006 15:04:05.000"
 
-// LoggerOption defines a function that allows to configure underlying logger on construction.
-type LoggerOption func(c *loggerConfig) error
+// Option defines a function that allows to configure underlying logger on construction.
+type Option func(c *Config) error
 
-// loggerConfig defines an inner logger configuration.
-type loggerConfig struct {
+// Config defines an inner logger configuration.
+type Config struct {
 	handlerOpts  *slog.HandlerOptions
 	handler      slog.Handler
 	writer       io.Writer
-	logType      string
 	timeTemplate string
 	logLevel     slog.Level
 }
 
 // WithConfig allows to apply custom configuration.
-func WithConfig(cfg map[string]any) LoggerOption {
-	return func(c *loggerConfig) error {
+func WithConfig(cfg map[string]any) Option {
+	return func(c *Config) error {
 		optionalFields := map[string]any{
 			"logType":      "",
 			"level":        "",
@@ -48,7 +47,7 @@ func WithConfig(cfg map[string]any) LoggerOption {
 		validateLogType(cfg, ve)
 
 		if ve.HasErrors() {
-			return fmt.Errorf("%w: %s", errors.ErrCorruptedConfig, ve)
+			return fmt.Errorf("%w: %s", errors.ErrCorruptedConfig, ve.Error())
 		}
 
 		if level, ok := cfg["level"]; ok {
@@ -74,7 +73,7 @@ func WithConfig(cfg map[string]any) LoggerOption {
 		// Building arg for handler constructor.
 		c.handlerOpts = &slog.HandlerOptions{
 			Level: c.logLevel,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				if a.Key == slog.TimeKey {
 					if t, ok := a.Value.Any().(time.Time); ok {
 						a.Value = slog.StringValue(t.Format(c.timeTemplate))
@@ -111,8 +110,8 @@ func WithConfig(cfg map[string]any) LoggerOption {
 }
 
 // WithWriter allows to apply custom configuration.
-func WithWriter(w io.Writer) LoggerOption {
-	return func(c *loggerConfig) error {
+func WithWriter(w io.Writer) Option {
+	return func(c *Config) error {
 		if w == nil {
 			return fmt.Errorf("expected io.Writer, got nil")
 		}
@@ -124,7 +123,7 @@ func WithWriter(w io.Writer) LoggerOption {
 }
 
 // SetDefaults is a wrapper over WithConfig, passing empty config.
-func SetDefaults() LoggerOption {
+func SetDefaults() Option {
 	return WithConfig(map[string]any{
 		"logType":      "",
 		"level":        "",
@@ -133,7 +132,8 @@ func SetDefaults() LoggerOption {
 	})
 }
 
-// NewLogger returns a new Logger with the given log type and level. If no opts are provided, it returns a default logger.
+// NewLogger returns a new Logger with the given log type and level.
+// If no opts are provided, it returns a default logger.
 //
 // The log type can be "text" or "json". The log level can be "debug", "info", "warn" or "error".
 //
@@ -144,12 +144,12 @@ func SetDefaults() LoggerOption {
 // Empty writer option equals to using os.Stdout. Custom writer might be set using WithWriter option.
 //
 // If the log type or level is unknown, it returns an error.
-func NewLogger(opts ...LoggerOption) (*Logger, error) {
-	cfg := &loggerConfig{}
+func NewLogger(opts ...Option) (*Logger, error) {
+	cfg := &Config{}
 	SetDefaults()(cfg)
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
-			return nil, fmt.Errorf("%w: %v", errors.ErrLoggerInitFailed, err)
+			return nil, fmt.Errorf("%w: %v", errors.ErrLoggerInitFailed, err.Error())
 		}
 	}
 
