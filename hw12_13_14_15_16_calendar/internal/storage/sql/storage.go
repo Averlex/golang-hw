@@ -127,9 +127,11 @@ func (s *Storage) Close(_ context.Context) {
 // is returned. If the function succeeds, the transaction is committed and
 // any error that occurs during the commit is returned after the rollback.
 func (s *Storage) execInTransaction(ctx context.Context, fn func(context.Context, Tx) error) error {
+	s.mu.RLock()
 	if s.db == nil {
 		return projectErrors.ErrStorageUninitialized
 	}
+	s.mu.RUnlock()
 
 	return s.withTimeout(ctx, func(localCtx context.Context) error {
 		tx, err := s.db.BeginTxx(localCtx, nil)
