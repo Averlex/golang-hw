@@ -1,14 +1,14 @@
-package logger
+package logger_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/require"                               //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"      //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/suite"                                      //nolint:depguard,nolintlint
 )
 
 type logEntry struct {
@@ -45,120 +45,108 @@ func decodeJSON(data []byte) (*logEntry, error) {
 	return &buffer, err
 }
 
-func TestLogger(t *testing.T) {
-	t.Run("log level", logLevelTest)
-	t.Run("log type", logTypeTest)
-	t.Run("time template", timeTemplateTest)
+type LoggerTestSuite struct {
+	suite.Suite
+	writer *customWriter
 }
 
-func TestLogger_default(t *testing.T) {
-	w := newCustomWriter()
+func (s *LoggerTestSuite) SetupTest() {
+	s.writer = newCustomWriter()
+}
 
-	t.Run("nil writer", func(t *testing.T) {
-		_, err := NewLogger("", "", "", nil)
-		require.ErrorIs(t, err, errors.ErrInvalidWriter, "unexpected error received: "+err.Error())
-	})
+func (s *LoggerTestSuite) TearDownTest() {
+	s.writer.CleanUp()
+}
 
-	t.Run("empty log type", func(t *testing.T) {
-		l, err := NewLogger("", "info", time.UnixDate, w) // JSON type expected.
-		require.NoError(t, err, "got error, expected nil")
+func TestLoggerSuite(t *testing.T) {
+	suite.Run(t, new(LoggerTestSuite))
+}
 
-		l.Info("test")
-		require.Len(t, w.arr, 1)
-
-		entry, err := decodeJSON(w.arr[0])
-		require.NoError(t, err, "got error, expected nil")
-
-		require.Equal(t, "test", entry.Msg)
-	})
-	w.CleanUp()
-
-	t.Run("empty log level", func(t *testing.T) {
-		l, err := NewLogger("json", "", time.UnixDate, w) // ERROR level expected.
-		require.NoError(t, err, "got error, expected nil")
-
-		l.Debug("debug")
-		l.Info("info")
-		l.Warn("warn")
-		l.Error("error")
-		require.Len(t, w.arr, 1)
-
-		entry, err := decodeJSON(w.arr[0])
-		require.NoError(t, err, "got error, expected nil")
-
-		require.Equal(t, "error", strings.ToLower(entry.Level))
-	})
-	w.CleanUp()
-
-	t.Run("empty time template", func(t *testing.T) {
-		l, err := NewLogger("json", "info", "", w) // "02.01.2006 15:04:05.000" time template expected.
-		require.NoError(t, err, "got error, expected nil")
+func (s *LoggerTestSuite) TestDefaults() {
+	s.Run("set defaults", func() {
+		s.writer.CleanUp()
+		l, err := logger.NewLogger(logger.SetDefaults(), logger.WithWriter(s.writer))
+		s.Require().NoError(err, "got error, expected nil")
 
 		l.Info("test")
-		require.Len(t, w.arr, 1)
+		l.Error("test again")
+		s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
-		entry, err := decodeJSON(w.arr[0])
-		require.NoError(t, err, "got error, expected nil")
+		entry, err := decodeJSON(s.writer.arr[0])
+		s.Require().NoError(err, "failed to unmarshal log entry")
+		s.Require().Equal("test again", entry.Msg, "unexpected log message")
+		s.Require().Equal("error", strings.ToLower(entry.Level), "unexpected log level")
 
 		logTime, err := time.ParseInLocation("02.01.2006 15:04:05.000", entry.Time, time.Local)
-		require.NoError(t, err, "got error, expected nil")
-		require.InDelta(t, time.Now().UnixMilli(), logTime.UnixMilli(), float64(500),
-			"measured time doesn't match the logged one") // Comparing with an error margin of 500ms.
+		s.Require().NoError(err, "got error, expected nil")
+		s.Require().InDelta(time.Now().UnixMilli(), logTime.UnixMilli(), float64(500),
+			"measured time doesn't match the logged one")
 	})
-	w.CleanUp()
+
+	s.Run("nil writer", func() {
+		s.writer.CleanUp()
+		_, err := logger.NewLogger(logger.WithWriter(nil))
+		s.Require().Error(err, "expected error for nil writer")
+		s.Require().ErrorIs(err, errors.ErrLoggerInitFailed)
+	})
 }
 
-func logLevelTest(t *testing.T) {
-	t.Helper()
-	w := newCustomWriter()
-
+func (s *LoggerTestSuite) TestLogLevel() {
 	callOrder := []string{"debug", "info", "warn", "error"}
 	testCases := []struct {
 		name         string
 		level        string
 		msg          string
 		expectedSize int
+		expectError  bool
 	}{
-		{"debug", "debug", "debug-test", 4},
-		{"info", "info", "info-test", 3},
-		{"warn", "warn", "warn-test", 2},
-		{"error", "error", "error-test", 1},
-		{"case insensitivity", "dEbUg", "dEbUg-test", 4},
-		{"unknown", "unknown", "unknown-test", 0},
+		{"debug", "debug", "debug-test", 4, false},
+		{"info", "info", "info-test", 3, false},
+		{"warn", "warn", "warn-test", 2, false},
+		{"error", "error", "error-test", 1, false},
+		{"case insensitivity", "dEbUg", "debug-test", 4, false},
+		{"empty level", "", "empty-test", 1, false},
+		{"unknown", "unknown", "unknown-test", 0, true},
 	}
 
 	for _, tC := range testCases {
-		t.Run(tC.name, func(t *testing.T) {
-			w.CleanUp()
-			l, err := NewLogger("json", tC.level, time.UnixDate, w)
-			if tC.name == "unknown" {
-				require.ErrorIs(t, err, errors.ErrInvalidLogLevel, "unexpected error received: "+err.Error())
+		s.Run(tC.name, func() {
+			s.writer.CleanUp()
+			opts := []logger.Option{
+				logger.WithConfig(map[string]any{
+					"level":        tC.level,
+					"timeTemplate": time.UnixDate,
+					"writer":       "stdout",
+				}),
+				logger.WithWriter(s.writer),
+			}
+			l, err := logger.NewLogger(opts...)
+			if tC.expectError {
+				s.Require().Error(err, "got nil, expected error")
+				s.Require().ErrorIs(err, errors.ErrCorruptedConfig)
 				return
 			}
-			require.NoError(t, err, "got error, expected nil")
+			s.Require().NoError(err, "got error, expected nil")
 
 			l.Debug(tC.msg)
 			l.Info(tC.msg)
 			l.Warn(tC.msg)
 			l.Error(tC.msg)
 
-			require.Len(t, w.arr, tC.expectedSize)
-			for i := 0; i < len(w.arr); i++ {
-				entry, err := decodeJSON(w.arr[i])
-				require.NoError(t, err, "got error, expected nil")
-
-				require.Equal(t, tC.msg, entry.Msg, "unexpected log message")
-				require.Equal(t, callOrder[len(callOrder)-tC.expectedSize:][i], strings.ToLower(entry.Level),
+			s.Require().Len(s.writer.arr, tC.expectedSize, "unexpected amount of logs received")
+			for i, data := range s.writer.arr {
+				var entry logEntry
+				err := json.Unmarshal(data, &entry)
+				s.Require().NoError(err, "failed to unmarshal log entry")
+				s.Require().Equal(tC.msg, entry.Msg, "unexpected log message")
+				s.Require().Equal(callOrder[len(callOrder)-tC.expectedSize:][i], strings.ToLower(entry.Level),
 					"unexpected log level")
 			}
 		})
 	}
 }
 
-func logTypeTest(t *testing.T) {
-	t.Helper()
-	w := newCustomWriter()
-
+func (s *LoggerTestSuite) TestLogType() {
 	testCases := []struct {
 		name                   string
 		logType                string
@@ -166,38 +154,46 @@ func logTypeTest(t *testing.T) {
 		expectConstructorError bool
 		expectDecodingError    bool
 	}{
-		{"text", "text", "text-test", false, true},
 		{"json", "json", "json-test", false, false},
+		{"text", "text", "text-test", false, true},
+		{"empty log type", "", "empty-test", false, false},
 		{"unknown", "unknown", "unknown-test", true, false},
 	}
 
 	for _, tC := range testCases {
-		t.Run(tC.name, func(t *testing.T) {
-			w.CleanUp()
-			l, err := NewLogger(tC.logType, "info", time.UnixDate, w)
+		s.Run(tC.name, func() {
+			s.writer.CleanUp()
+			opts := []logger.Option{
+				logger.WithConfig(map[string]any{
+					"logType":      tC.logType,
+					"level":        "info",
+					"timeTemplate": time.UnixDate,
+					"writer":       "stdout",
+				}),
+				logger.WithWriter(s.writer),
+			}
+			l, err := logger.NewLogger(opts...)
 			if tC.expectConstructorError {
-				require.ErrorIs(t, err, errors.ErrInvalidLogType, "got nil, expected error")
+				s.Require().Error(err, "got nil, expected error")
+				s.Require().ErrorIs(err, errors.ErrCorruptedConfig)
 				return
 			}
-			require.NoError(t, err, "got error, expected nil")
+			s.Require().NoError(err, "got error, expected nil")
 
 			l.Info(tC.msg)
+			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
-			require.Len(t, w.arr, 1)
-			_, err = decodeJSON(w.arr[0])
+			_, err = decodeJSON(s.writer.arr[0])
 			if tC.expectDecodingError {
-				require.Error(t, err, "got nil, expected error")
+				s.Require().Error(err, "got nil, expected error")
 				return
 			}
-			require.NoError(t, err, "got error, expected nil")
+			s.Require().NoError(err, "got error, expected nil")
 		})
 	}
 }
 
-func timeTemplateTest(t *testing.T) {
-	t.Helper()
-	w := newCustomWriter()
-
+func (s *LoggerTestSuite) TestTimeTemplate() {
 	testCases := []struct {
 		name        string
 		template    string
@@ -230,42 +226,45 @@ func timeTemplateTest(t *testing.T) {
 	}
 
 	for _, tC := range testCases {
-		t.Run(tC.name, func(t *testing.T) {
-			w.CleanUp()
-			if tC.name == "invalid format" {
-				fmt.Println()
+		s.Run(tC.name, func() {
+			s.writer.CleanUp()
+			opts := []logger.Option{
+				logger.WithConfig(map[string]any{
+					"level":        "info",
+					"logType":      "json",
+					"timeTemplate": tC.template,
+					"writer":       "stdout",
+				}),
+				logger.WithWriter(s.writer),
 			}
-			l, err := NewLogger("json", "info", tC.template, w)
-
+			l, err := logger.NewLogger(opts...)
 			if tC.expectError {
-				require.Error(t, err, "got nil, expected error")
+				s.Require().Error(err, "got nil, expected error")
+				s.Require().ErrorIs(err, errors.ErrCorruptedConfig)
 				return
 			}
-			require.NoError(t, err, "unexpected error received")
+			s.Require().NoError(err, "unexpected error received")
 
 			testMsg := "time test"
 			l.Info(testMsg)
-			require.Len(t, w.arr, 1, "unexpected amount of logs received")
+			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
 			var entry logEntry
-			err = json.Unmarshal(w.arr[0], &entry)
-			require.NoError(t, err, "failed to unmarshal log entry")
-
-			require.Equal(t, testMsg, entry.Msg, "unexpected log message")
+			err = json.Unmarshal(s.writer.arr[0], &entry)
+			s.Require().NoError(err, "failed to unmarshal log entry")
+			s.Require().Equal(testMsg, entry.Msg, "unexpected log message")
 
 			_, err = time.Parse(tC.expectedFmt, entry.Time)
-			require.NoError(t, err, "unexpected time format")
+			s.Require().NoError(err, "unexpected time format")
 		})
 	}
 }
 
-func TestLogger_additionalFields(t *testing.T) {
-	w := newCustomWriter()
-
+func (s *LoggerTestSuite) TestAdditionalFields() {
 	testCases := []struct {
 		name     string
 		msg      string
-		fields   []any // As a key-value pairs.
+		fields   []any
 		expected map[string]any
 	}{
 		{
@@ -300,66 +299,169 @@ func TestLogger_additionalFields(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "no fields",
+			msg:      "no fields",
+			fields:   []any{},
+			expected: map[string]any{"msg": "no fields"},
+		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			w.CleanUp()
-			l, err := NewLogger("json", "debug", time.UnixDate, w)
-			require.NoError(t, err)
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			s.writer.CleanUp()
+			l, err := logger.NewLogger(
+				logger.WithConfig(map[string]any{
+					"level":        "debug",
+					"timeTemplate": time.UnixDate,
+					"writer":       "stdout",
+				}),
+				logger.WithWriter(s.writer),
+			)
+			s.Require().NoError(err, "got error, expected nil")
 
-			l.Info(tc.msg, tc.fields...)
+			l.Info(tC.msg, tC.fields...)
+			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
-			require.Len(t, w.arr, 1, "unexpected amount of logs received")
-
-			// JSON decoding.
 			var logData map[string]any
-			err = json.Unmarshal(w.arr[0], &logData)
-			require.NoError(t, err, "got error, expected nil")
+			err = json.Unmarshal(s.writer.arr[0], &logData)
+			s.Require().NoError(err, "failed to unmarshal log entry")
 
-			// Checking necessary fields.
-			require.Equal(t, "INFO", logData["level"])
-			require.Equal(t, tc.msg, logData["msg"])
+			s.Require().Equal("INFO", logData["level"], "unexpected log level")
+			s.Require().Equal(tC.msg, logData["msg"], "unexpected log message")
 			_, err = time.Parse(time.UnixDate, logData["time"].(string))
-			require.NoError(t, err, "got error, expected nil")
+			s.Require().NoError(err, "unexpected time format")
 
-			// Checking additional fields.
-			for key, expectedValue := range tc.expected {
+			for key, expectedValue := range tC.expected {
 				if key == "msg" {
 					continue
 				}
 				actualValue := logData[key]
-				require.Equal(t, expectedValue, actualValue,
-					"invalid value for %s", key)
+				s.Require().Equal(expectedValue, actualValue, "invalid value for %s", key)
 			}
 		})
 	}
 }
 
-func TestLogger_With(t *testing.T) {
-	w := newCustomWriter()
-	l, err := NewLogger("json", "debug", time.UnixDate, w)
-	require.NoError(t, err)
-
-	loggerWithFields := l.With("user_id", 123, "service", "auth")
-
-	testMsg := "operation completed"
-	loggerWithFields.Info(testMsg)
-
-	require.Len(t, w.arr, 1)
-
-	var logData struct {
-		Level   string `json:"level"`
-		Msg     string `json:"msg"`
-		UserID  int    `json:"user_id"` //nolint:tagliatelle
-		Service string `json:"service"`
+func (s *LoggerTestSuite) TestWith() {
+	testCases := []struct {
+		name     string
+		fields   []any
+		msg      string
+		expected map[string]any
+	}{
+		{
+			name:   "single field",
+			fields: []any{"user_id", 123},
+			msg:    "operation completed",
+			expected: map[string]any{
+				"user_id": float64(123),
+				"msg":     "operation completed",
+			},
+		},
+		{
+			name:   "multiple fields",
+			fields: []any{"user_id", 123, "service", "auth"},
+			msg:    "operation completed",
+			expected: map[string]any{
+				"user_id": float64(123),
+				"service": "auth",
+				"msg":     "operation completed",
+			},
+		},
+		{
+			name:   "chained with",
+			fields: []any{"user_id", 123},
+			msg:    "chained operation",
+			expected: map[string]any{
+				"user_id": float64(123),
+				"service": "auth",
+				"msg":     "chained operation",
+			},
+		},
+		{
+			name:     "empty fields",
+			fields:   []any{},
+			msg:      "no fields",
+			expected: map[string]any{"msg": "no fields"},
+		},
 	}
 
-	err = json.Unmarshal(w.arr[0], &logData)
-	require.NoError(t, err)
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			s.writer.CleanUp()
+			l, err := logger.NewLogger(
+				logger.WithConfig(map[string]any{
+					"level":        "debug",
+					"timeTemplate": time.UnixDate,
+					"writer":       "stdout",
+				}),
+				logger.WithWriter(s.writer),
+			)
+			s.Require().NoError(err, "got error, expected nil")
 
-	require.Equal(t, "INFO", logData.Level)
-	require.Equal(t, testMsg, logData.Msg)
-	require.Equal(t, 123, logData.UserID)
-	require.Equal(t, "auth", logData.Service)
+			loggerWithFields := l
+			if tC.name == "chained with" {
+				loggerWithFields = l.With("service", "auth").With(tC.fields...)
+			} else {
+				loggerWithFields = l.With(tC.fields...)
+			}
+
+			loggerWithFields.Info(tC.msg)
+			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
+
+			var logData map[string]any
+			err = json.Unmarshal(s.writer.arr[0], &logData)
+			s.Require().NoError(err, "failed to unmarshal log entry")
+
+			s.Require().Equal("INFO", logData["level"], "unexpected log level")
+			s.Require().Equal(tC.msg, logData["msg"], "unexpected log message")
+			_, err = time.Parse(time.UnixDate, logData["time"].(string))
+			s.Require().NoError(err, "unexpected time format")
+
+			for key, expectedValue := range tC.expected {
+				if key == "msg" {
+					continue
+				}
+				actualValue := logData[key]
+				s.Require().Equal(expectedValue, actualValue, "invalid value for %s", key)
+			}
+		})
+	}
+}
+
+func (s *LoggerTestSuite) TestInvalidConfigTypes() {
+	testCases := []struct {
+		name          string
+		config        map[string]any
+		expectedError error
+	}{
+		{
+			name:          "invalid level type",
+			config:        map[string]any{"level": 123, "timeTemplate": time.UnixDate, "writer": "stdout"},
+			expectedError: errors.ErrCorruptedConfig,
+		},
+		{
+			name:          "invalid log type",
+			config:        map[string]any{"logType": 123, "level": "info", "timeTemplate": time.UnixDate, "writer": "stdout"},
+			expectedError: errors.ErrCorruptedConfig,
+		},
+		{
+			name:          "invalid writer type",
+			config:        map[string]any{"writer": 123, "level": "info", "timeTemplate": time.UnixDate},
+			expectedError: errors.ErrCorruptedConfig,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			s.writer.CleanUp()
+			_, err := logger.NewLogger(
+				logger.WithConfig(tC.config),
+				logger.WithWriter(s.writer),
+			)
+			s.Require().Error(err, "got nil, expected error")
+			s.Require().ErrorIs(err, tC.expectedError)
+		})
+	}
 }

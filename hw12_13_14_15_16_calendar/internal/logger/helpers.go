@@ -113,22 +113,12 @@ func validateTypes(args map[string]any, optionalFields map[string]any) (invalidT
 			continue
 		}
 
-		expectedReflect := reflect.TypeOf(expectedVal)
-		valueReflect := reflect.TypeOf(val)
-
 		// Default type switch will end up with false positive results. E.g., 123.(string) -> ok.
 		// Using soft type check for string types, as, i.e., timeFormat in time package is untyped string.
-		//nolint:exhaustive
-		switch expectedReflect.Kind() {
-		case reflect.String:
-			if expectedReflect.Kind() != valueReflect.Kind() {
-				invalidTypes = append(invalidTypes, field)
-			}
-		default:
-			// Hard check for other types.
-			if expectedReflect != valueReflect {
-				invalidTypes = append(invalidTypes, field)
-			}
+		expectedKind := reflect.TypeOf(expectedVal).Kind()
+		actualKind := reflect.TypeOf(val).Kind()
+		if expectedKind != actualKind {
+			invalidTypes = append(invalidTypes, field)
 		}
 	}
 

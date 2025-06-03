@@ -27,15 +27,6 @@ type Config struct {
 	level        slog.Level
 }
 
-func (c *Config) getConfig() map[string]any {
-	return map[string]any{
-		"logType":      c.handler,
-		"level":        c.level,
-		"timeTemplate": c.timeTemplate,
-		"writer":       c.writer,
-	}
-}
-
 // WithConfig allows to apply custom configuration.
 func WithConfig(cfg map[string]any) Option {
 	return func(c *Config) error {
@@ -47,7 +38,6 @@ func WithConfig(cfg map[string]any) Option {
 		}
 
 		ve := &validationError{}
-
 		ve.invalidTypes = validateTypes(cfg, optionalFields)
 
 		validateLogLevel(cfg, ve)
@@ -73,9 +63,13 @@ func WithConfig(cfg map[string]any) Option {
 			}
 		}
 
+		// Default time format is defaultTimeTemplate.
 		if timeTmpl, ok := cfg["timeTemplate"]; ok {
 			c.timeTemplate = timeTmpl.(string)
 		} else {
+			c.timeTemplate = defaultTimeTemplate
+		}
+		if c.timeTemplate == "" {
 			c.timeTemplate = defaultTimeTemplate
 		}
 
@@ -92,6 +86,7 @@ func WithConfig(cfg map[string]any) Option {
 			},
 		}
 
+		// Default writer is os.Stdout.
 		if writer, ok := cfg["writer"]; ok {
 			switch strings.ToLower(writer.(string)) {
 			case "stdout", "":
@@ -111,6 +106,7 @@ func WithConfig(cfg map[string]any) Option {
 				c.handler = slog.NewTextHandler(c.writer, c.handlerOpts)
 			}
 		} else {
+			// Default log type is JSON.
 			c.handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
 		}
 
@@ -127,7 +123,21 @@ func WithWriter(w io.Writer) Option {
 
 		c.writer = w
 
-		return WithConfig(c.getConfig())(c)
+		var handler slog.Handler
+		if c.handler != nil {
+			if _, ok := c.handler.(*slog.JSONHandler); ok {
+				handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
+			} else {
+				handler = slog.NewTextHandler(c.writer, c.handlerOpts)
+			}
+		} else {
+			handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
+		}
+
+		c.handler = nil
+		c.handler = handler
+
+		return nil
 	}
 }
 
@@ -155,10 +165,10 @@ func SetDefaults() Option {
 // If the log type or level is unknown, it returns an error.
 func NewLogger(opts ...Option) (*Logger, error) {
 	cfg := &Config{}
-	SetDefaults()(cfg)
+	_ = SetDefaults()(cfg)
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
-			return nil, fmt.Errorf("%w: %v", errors.ErrLoggerInitFailed, err.Error())
+			return nil, fmt.Errorf("%w: %w", errors.ErrLoggerInitFailed, err)
 		}
 	}
 
