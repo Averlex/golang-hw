@@ -24,7 +24,16 @@ type Config struct {
 	handler      slog.Handler
 	writer       io.Writer
 	timeTemplate string
-	logLevel     slog.Level
+	level        slog.Level
+}
+
+func (c *Config) getConfig() map[string]any {
+	return map[string]any{
+		"logType":      c.handler,
+		"level":        c.level,
+		"timeTemplate": c.timeTemplate,
+		"writer":       c.writer,
+	}
 }
 
 // WithConfig allows to apply custom configuration.
@@ -54,13 +63,13 @@ func WithConfig(cfg map[string]any) Option {
 			levelStr := strings.ToLower(level.(string))
 			switch levelStr {
 			case "debug":
-				c.logLevel = slog.LevelDebug
+				c.level = slog.LevelDebug
 			case "info":
-				c.logLevel = slog.LevelInfo
+				c.level = slog.LevelInfo
 			case "warn":
-				c.logLevel = slog.LevelWarn
+				c.level = slog.LevelWarn
 			case "error", "":
-				c.logLevel = slog.LevelError
+				c.level = slog.LevelError
 			}
 		}
 
@@ -72,7 +81,7 @@ func WithConfig(cfg map[string]any) Option {
 
 		// Building arg for handler constructor.
 		c.handlerOpts = &slog.HandlerOptions{
-			Level: c.logLevel,
+			Level: c.level,
 			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				if a.Key == slog.TimeKey {
 					if t, ok := a.Value.Any().(time.Time); ok {
@@ -118,7 +127,7 @@ func WithWriter(w io.Writer) Option {
 
 		c.writer = w
 
-		return nil
+		return WithConfig(c.getConfig())(c)
 	}
 }
 
