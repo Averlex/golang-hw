@@ -27,19 +27,19 @@ type ServerConf struct {
 
 // StorageConf is a config for storage containing storage type.
 type StorageConf struct {
-	Type    string        `mapstructure:"type"`
-	Timeout time.Duration `mapstructure:"timeout"` // In seconds. 0 means timeout will be disabled.
-	SQL     SQLConf       `mapstructure:"sql"`
-	Memory  MemoryConf    `mapstructure:"memory"`
+	Type   string     `mapstructure:"type"`
+	SQL    SQLConf    `mapstructure:"sql"`
+	Memory MemoryConf `mapstructure:"memory"`
 }
 
 // SQLConf represents a database configuration used to build DSN string.
 type SQLConf struct {
-	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBname   string `mapstructure:"dbname"`
+	Host     string        `mapstructure:"host"`
+	Port     string        `mapstructure:"port"`
+	User     string        `mapstructure:"user"`
+	Password string        `mapstructure:"password"`
+	DBname   string        `mapstructure:"dbname"`
+	Timeout  time.Duration `mapstructure:"timeout"` // 0 means timeout will be disabled.
 }
 
 //nolint:revive,nolintlint
@@ -65,11 +65,10 @@ func (s *StorageConf) ToMap() map[string]any {
 			"user":     s.SQL.User,
 			"password": s.SQL.Password,
 			"dbname":   s.SQL.DBname,
-			"timeout":  s.Timeout,
+			"timeout":  s.SQL.Timeout,
 		},
 		"memory": map[string]any{
-			"size":    s.Memory.Size,
-			"timeout": s.Timeout,
+			"size": s.Memory.Size,
 		},
 	}
 }

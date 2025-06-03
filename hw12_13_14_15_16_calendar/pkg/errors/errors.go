@@ -42,3 +42,11 @@ var (
 	// ErrGenerateID is returned when the event ID generation fails.
 	ErrGenerateID = errors.New("failed to generate new event id")
 )
+
+// Setup errors.
+var (
+	// ErrCorruptedConfig is returned when config data is invalid or missing.
+	ErrCorruptedConfig = errors.New("config data is invalid")
+	// ErrStorageInitFailed is returned when the storage initialization fails.
+	ErrStorageInitFailed = errors.New("storage initialization failed")
+)
