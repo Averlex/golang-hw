@@ -58,7 +58,7 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 		return nil, fmt.Errorf(method, err)
 	}
 
-	return event, nil
+	return types.DeepCopyEvent(event), nil
 }
 
 // UpdateEvent updates the event with the given ID in the in-memory storage.
@@ -129,7 +129,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 		return nil, fmt.Errorf(method, err)
 	}
 
-	return tmpEvent, nil
+	return types.DeepCopyEvent(tmpEvent), nil
 }
 
 // DeleteEvent deletes the event with the given ID from the in-memory storage.

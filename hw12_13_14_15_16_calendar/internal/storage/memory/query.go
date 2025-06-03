@@ -31,7 +31,7 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 		return nil, fmt.Errorf(method, err)
 	}
 
-	return event, nil
+	return types.DeepCopyEvent(event), nil
 }
 
 // GetAllUserEvents retrieves all events for the given user from the in-memory storage.
@@ -55,7 +55,7 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 		return nil, fmt.Errorf(method, err)
 	}
 
-	return events, nil
+	return deepCopySliceEvents(events), nil
 }
 
 // GetEventsForPeriod retrieves events within the specified time period from the in-memory storage.
@@ -107,7 +107,7 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context,
 		return nil, fmt.Errorf(method, err)
 	}
 
-	return events, nil
+	return deepCopySliceEvents(events), nil
 }
 
 // GetEventsForDay retrieves events for the specified day from the in-memory storage.

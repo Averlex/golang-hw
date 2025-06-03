@@ -118,3 +118,32 @@ func UpdateEvent(id uuid.UUID, data *EventData) (*Event, error) {
 		EventData: *data,
 	}, nil
 }
+
+// DeepCopyEvent creates a deep copy of the given Event.
+func DeepCopyEvent(event *Event) *Event {
+	if event == nil {
+		return nil
+	}
+
+	description := ""
+	remindIn := time.Duration(0)
+
+	if event.Description != nil {
+		description = *event.Description
+	}
+	if event.RemindIn != nil {
+		remindIn = *event.RemindIn
+	}
+
+	return &Event{
+		ID: event.ID,
+		EventData: EventData{
+			Title:       event.Title,
+			Datetime:    event.Datetime,
+			Duration:    event.Duration,
+			Description: &description,
+			UserID:      event.UserID,
+			RemindIn:    &remindIn,
+		},
+	}
+}

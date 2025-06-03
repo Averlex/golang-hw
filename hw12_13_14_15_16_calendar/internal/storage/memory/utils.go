@@ -165,3 +165,12 @@ func (s *Storage) withLockAndChecks(ctx context.Context,
 
 	return nil
 }
+
+// deepCopySliceEvents creates a deep copy of the slice of events, element wise.
+func deepCopySliceEvents(events []*types.Event) []*types.Event {
+	res := make([]*types.Event, len(events))
+	for i, event := range events {
+		res[i] = types.DeepCopyEvent(event)
+	}
+	return res
+}
