@@ -34,7 +34,7 @@ var (
 	errUnknownErr = errors.New("unknown error")     // Stub error for any unscecified error cases.
 )
 
-type StorageSuite struct {
+type SQLSuite struct {
 	suite.Suite
 	dbMock  *mocks.DB
 	txMock  *mocks.Tx
@@ -42,7 +42,7 @@ type StorageSuite struct {
 	ctx     context.Context
 }
 
-func (s *StorageSuite) SetupTest() {
+func (s *SQLSuite) SetupTest() {
 	s.dbMock = mocks.NewDB(s.T())
 	s.txMock = mocks.NewTx(s.T())
 	var err error
@@ -52,13 +52,13 @@ func (s *StorageSuite) SetupTest() {
 	s.ctx = context.Background()
 }
 
-func (s *StorageSuite) TearDownTest() {
+func (s *SQLSuite) TearDownTest() {
 	s.dbMock.AssertExpectations(s.T())
 	s.txMock.AssertExpectations(s.T())
 }
 
-func TestStorageSuite(t *testing.T) {
-	suite.Run(t, new(StorageSuite))
+func TestSQLStorage(t *testing.T) {
+	suite.Run(t, new(SQLSuite))
 }
 
 // ResultMock is a mock sql.Result for RowsAffected.
@@ -75,7 +75,7 @@ func (r ResultMock) RowsAffected() (int64, error) {
 }
 
 // mockEventExists is a helper function to mock the retrieval of an existing event.
-func (s *StorageSuite) mockEventExists(event *types.Event) {
+func (s *SQLSuite) mockEventExists(event *types.Event) {
 	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			dest := args.Get(1).(*types.Event)
@@ -84,11 +84,11 @@ func (s *StorageSuite) mockEventExists(event *types.Event) {
 }
 
 // mockEventNotExists is a helper function to mock the case when an event does not exist.
-func (s *StorageSuite) mockEventNotExists() {
+func (s *SQLSuite) mockEventNotExists() {
 	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errNotExists).Once()
 }
 
-func (s *StorageSuite) mockEventOverlaps(isOverlaps bool) {
+func (s *SQLSuite) mockEventOverlaps(isOverlaps bool) {
 	if !isOverlaps {
 		s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
 			mock.Anything).Return(nil).Once()
@@ -102,7 +102,7 @@ func (s *StorageSuite) mockEventOverlaps(isOverlaps bool) {
 	}).Return(nil).Once()
 }
 
-func (s *StorageSuite) mockGetEvents(events *[]*types.Event, isFound bool) {
+func (s *SQLSuite) mockGetEvents(events *[]*types.Event, isFound bool) {
 	if !isFound {
 		s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Run(func(args mock.Arguments) {
@@ -119,7 +119,7 @@ func (s *StorageSuite) mockGetEvents(events *[]*types.Event, isFound bool) {
 }
 
 // mockBeginTx is a helper function to mock the beginning of a transaction.
-func (s *StorageSuite) mockBeginTx(success bool) {
+func (s *SQLSuite) mockBeginTx(success bool) {
 	if !success {
 		s.dbMock.On("BeginTxx", mock.Anything, mock.Anything).Return(s.txMock, errUnknownErr).Once()
 		return
@@ -128,7 +128,7 @@ func (s *StorageSuite) mockBeginTx(success bool) {
 }
 
 // mockCommit is a helper function to mock the commit of a transaction.
-func (s *StorageSuite) mockCommit(success bool) {
+func (s *SQLSuite) mockCommit(success bool) {
 	if !success {
 		s.txMock.On("Commit").Return(errUnknownErr).Once()
 		return
@@ -137,7 +137,7 @@ func (s *StorageSuite) mockCommit(success bool) {
 }
 
 // mockRollback is a helper function to mock the rollback of a transaction.
-func (s *StorageSuite) mockRollback(success bool) {
+func (s *SQLSuite) mockRollback(success bool) {
 	if !success {
 		s.txMock.On("Rollback").Return(errUnknownErr).Once()
 		return
@@ -147,18 +147,18 @@ func (s *StorageSuite) mockRollback(success bool) {
 
 // newTestEvent creates a new test event with the given title and userID.
 // Method uses the common test data for duration, description, and remindIn.
-func (s *StorageSuite) newTestEvent(title, userID string) *types.Event {
+func (s *SQLSuite) newTestEvent(title, userID string) *types.Event {
 	event, _ := types.NewEvent(title, time.Now(), duration, description, userID, remindIn)
 	return event
 }
 
 // newTestEventData creates a new test event data with the given title and userID.
-func (s *StorageSuite) newTestEventData(title, userID string) *types.EventData {
+func (s *SQLSuite) newTestEventData(title, userID string) *types.EventData {
 	data, _ := types.NewEventData(title, time.Now(), duration, description, userID, remindIn)
 	return data
 }
 
-func (s *StorageSuite) TestNewStorage() {
+func (s *SQLSuite) TestNewStorage() {
 	testCases := []struct {
 		name     string
 		driver   string
@@ -196,7 +196,7 @@ func (s *StorageSuite) TestNewStorage() {
 	}
 }
 
-func (s *StorageSuite) TestConnect() {
+func (s *SQLSuite) TestConnect() {
 	testCases := []struct {
 		name     string
 		dbMockFn func()
@@ -244,14 +244,14 @@ func (s *StorageSuite) TestConnect() {
 	}
 }
 
-func (s *StorageSuite) TestClose() {
+func (s *SQLSuite) TestClose() {
 	s.Run("close database", func() {
 		s.dbMock.On("Close").Return().Once()
 		s.storage.Close(s.ctx)
 	})
 }
 
-func (s *StorageSuite) TestCreateEvent() {
+func (s *SQLSuite) TestCreateEvent() {
 	event := s.newTestEvent("Create event", "user1")
 
 	testCases := []struct {
@@ -383,7 +383,7 @@ func (s *StorageSuite) TestCreateEvent() {
 	}
 }
 
-func (s *StorageSuite) TestUpdateEvent() {
+func (s *SQLSuite) TestUpdateEvent() {
 	event := s.newTestEvent("Update event", "user1")
 	dataToUpdate := s.newTestEventData("Update event", "user1")
 	eventWrongUser := s.newTestEvent("Update event", "user2")
@@ -533,7 +533,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 	}
 }
 
-func (s *StorageSuite) TestDeleteEvent() {
+func (s *SQLSuite) TestDeleteEvent() {
 	event := s.newTestEvent("Delete event", "user1")
 
 	testCases := []struct {
@@ -630,7 +630,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 	}
 }
 
-func (s *StorageSuite) TestGetEvent() {
+func (s *SQLSuite) TestGetEvent() {
 	event := s.newTestEvent("Get event", "user1")
 
 	testCases := []struct {
@@ -697,7 +697,7 @@ func (s *StorageSuite) TestGetEvent() {
 	}
 }
 
-func (s *StorageSuite) TestGetAllUserEvents() {
+func (s *SQLSuite) TestGetAllUserEvents() {
 	userID := "user1"
 	events := []*types.Event{
 		s.newTestEvent("Event 1", userID),
@@ -767,7 +767,7 @@ func (s *StorageSuite) TestGetAllUserEvents() {
 	}
 }
 
-func (s *StorageSuite) TestGetEventsForPeriod() {
+func (s *SQLSuite) TestGetEventsForPeriod() {
 	userID := "user1"
 	start := time.Now()
 	end := start.Add(24 * time.Hour)

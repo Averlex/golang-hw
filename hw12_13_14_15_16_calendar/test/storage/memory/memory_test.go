@@ -95,7 +95,7 @@ func TestClose(t *testing.T) {
 	}
 }
 
-type StorageSuite struct {
+type MemorySuite struct {
 	suite.Suite
 	defaultStorageSize int
 	eventTitle         string
@@ -105,7 +105,7 @@ type StorageSuite struct {
 	userID, altUserID  string
 }
 
-func (s *StorageSuite) SetupSuite() {
+func (s *MemorySuite) SetupSuite() {
 	s.defaultStorageSize = 1000
 	s.eventTitle = "Test Event"
 	s.eventDuration = time.Hour
@@ -115,11 +115,11 @@ func (s *StorageSuite) SetupSuite() {
 	s.altUserID = "user2"
 }
 
-func TestStorage(t *testing.T) {
-	suite.Run(t, new(StorageSuite))
+func TestMemoryStorage(t *testing.T) {
+	suite.Run(t, new(MemorySuite))
 }
 
-func (s *StorageSuite) createValidEvent() *types.Event {
+func (s *MemorySuite) createValidEvent() *types.Event {
 	event, err := types.NewEvent(
 		s.eventTitle,
 		time.Now(),
@@ -132,7 +132,7 @@ func (s *StorageSuite) createValidEvent() *types.Event {
 	return event
 }
 
-func (s *StorageSuite) createValidEventData() *types.EventData {
+func (s *MemorySuite) createValidEventData() *types.EventData {
 	data, err := types.NewEventData(
 		s.eventTitle,
 		time.Now(),
@@ -146,7 +146,7 @@ func (s *StorageSuite) createValidEventData() *types.EventData {
 }
 
 //nolint:gocognit
-func (s *StorageSuite) TestCreateEvent() {
+func (s *MemorySuite) TestCreateEvent() {
 	repeatedID := uuid.New()
 	testCases := []struct {
 		name          string
@@ -303,7 +303,7 @@ func (s *StorageSuite) TestCreateEvent() {
 }
 
 //nolint:gocognit,funlen
-func (s *StorageSuite) TestUpdateEvent() {
+func (s *MemorySuite) TestUpdateEvent() {
 	existingEventID := uuid.New()
 	testCases := []struct {
 		name          string
@@ -485,7 +485,7 @@ func (s *StorageSuite) TestUpdateEvent() {
 	}
 }
 
-func (s *StorageSuite) TestDeleteEvent() {
+func (s *MemorySuite) TestDeleteEvent() {
 	existingEventID := uuid.New()
 	testCases := []struct {
 		name          string
@@ -611,7 +611,7 @@ func (s *StorageSuite) TestDeleteEvent() {
 	}
 }
 
-func (s *StorageSuite) TestSequentialOperations() {
+func (s *MemorySuite) TestSequentialOperations() {
 	s.Run("sequential create-update-delete", func() {
 		storage, err := memory.NewStorage(s.defaultStorageSize)
 		s.Require().NoError(err, "expected nil, got error on NewStorage")
@@ -648,7 +648,7 @@ func (s *StorageSuite) TestSequentialOperations() {
 	})
 }
 
-func (s *StorageSuite) TestStorageSizeLimits() {
+func (s *MemorySuite) TestStorageSizeLimits() {
 	testCases := []struct {
 		name          string
 		storageSize   int
@@ -713,7 +713,7 @@ func (s *StorageSuite) TestStorageSizeLimits() {
 	}
 }
 
-func (s *StorageSuite) TestGetEvent() {
+func (s *MemorySuite) TestGetEvent() {
 	existingEventID := uuid.New()
 	testCases := []struct {
 		name          string
@@ -831,7 +831,7 @@ func (s *StorageSuite) TestGetEvent() {
 	}
 }
 
-func (s *StorageSuite) TestGetAllUserEvents() {
+func (s *MemorySuite) TestGetAllUserEvents() {
 	userID := s.userID
 	nonExistentUserID := s.altUserID
 	existingEventID := uuid.New()
@@ -957,7 +957,7 @@ func (s *StorageSuite) TestGetAllUserEvents() {
 	}
 }
 
-func (s *StorageSuite) TestGetEventsForPeriod() {
+func (s *MemorySuite) TestGetEventsForPeriod() {
 	startDate := time.Now().AddDate(0, 0, 1)
 	endDate := startDate.AddDate(0, 0, 2)
 	userID := s.userID
@@ -1083,7 +1083,7 @@ func (s *StorageSuite) TestGetEventsForPeriod() {
 	}
 }
 
-func (s *StorageSuite) TestGetEventsForPeriod_VariousSizes() {
+func (s *MemorySuite) TestGetEventsForPeriod_VariousSizes() {
 	startDate := time.Now().AddDate(0, 0, 1)
 	endDate := startDate.AddDate(0, 0, 10)
 	userID := s.userID
