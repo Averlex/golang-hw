@@ -49,16 +49,6 @@ var (
 	ErrCorruptedConfig = errors.New("config data is invalid")
 	// ErrStorageInitFailed is returned when the storage initialization fails.
 	ErrStorageInitFailed = errors.New("storage initialization failed")
-)
-
-// Logger errors.
-var (
-	// ErrInvalidLogType  is an error that is returned when the log type is invalid.
-	ErrInvalidLogType = errors.New("invalid log type")
-	// ErrInvalidLogLevel is an error that is returned when the log level is invalid.
-	ErrInvalidLogLevel = errors.New("invalid log level")
-	// ErrInvalidWriter is an error that is returned when the writer is not set.
-	ErrInvalidWriter = errors.New("invalid writer set")
-	// ErrInvalidTimeTemplate is an error that is returned when the time template cannot be parsed by time package.
-	ErrInvalidTimeTemplate = errors.New("invalid time template")
+	// ErrLoggerInitFailed is returned when the logger initialization fails.
+	ErrLoggerInitFailed = errors.New("logger initialization failed")
 )

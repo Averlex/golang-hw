@@ -13,14 +13,127 @@ import (
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 )
 
-// Logger is a wrapper structure for an underlying logger.
-type Logger struct {
-	l *slog.Logger
-}
-
 const defaultTimeTemplate = "02.01.2006 15:04:05.000"
 
-// NewLogger returns a new Logger with the given log type and level.
+// LoggerOption defines a function that allows to configure underlying logger on construction.
+type LoggerOption func(c *loggerConfig) error
+
+// loggerConfig defines an inner logger configuration.
+type loggerConfig struct {
+	handlerOpts  *slog.HandlerOptions
+	handler      slog.Handler
+	writer       io.Writer
+	logType      string
+	timeTemplate string
+	logLevel     slog.Level
+}
+
+// WithConfig allows to apply custom configuration.
+func WithConfig(cfg map[string]any) LoggerOption {
+	return func(c *loggerConfig) error {
+		optionalFields := map[string]any{
+			"logType":      "",
+			"level":        "",
+			"timeTemplate": "",
+			"writer":       "",
+		}
+
+		ve := &validationError{}
+
+		ve.invalidTypes = validateTypes(cfg, optionalFields)
+
+		validateLogLevel(cfg, ve)
+		validateTimeFormat(cfg, ve)
+		validateWriter(cfg, ve)
+		validateLogType(cfg, ve)
+
+		if ve.HasErrors() {
+			return fmt.Errorf("%w: %s", errors.ErrCorruptedConfig, ve)
+		}
+
+		if level, ok := cfg["level"]; ok {
+			levelStr := strings.ToLower(level.(string))
+			switch levelStr {
+			case "debug":
+				c.logLevel = slog.LevelDebug
+			case "info":
+				c.logLevel = slog.LevelInfo
+			case "warn":
+				c.logLevel = slog.LevelWarn
+			case "error", "":
+				c.logLevel = slog.LevelError
+			}
+		}
+
+		if timeTmpl, ok := cfg["timeTemplate"]; ok {
+			c.timeTemplate = timeTmpl.(string)
+		} else {
+			c.timeTemplate = defaultTimeTemplate
+		}
+
+		// Building arg for handler constructor.
+		c.handlerOpts = &slog.HandlerOptions{
+			Level: c.logLevel,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.TimeKey {
+					if t, ok := a.Value.Any().(time.Time); ok {
+						a.Value = slog.StringValue(t.Format(c.timeTemplate))
+					}
+				}
+				return a
+			},
+		}
+
+		if writer, ok := cfg["writer"]; ok {
+			switch strings.ToLower(writer.(string)) {
+			case "stdout", "":
+				c.writer = os.Stdout
+			case "stderr":
+				c.writer = os.Stderr
+			}
+		} else {
+			c.writer = os.Stdout
+		}
+
+		if logType, ok := cfg["logType"]; ok {
+			switch strings.ToLower(logType.(string)) {
+			case "json", "":
+				c.handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
+			case "text":
+				c.handler = slog.NewTextHandler(c.writer, c.handlerOpts)
+			}
+		} else {
+			c.handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
+		}
+
+		return nil
+	}
+}
+
+// WithWriter allows to apply custom configuration.
+func WithWriter(w io.Writer) LoggerOption {
+	return func(c *loggerConfig) error {
+		if w == nil {
+			return fmt.Errorf("expected io.Writer, got nil")
+		}
+
+		c.writer = w
+
+		return nil
+	}
+}
+
+// SetDefaults is a wrapper over WithConfig, passing empty config.
+func SetDefaults() LoggerOption {
+	return WithConfig(map[string]any{
+		"logType":      "",
+		"level":        "",
+		"timeTemplate": "",
+		"writer":       "",
+	})
+}
+
+// NewLogger returns a new Logger with the given log type and level. If no opts are provided, it returns a default logger.
 //
 // The log type can be "text" or "json". The log level can be "debug", "info", "warn" or "error".
 //
@@ -28,100 +141,17 @@ const defaultTimeTemplate = "02.01.2006 15:04:05.000"
 //
 // Empty log level corresponds to "error", as well as empty log type corresponds to "json".
 // Empty time format is equal to the default value which is "02.01.2006 15:04:05.000".
+// Empty writer option equals to using os.Stdout. Custom writer might be set using WithWriter option.
 //
 // If the log type or level is unknown, it returns an error.
-func NewLogger(logType, level, timeTemplate string, w io.Writer) (*Logger, error) {
-	if w == nil {
-		return nil, errors.ErrInvalidWriter
-	}
-
-	logType = strings.ToLower(logType)
-	level = strings.ToLower(level)
-
-	var logHandler slog.Handler
-	var logLevel slog.Level
-
-	// Log level validation.
-	switch level {
-	case "debug":
-		logLevel = slog.LevelDebug
-	case "info":
-		logLevel = slog.LevelInfo
-	case "warn":
-		logLevel = slog.LevelWarn
-	case "error", "":
-		logLevel = slog.LevelError
-	default:
-		return nil, fmt.Errorf("%w: %s", errors.ErrInvalidLogLevel, level)
-	}
-
-	// Time format validation.
-	switch timeTemplate {
-	case "":
-		timeTemplate = defaultTimeTemplate
-	default:
-		// Trying to format the test time and parse it afterwards.
-		testTime := time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
-		formatted := testTime.Format(timeTemplate)
-		parsedTime, err := time.Parse(timeTemplate, formatted)
-		if err != nil || !parsedTime.Equal(testTime) {
-			return nil, fmt.Errorf("%w: %s", errors.ErrInvalidTimeTemplate, timeTemplate)
+func NewLogger(opts ...LoggerOption) (*Logger, error) {
+	cfg := &loggerConfig{}
+	SetDefaults()(cfg)
+	for _, opt := range opts {
+		if err := opt(cfg); err != nil {
+			return nil, fmt.Errorf("%w: %v", errors.ErrLoggerInitFailed, err)
 		}
 	}
 
-	// Setting up log handlers options.
-	opts := &slog.HandlerOptions{
-		Level: logLevel,
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.TimeKey {
-				if t, ok := a.Value.Any().(time.Time); ok {
-					a.Value = slog.StringValue(t.Format(timeTemplate))
-				}
-			}
-			return a
-		},
-	}
-
-	// Log type validation.
-	switch logType {
-	case "json", "":
-		logHandler = slog.NewJSONHandler(w, opts)
-	case "text":
-		logHandler = slog.NewTextHandler(w, opts)
-	default:
-		return nil, fmt.Errorf("%w: %s", errors.ErrInvalidLogType, logType)
-	}
-
-	return &Logger{slog.New(logHandler)}, nil
-}
-
-// Info logs a message with level Info on the standard logger.
-func (logg Logger) Info(msg string, args ...any) {
-	logg.l.Info(msg, args...)
-}
-
-// Error logs a message with level Error on the standard logger.
-func (logg Logger) Error(msg string, args ...any) {
-	logg.l.Error(msg, args...)
-}
-
-// Debug logs a message with level Debug on the standard logger.
-func (logg Logger) Debug(msg string, args ...any) {
-	logg.l.Debug(msg, args...)
-}
-
-// Warn logs a message with level Warn on the standard logger.
-func (logg Logger) Warn(msg string, args ...any) {
-	logg.l.Warn(msg, args...)
-}
-
-// Fatal logs a message with level Error on the standard logger and then calls os.Exit(1).
-func (logg Logger) Fatal(msg string, args ...any) {
-	logg.l.Error(msg, args...)
-	os.Exit(1)
-}
-
-// With returns a new Logger that adds the given key-value pairs to the logger's context.
-func (logg Logger) With(args ...any) *Logger {
-	return &Logger{logg.l.With(args...)}
+	return &Logger{slog.New(cfg.handler)}, nil
 }
