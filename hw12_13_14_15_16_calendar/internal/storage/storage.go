@@ -26,15 +26,15 @@ func NewStorage(args map[string]any) (Storage, error) {
 
 	switch storageType {
 	case "memory":
-		s, err = createMemoryStorage(args)
+		s, err = newMemoryStorage(args)
 	case "sql":
-		s, err = createSQLStorage(args)
+		s, err = newSQLStorage(args)
 	default:
 		return nil, fmt.Errorf("%w: unknown storage type %q", errors.ErrCorruptedConfig, storageType)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("%q storage: %w", storageType, errors.ErrStorageInitFailed)
+		return nil, fmt.Errorf("%s storage: %w: %w", storageType, errors.ErrStorageInitFailed, err)
 	}
 
 	return s, nil
