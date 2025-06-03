@@ -8,12 +8,9 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 )
-
-const defaultTimeTemplate = "02.01.2006 15:04:05.000"
 
 // Option defines a function that allows to configure underlying logger on construction.
 type Option func(c *Config) error
@@ -21,10 +18,28 @@ type Option func(c *Config) error
 // Config defines an inner logger configuration.
 type Config struct {
 	handlerOpts  *slog.HandlerOptions
+	logType      string
 	handler      slog.Handler
 	writer       io.Writer
 	timeTemplate string
 	level        slog.Level
+	setupLevel   bool
+}
+
+// checkDefaults sets default values for the logger configurations, if they are empty.
+func (c *Config) checkDefaults() {
+	if c.logType == "" {
+		c.logType = DefaultLogType
+	}
+	if c.writer == nil {
+		c.writer = DefaultWriterValue
+	}
+	if c.timeTemplate == "" {
+		c.timeTemplate = DefaultTimeTemplate
+	}
+	if c.setupLevel {
+		c.level = DefaultLevelValue
+	}
 }
 
 // WithConfig allows to apply custom configuration.
@@ -58,57 +73,32 @@ func WithConfig(cfg map[string]any) Option {
 				c.level = slog.LevelInfo
 			case "warn":
 				c.level = slog.LevelWarn
-			case "error", "":
+			case "error":
 				c.level = slog.LevelError
+			default:
+				c.setupLevel = true
 			}
 		}
 
-		// Default time format is defaultTimeTemplate.
 		if timeTmpl, ok := cfg["timeTemplate"]; ok {
 			c.timeTemplate = timeTmpl.(string)
-		} else {
-			c.timeTemplate = defaultTimeTemplate
-		}
-		if c.timeTemplate == "" {
-			c.timeTemplate = defaultTimeTemplate
 		}
 
-		// Building arg for handler constructor.
-		c.handlerOpts = &slog.HandlerOptions{
-			Level: c.level,
-			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-				if a.Key == slog.TimeKey {
-					if t, ok := a.Value.Any().(time.Time); ok {
-						a.Value = slog.StringValue(t.Format(c.timeTemplate))
-					}
-				}
-				return a
-			},
-		}
-
-		// Default writer is os.Stdout.
 		if writer, ok := cfg["writer"]; ok {
 			switch strings.ToLower(writer.(string)) {
-			case "stdout", "":
+			case "stdout":
 				c.writer = os.Stdout
 			case "stderr":
 				c.writer = os.Stderr
 			}
-		} else {
-			c.writer = os.Stdout
 		}
 
 		if logType, ok := cfg["logType"]; ok {
-			switch strings.ToLower(logType.(string)) {
-			case "json", "":
-				c.handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
-			case "text":
-				c.handler = slog.NewTextHandler(c.writer, c.handlerOpts)
-			}
-		} else {
-			// Default log type is JSON.
-			c.handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
+			c.logType = logType.(string)
 		}
+
+		c.checkDefaults()
+		c.handler = buildHandler(c)
 
 		return nil
 	}
@@ -122,20 +112,7 @@ func WithWriter(w io.Writer) Option {
 		}
 
 		c.writer = w
-
-		var handler slog.Handler
-		if c.handler != nil {
-			if _, ok := c.handler.(*slog.JSONHandler); ok {
-				handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
-			} else {
-				handler = slog.NewTextHandler(c.writer, c.handlerOpts)
-			}
-		} else {
-			handler = slog.NewJSONHandler(c.writer, c.handlerOpts)
-		}
-
-		c.handler = nil
-		c.handler = handler
+		c.handler = buildHandler(c)
 
 		return nil
 	}
@@ -144,10 +121,10 @@ func WithWriter(w io.Writer) Option {
 // SetDefaults is a wrapper over WithConfig, passing empty config.
 func SetDefaults() Option {
 	return WithConfig(map[string]any{
-		"logType":      "",
-		"level":        "",
-		"timeTemplate": "",
-		"writer":       "",
+		"logType":      DefaultLogType,
+		"level":        DefaultLevel,
+		"timeTemplate": DefaultTimeTemplate,
+		"writer":       DefaultWriter,
 	})
 }
 
@@ -165,7 +142,11 @@ func SetDefaults() Option {
 // If the log type or level is unknown, it returns an error.
 func NewLogger(opts ...Option) (*Logger, error) {
 	cfg := &Config{}
-	_ = SetDefaults()(cfg)
+
+	if err := SetDefaults()(cfg); err != nil {
+		return nil, fmt.Errorf("%w: default logger initialization", errors.ErrLoggerInitFailed)
+	}
+
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
 			return nil, fmt.Errorf("%w: %w", errors.ErrLoggerInitFailed, err)
