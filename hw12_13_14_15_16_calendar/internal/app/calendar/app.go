@@ -3,15 +3,19 @@ package app
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 )
 
 // App represents a calendar application.
 type App struct {
-	l       Logger
-	s       Storage
-	retries int
+	mu           sync.RWMutex
+	l            Logger
+	s            Storage
+	retryTimeout time.Duration
+	retries      int
 }
 
 // NewApp creates a new calendar application after arguments validation.
@@ -31,26 +35,32 @@ func NewApp(logger Logger, storage Storage, config map[string]any) (*App, error)
 	}
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("%w: some of the required parameters are missing: args=%v",
-			errors.ErrAppInitFailed, missing)
+			projectErrors.ErrAppInitFailed, missing)
 	}
 
 	// Field types validation.
 	expectedFields := map[string]any{
-		"retries": int(0),
+		"retries":       int(0),
+		"retry_timeout": time.Duration(0),
 	}
 	missing, wrongType := validateFields(config, expectedFields)
 	if len(missing) > 0 || len(wrongType) > 0 {
 		return nil, fmt.Errorf("%w: missing=%v invalid_type=%v",
-			errors.ErrCorruptedConfig, missing, wrongType)
+			projectErrors.ErrCorruptedConfig, missing, wrongType)
 	}
 
 	// Extract from config an normalize the value.
 	retries, _ := config["retries"].(int)
 	retries = max(0, retries)
+	retryTimeout, _ := config["retry_timeout"].(time.Duration)
+	if retryTimeout <= 0 {
+		return nil, fmt.Errorf("%w: retry timeout must be positive, got %v", projectErrors.ErrCorruptedConfig, retryTimeout)
+	}
 
 	return &App{
-		l:       logger,
-		s:       storage,
-		retries: retries,
+		l:            logger,
+		s:            storage,
+		retries:      retries,
+		retryTimeout: retryTimeout,
 	}, nil
 }

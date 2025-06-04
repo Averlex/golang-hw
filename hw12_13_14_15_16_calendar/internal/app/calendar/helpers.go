@@ -1,6 +1,14 @@
 package app
 
-import "reflect"
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"reflect"
+	"time"
+
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+)
 
 // validateFields returns missing and wrong type fields found in args.
 // requiredFields is a map of field names with their expected types.
@@ -26,4 +34,56 @@ func validateFields(args map[string]any, requiredFields map[string]any) ([]strin
 	}
 
 	return missing, wrongType
+}
+
+func (a *App) withRetries(ctx context.Context, fn func() error) error {
+	var err error
+	a.mu.RLock()
+	retries := a.retries
+	timeout := a.retryTimeout
+	a.mu.RUnlock()
+
+	// To guarantee at least 1 execution.
+	retries++
+
+	var i int
+	for i = range retries {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+
+		if !a.isRetryable(err) {
+			if !a.isUninitialized(err) {
+				return err
+			}
+		}
+		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// ВОТ ТУТ ВСЁ ОСТАНОВИЛОСЬЬЬЬЬЬЬЬЬЬЬЬЬЬЬЬЬ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+		a.l.Debug(ctx, "operation failed", slog.Int("attempt", i+1), slog.Any("error", err))
+
+		// No need in waiting on the last attempt.
+		if i < retries {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(timeout):
+				continue
+			}
+		}
+	}
+	return err
+}
+
+func (a *App) isRetryable(err error) bool {
+	return errors.Is(err, projectErrors.ErrTimeoutExceeded) ||
+		errors.Is(err, projectErrors.ErrQeuryError) ||
+		errors.Is(err, projectErrors.ErrDataExists) ||
+		errors.Is(err, projectErrors.ErrGenerateID)
+}
+
+func (a *App) isUninitialized(err error) bool {
+	return errors.Is(err, projectErrors.ErrStorageUninitialized)
 }
