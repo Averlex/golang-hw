@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app"                      //nolint:depguard
+	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar"         //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                   //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                   //nolint:depguard
 	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http" //nolint:depguard
@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// App and .....
-	calendar := app.New(logg, storage)
+	calendar := app.NewApp(logg, storage)
 
 	server := internalhttp.NewServer(logg, calendar)
 

@@ -43,6 +43,7 @@ type SQLConf struct {
 	Password string        `mapstructure:"password"`
 	DBname   string        `mapstructure:"dbname"`
 	Timeout  time.Duration `mapstructure:"timeout"` // 0 means timeout will be disabled.
+	Driver   string        `mapstructure:"driver"`
 }
 
 //nolint:revive,nolintlint

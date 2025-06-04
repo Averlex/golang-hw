@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 	"github.com/spf13/cobra"                                            //nolint:depguard,nolintlint
@@ -86,8 +87,9 @@ func (l *ViperLoader) buildRootCommand(name, short, long string,
 	rootCmd.Flags().StringP("config", "c", "", "Path to configuration file")
 	rootCmd.Flags().BoolP("version", "v", false, "Show version info")
 
-	viper.SetEnvPrefix(l.envPrefix)
 	viper.AutomaticEnv()
+	viper.SetEnvPrefix(l.envPrefix)
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	if err := viper.BindPFlag("config", rootCmd.Flags().Lookup("config")); err != nil {
 		return nil, fmt.Errorf("bind config flag: %w", err)
