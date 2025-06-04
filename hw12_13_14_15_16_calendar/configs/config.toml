@@ -1,5 +1,5 @@
 [app]
-log_stream = "stdout" # stdout, stderr
+retries = 5 # Any int. Values <= 0 are treated as no retries
 
 [logger]
 level = "debug"                           # debug, info, warn, error

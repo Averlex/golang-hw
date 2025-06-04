@@ -32,6 +32,7 @@ func main() {
 		fmt.Printf("create temporary logger: %s\n", err.Error())
 		os.Exit(exitCodeError)
 	}
+	logg = logg.With("service", "calendar")
 
 	// Loading configuration from file and env.
 	loader := config.NewViperLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
@@ -43,6 +44,9 @@ func main() {
 		}
 		logg.Fatal("load config", "err", err)
 	}
+
+	// Wrapping logs with service name.
+	logg = logg.With("service", "calendar")
 	logg.Debug("config loaded successfully")
 
 	// Initializing service logger.
@@ -63,17 +67,27 @@ func main() {
 	}
 	storage, err := storage.NewStorage(storageCfg)
 	if err != nil {
-		logg.Fatal("create storage", "config", storageCfg, "err", err)
+		logg.Fatal("create storage", "err", err)
 	}
-
-	// App and .....
-	calendar := app.NewApp(logg, storage)
-
-	server := internalhttp.NewServer(logg, calendar)
+	logg.Debug("storage created successfully")
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
+	defer storage.Close(ctx)
+
+	// Initializing the app.
+	appCfg, err := cfg.GetSubConfig("app")
+	if err != nil {
+		logg.Fatal("get app config", "err", err)
+	}
+	calendar, err := app.NewApp(logg, storage, appCfg)
+	if err != nil {
+		logg.Fatal("create app", "err", err)
+	}
+	logg.Debug("app created successfully")
+
+	server := internalhttp.NewServer(logg, calendar)
 
 	go func() {
 		<-ctx.Done()

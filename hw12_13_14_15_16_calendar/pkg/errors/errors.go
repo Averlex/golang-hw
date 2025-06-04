@@ -51,6 +51,8 @@ var (
 	ErrStorageInitFailed = errors.New("storage initialization failed")
 	// ErrLoggerInitFailed is returned when the logger initialization fails.
 	ErrLoggerInitFailed = errors.New("logger initialization failed")
+	// ErrAppInitFailed is returned when the app initialization fails.
+	ErrAppInitFailed = errors.New("app initialization failed")
 )
 
 // Additional errors to control the execution flow.
