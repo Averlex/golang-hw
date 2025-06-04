@@ -53,7 +53,8 @@ type MemoryConf struct {
 
 // AppConf is a config for the global app settings, like environment (dev/prod) and log stream.
 type AppConf struct {
-	Retries int `mapstructure:"retries"`
+	RetryTimeout time.Duration `mapstructure:"retry_timeout"`
+	Retries      int           `mapstructure:"retries"`
 }
 
 // GetSubConfig returns a nested section of the configuration as a map[string]any.
