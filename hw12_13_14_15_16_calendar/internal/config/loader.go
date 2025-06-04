@@ -44,6 +44,9 @@ func NewViperLoader(name, short, long, configPath, envPrefix string) *ViperLoade
 // Load loads configuration from a file and environment variables.
 // It checks the flags in the process and executes the root command, depending on the flag.
 // If no additional flags are set, it will load the configuration from the path provided.
+//
+// If -h (--help) or -v (--version) flags are set, it will return nil, ErrShouldStop
+// as a signal to stop the execution.
 func (l *ViperLoader) Load(printVersion func(io.Writer) error, writer io.Writer) (ServiceConfig, error) {
 	cfg, err := NewServiceConfig(l.name)
 	if err != nil {
