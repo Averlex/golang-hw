@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -33,7 +34,7 @@ func main() {
 		fmt.Printf("create temporary logger: %s\n", err.Error())
 		os.Exit(exitCodeError)
 	}
-	logg = logg.With("service", "calendar")
+	logg = logg.With(slog.String("service", "calendar"))
 
 	// Loading configuration from file and env.
 	loader := config.NewViperLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
@@ -43,7 +44,7 @@ func main() {
 		if errors.Is(err, projectErrors.ErrShouldStop) {
 			os.Exit(exitCodeSuccess)
 		}
-		logg.Fatal(ctx, "load config", "err", err)
+		logg.Fatal(ctx, "load config", slog.Any("err", err))
 	}
 
 	// Wrapping logs with service name.
@@ -53,22 +54,22 @@ func main() {
 	// Initializing service logger.
 	logCfg, err := cfg.GetSubConfig("logger")
 	if err != nil {
-		logg.Fatal(ctx, "get logger config", "err", err)
+		logg.Fatal(ctx, "get logger config", slog.Any("err", err))
 	}
 	logg, err = logger.NewLogger(logger.WithConfig(logCfg))
 	if err != nil {
-		logg.Fatal(ctx, "create logger", "err", err, "config", logCfg)
+		logg.Fatal(ctx, "create logger", slog.Any("err", err))
 	}
 	logg.Info(ctx, "logger created successfully")
 
 	// Initializing the storage.
 	storageCfg, err := cfg.GetSubConfig("storage")
 	if err != nil {
-		logg.Fatal(ctx, "get storage config", "err", err)
+		logg.Fatal(ctx, "get storage config", slog.Any("err", err))
 	}
 	storage, err := storage.NewStorage(storageCfg)
 	if err != nil {
-		logg.Fatal(ctx, "create storage", "err", err)
+		logg.Fatal(ctx, "create storage", slog.Any("err", err))
 	}
 	logg.Info(ctx, "storage created successfully")
 
@@ -80,11 +81,11 @@ func main() {
 	// Initializing the app.
 	appCfg, err := cfg.GetSubConfig("app")
 	if err != nil {
-		logg.Fatal(ctx, "get app config", "err", err)
+		logg.Fatal(ctx, "get app config", slog.Any("err", err))
 	}
 	calendar, err := app.NewApp(logg, storage, appCfg)
 	if err != nil {
-		logg.Fatal(ctx, "create app", "err", err)
+		logg.Fatal(ctx, "create app", slog.Any("err", err))
 	}
 	logg.Info(ctx, "app created successfully")
 
