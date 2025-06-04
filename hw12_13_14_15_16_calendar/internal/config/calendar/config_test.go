@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require" //nolint:depguard,nolintlint
 )
 
 func TestGetSubConfig_Success(t *testing.T) {
