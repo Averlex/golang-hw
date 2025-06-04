@@ -12,7 +12,7 @@ import (
 // Returns an error wrapped with ErrCorruptedConfig if configuration is invalid,
 // or ErrStorageInitFailed if initialization fails.
 func NewStorage(args map[string]any) (Storage, error) {
-	if len(args) == 0 {
+	if args == nil {
 		return nil, fmt.Errorf("%w: no storage configuration received", errors.ErrCorruptedConfig)
 	}
 
