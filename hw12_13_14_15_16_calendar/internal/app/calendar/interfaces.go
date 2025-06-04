@@ -56,9 +56,9 @@ type Storage interface {
 // Logger represents an interface of logger visible to the app.
 type Logger interface {
 	// Info logs a message with level Info on the standard logger.
-	Info(msg string, args ...any)
+	Info(ctx context.Context, msg string, args ...any)
 	// Debug logs a message with level Debug on the standard logger.
-	Debug(msg string, args ...any)
+	Debug(ctx context.Context, msg string, args ...any)
 	// Warn logs a message with level Warn on the standard logger.
-	Warn(msg string, args ...any)
+	Warn(ctx context.Context, msg string, args ...any)
 }

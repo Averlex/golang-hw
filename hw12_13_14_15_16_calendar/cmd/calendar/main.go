@@ -26,6 +26,7 @@ const (
 var defaultConfigFile = "../../configs/config.toml"
 
 func main() {
+	ctx := context.Background()
 	// Creating temporary logger so errors are not lost.
 	logg, err := logger.NewLogger()
 	if err != nil {
@@ -42,34 +43,34 @@ func main() {
 		if errors.Is(err, projectErrors.ErrShouldStop) {
 			os.Exit(exitCodeSuccess)
 		}
-		logg.Fatal("load config", "err", err)
+		logg.Fatal(ctx, "load config", "err", err)
 	}
 
 	// Wrapping logs with service name.
 	logg = logg.With("service", "calendar")
-	logg.Debug("config loaded successfully")
+	logg.Info(ctx, "config loaded successfully")
 
 	// Initializing service logger.
 	logCfg, err := cfg.GetSubConfig("logger")
 	if err != nil {
-		logg.Fatal("get logger config", "err", err)
+		logg.Fatal(ctx, "get logger config", "err", err)
 	}
 	logg, err = logger.NewLogger(logger.WithConfig(logCfg))
 	if err != nil {
-		logg.Fatal("create logger", "err", err, "config", logCfg)
+		logg.Fatal(ctx, "create logger", "err", err, "config", logCfg)
 	}
-	logg.Debug("logger created successfully")
+	logg.Info(ctx, "logger created successfully")
 
 	// Initializing the storage.
 	storageCfg, err := cfg.GetSubConfig("storage")
 	if err != nil {
-		logg.Fatal("get storage config", "err", err)
+		logg.Fatal(ctx, "get storage config", "err", err)
 	}
 	storage, err := storage.NewStorage(storageCfg)
 	if err != nil {
-		logg.Fatal("create storage", "err", err)
+		logg.Fatal(ctx, "create storage", "err", err)
 	}
-	logg.Debug("storage created successfully")
+	logg.Info(ctx, "storage created successfully")
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -79,13 +80,13 @@ func main() {
 	// Initializing the app.
 	appCfg, err := cfg.GetSubConfig("app")
 	if err != nil {
-		logg.Fatal("get app config", "err", err)
+		logg.Fatal(ctx, "get app config", "err", err)
 	}
 	calendar, err := app.NewApp(logg, storage, appCfg)
 	if err != nil {
-		logg.Fatal("create app", "err", err)
+		logg.Fatal(ctx, "create app", "err", err)
 	}
-	logg.Debug("app created successfully")
+	logg.Info(ctx, "app created successfully")
 
 	server := internalhttp.NewServer(logg, calendar)
 
@@ -96,14 +97,14 @@ func main() {
 		defer cancel()
 
 		if err := server.Stop(ctx); err != nil {
-			logg.Error("stop http server: " + err.Error())
+			logg.Error(ctx, "stop http server: "+err.Error())
 		}
 	}()
 
-	logg.Info("calendar is running...")
+	logg.Info(ctx, "calendar is running...")
 
 	if err := server.Start(ctx); err != nil {
 		cancel()
-		logg.Fatal("start http server", "err", err)
+		logg.Fatal(ctx, "start http server", "err", err)
 	}
 }
