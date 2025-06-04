@@ -3,47 +3,9 @@ package errors
 
 import "errors"
 
-// Storage operational errors.
-var (
-	// ErrNoData is returned when no data is passed to any of the CRUD methods.
-	ErrNoData = errors.New("no data passed")
-	// ErrTimeoutExceeded is returned when the operation execution times out.
-	ErrTimeoutExceeded = errors.New("timeout exceeded")
-	// ErrQeuryError is returned when the query execution fails.
-	ErrQeuryError = errors.New("query execution")
-	// ErrDataExists is returned on event ID collision on the storage insertion.
-	ErrDataExists = errors.New("event data already exists")
-	// ErrUnsupportedDriver is returned when the DB driver is not supported.
-	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
-	// ErrStorageUninitialized is returned when the database connection is not initialized.
-	ErrStorageUninitialized = errors.New("storage is not initialized (initialize connection first?)")
-	// ErrStorageFull is returned when the storage is full and cannot accept new events.
-	ErrStorageFull = errors.New("storage is full")
-)
-
-// Business errors.
-var (
-	// ErrEventNotFound is returned when the event with requested ID does not exist in the storage.
-	ErrEventNotFound = errors.New("requested event was not found")
-	// ErrDateBusy is returned when the event date is already busy/overlaps with existing events in the storage.
-	ErrDateBusy = errors.New("requested event date is already busy")
-	// ErrPermissionDenied is returned when the user tries to modify another user's event.
-	ErrPermissionDenied = errors.New("cannot modify another user's event")
-)
-
-// Data validation errors.
-var (
-	// ErrEmptyField is returned when no data is passed to any of the necessary fields.
-	ErrEmptyField = errors.New("empty event field values received")
-	// ErrNegativeDuration is returned when the event duration is negative.
-	ErrNegativeDuration = errors.New("event duration is negative")
-	// ErrNegativeRemind is returned when the event remind duration is negative.
-	ErrNegativeRemind = errors.New("event remind duration is negative")
-	// ErrGenerateID is returned when the event ID generation fails.
-	ErrGenerateID = errors.New("failed to generate new event id")
-)
-
 // Setup errors.
+// CMD level.
+// Fatal.
 var (
 	// ErrCorruptedConfig is returned when config data is invalid or missing.
 	ErrCorruptedConfig = errors.New("config data is invalid")
@@ -56,7 +18,75 @@ var (
 )
 
 // Additional errors to control the execution flow.
+// CMD level.
+// Not logged, used to prevent the execution, following by the helper flags.
 var (
 	// ErrShouldStop is returned when the execution should be stopped. E.g. on -v and -h flags.
 	ErrShouldStop = errors.New("execution should be stopped")
+)
+
+// Storage operational errors - critical.
+// Server level.
+// ERROR.
+var (
+	// ErrUnsupportedDriver is returned when the DB driver is not supported.
+	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
+	// ErrStorageFull is returned when the storage is full and cannot accept new events.
+	ErrStorageFull = errors.New("storage is full")
+)
+
+// Unsuccessful result of storage operations.
+// Server level.
+// WARN.
+var (
+	// ErrRetriesExceeded is returned when the retry count is exceeded.
+	ErrRetriesExceeded = errors.New("maximum retries exceeded")
+)
+
+// Business errors.
+// Server level.
+// INFO - potential 40x codes.
+var (
+	// ErrEventNotFound is returned when the event with requested ID does not exist in the storage.
+	ErrEventNotFound = errors.New("requested event was not found")
+	// ErrDateBusy is returned when the event date is already busy/overlaps with existing events in the storage.
+	ErrDateBusy = errors.New("requested event date is already busy")
+	// ErrPermissionDenied is returned when the user tries to modify another user's event.
+	ErrPermissionDenied = errors.New("cannot modify another user's event")
+	// ErrNoData is returned when no data is passed to any of the CRUD methods.
+	ErrNoData = errors.New("no data passed")
+)
+
+// Data validation errors.
+// Server level.
+// INFO - potential 40x codes.
+var (
+	// ErrEmptyField is returned when no data is passed to any of the necessary fields.
+	ErrEmptyField = errors.New("empty event field values received")
+	// ErrNegativeDuration is returned when the event duration is negative.
+	ErrNegativeDuration = errors.New("event duration is negative")
+	// ErrNegativeRemind is returned when the event remind duration is negative.
+	ErrNegativeRemind = errors.New("event remind duration is negative")
+)
+
+// Storage errors.
+// App level, retryable.
+// ERROR level only.
+var (
+	// ErrStorageUninitialized is returned when the database connection is not initialized.
+	ErrStorageUninitialized = errors.New("storage is not initialized (initialize connection first?)")
+)
+
+// Storage operational errors - retryable.
+// App level until the retry count is exceeded.
+// DEBUG.
+var (
+	// ErrTimeoutExceeded is returned when the operation execution times out.
+	ErrTimeoutExceeded = errors.New("timeout exceeded")
+	// ErrQeuryError is returned when the query execution fails.
+	ErrQeuryError = errors.New("query execution")
+	// ErrDataExists is returned on event ID collision on the storage insertion.
+	ErrDataExists = errors.New("event data already exists")
+	// ErrGenerateID is returned when the event ID generation fails.
+	ErrGenerateID = errors.New("failed to generate new event id")
 )
