@@ -4,13 +4,25 @@ log_stream = "stdout" # stdout, stderr
 [logger]
 level = "debug"                           # debug, info, warn, error
 format = "text"                           # json, text
-time_template = "02.01.2006 15:04:05.000" # any valid time template
+time_template = "02.01.2006 15:04:05.000" # any valid time template. Default is "02.01.2006 15:04:05.000"
+log_stream = "stdout"                     # stdout, stderr
 
 [server]
 shutdown_timeout = "3s"
 
 [storage]
-type = "in-memory" # in-memory, sql
+type = "memory" # memory, sql
+
+[storage.sql]
+host = "localhost"
+port = "5432"
+user = "" # better set with env
+password = "" # better set with env
+dbname = "calendar"
+timeout = "3s" # 0 means timeout will be disabled
+
+[storage.memory]
+size = 10000 # 0 corresponds to the default value, which is currently 10_000
 
 
 # TODO
