@@ -53,7 +53,7 @@ type MemoryConf struct {
 
 // AppConf is a config for the global app settings, like environment (dev/prod) and log stream.
 type AppConf struct {
-	LogStream string `mapstructure:"log_stream"`
+	Retries int `mapstructure:"retries"`
 }
 
 // GetSubConfig returns a nested section of the configuration as a map[string]any.

@@ -41,6 +41,7 @@ func TestGetSubConfig_Success(t *testing.T) {
 				Storage: StorageConf{
 					Type: "sql",
 					SQL: SQLConf{
+						Driver:   "postgres",
 						Host:     "localhost",
 						Port:     "5432",
 						User:     "user",
@@ -54,6 +55,7 @@ func TestGetSubConfig_Success(t *testing.T) {
 			Expected: map[string]any{
 				"type": "sql",
 				"sql": map[string]any{
+					"driver":   "postgres",
 					"host":     "localhost",
 					"port":     "5432",
 					"user":     "user",
