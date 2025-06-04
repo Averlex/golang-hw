@@ -1,8 +1,9 @@
-//nolint:revive,nolintlint
+// Package main contains entrypoint for the calendar service.
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                   //nolint:depguard
 	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http" //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                  //nolint:depguard
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"          //nolint:depguard
 )
 
 const (
@@ -27,7 +29,7 @@ func main() {
 	// Creating temporary logger so errors are not lost.
 	logg, err := logger.NewLogger()
 	if err != nil {
-		fmt.Printf("failed to create logger: %s\n", err.Error())
+		fmt.Printf("create temporary logger: %s\n", err.Error())
 		os.Exit(exitCodeError)
 	}
 
@@ -36,29 +38,32 @@ func main() {
 		defaultConfigFile, "CALENDAR")
 	cfg, err := loader.Load(printVersion, os.Stdout)
 	if err != nil {
-		logg.Fatal("failed to load config", "err", err)
+		if errors.Is(err, projectErrors.ErrShouldStop) {
+			os.Exit(exitCodeSuccess)
+		}
+		logg.Fatal("load config", "err", err)
 	}
 	logg.Debug("config loaded successfully")
 
 	// Initializing service logger.
 	logCfg, err := cfg.GetSubConfig("logger")
 	if err != nil {
-		logg.Fatal("failed to get logger config", "err", err)
+		logg.Fatal("get logger config", "err", err)
 	}
 	logg, err = logger.NewLogger(logger.WithConfig(logCfg))
 	if err != nil {
-		logg.Fatal("failed to create logger", "err", err, "config", logCfg)
+		logg.Fatal("create logger", "err", err, "config", logCfg)
 	}
 	logg.Debug("logger created successfully")
 
 	// Initializing the storage.
 	storageCfg, err := cfg.GetSubConfig("storage")
 	if err != nil {
-		logg.Fatal("failed to get storage config", "err", err)
+		logg.Fatal("get storage config", "err", err)
 	}
 	storage, err := storage.NewStorage(storageCfg)
 	if err != nil {
-		logg.Fatal("failed to create storage", "config", storageCfg, "err", err)
+		logg.Fatal("create storage", "config", storageCfg, "err", err)
 	}
 
 	// App and .....
@@ -77,7 +82,7 @@ func main() {
 		defer cancel()
 
 		if err := server.Stop(ctx); err != nil {
-			logg.Error("failed to stop http server: " + err.Error())
+			logg.Error("stop http server: " + err.Error())
 		}
 	}()
 
@@ -85,6 +90,6 @@ func main() {
 
 	if err := server.Start(ctx); err != nil {
 		cancel()
-		logg.Fatal("failed to start http server", "err", err)
+		logg.Fatal("start http server", "err", err)
 	}
 }

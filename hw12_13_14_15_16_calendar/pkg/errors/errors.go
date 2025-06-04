@@ -52,3 +52,9 @@ var (
 	// ErrLoggerInitFailed is returned when the logger initialization fails.
 	ErrLoggerInitFailed = errors.New("logger initialization failed")
 )
+
+// Additional errors to control the execution flow.
+var (
+	// ErrShouldStop is returned when the execution should be stopped. E.g. on -v and -h flags.
+	ErrShouldStop = errors.New("execution should be stopped")
+)

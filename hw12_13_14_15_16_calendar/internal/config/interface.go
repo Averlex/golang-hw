@@ -6,6 +6,7 @@ import (
 	calendarConfig "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config/calendar" //nolint:depguard,nolintlint
 )
 
+// ServiceConfig is an interface generalizing service config.
 type ServiceConfig interface {
 	// GetSubConfig returns the part of the config that corresponds to the key.
 	GetSubConfig(key string) (map[string]any, error)

@@ -1,11 +1,13 @@
+// Package config provides configuration loader and the interface for working with configuration.
 package config
 
 import (
 	"fmt"
 	"io"
 
-	"github.com/spf13/cobra" //nolint:depguard,nolintlint
-	"github.com/spf13/viper" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/spf13/cobra"                                            //nolint:depguard,nolintlint
+	"github.com/spf13/viper"                                            //nolint:depguard,nolintlint
 )
 
 // Loader is a configuration loader.
@@ -45,16 +47,21 @@ func NewViperLoader(name, short, long, configPath, envPrefix string) *ViperLoade
 func (l *ViperLoader) Load(printVersion func(io.Writer) error, writer io.Writer) (ServiceConfig, error) {
 	cfg, err := NewServiceConfig(l.name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to declare config: %w", err)
+		return nil, fmt.Errorf("declare config: %w", err)
 	}
 
 	cmd, err := l.buildRootCommand(l.name, l.short, l.long, cfg, printVersion, writer)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build root command: %w", err)
+		return nil, fmt.Errorf("build root command: %w", err)
 	}
 
 	if err := cmd.Execute(); err != nil {
-		return nil, fmt.Errorf("failed to execute root command: %w", err)
+		return nil, fmt.Errorf("execute root command: %w", err)
+	}
+
+	// Check if the help or version flag is set. If so, stop execution.
+	if cmd.Flags().Changed("help") || cmd.Flags().Changed("version") {
+		return nil, errors.ErrShouldStop
 	}
 
 	return cfg, nil
@@ -80,18 +87,18 @@ func (l *ViperLoader) buildRootCommand(name, short, long string,
 	viper.AutomaticEnv()
 
 	if err := viper.BindPFlag("config", rootCmd.Flags().Lookup("config")); err != nil {
-		return nil, fmt.Errorf("failed to bind config flag: %w", err)
+		return nil, fmt.Errorf("bind config flag: %w", err)
 	}
 
 	if err := viper.BindPFlag("version", rootCmd.Flags().Lookup("version")); err != nil {
-		return nil, fmt.Errorf("failed to bind version flag: %w", err)
+		return nil, fmt.Errorf("bind version flag: %w", err)
 	}
 
 	rootCmd.PreRunE = func(_ *cobra.Command, _ []string) error {
 		// Processing -v flag preemptively.
 		if versionFlag := viper.GetBool("version"); versionFlag {
 			if err := printVersion(writer); err != nil {
-				return fmt.Errorf("failed to print version: %w", err)
+				return fmt.Errorf("print version: %w", err)
 			}
 			return nil
 		}
@@ -101,10 +108,10 @@ func (l *ViperLoader) buildRootCommand(name, short, long string,
 		viper.SetConfigFile(configPath)
 
 		if err := viper.ReadInConfig(); err != nil {
-			return fmt.Errorf("failed to read main config at %s: %w", configPath, err)
+			return fmt.Errorf("read main config at %s: %w", configPath, err)
 		}
 		if err := viper.Unmarshal(cfg); err != nil {
-			return fmt.Errorf("failed to unmarshal main config: %w", err)
+			return fmt.Errorf("unmarshal main config: %w", err)
 		}
 		return nil
 	}
