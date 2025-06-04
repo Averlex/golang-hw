@@ -46,10 +46,10 @@ func (c *Config) checkDefaults() {
 func WithConfig(cfg map[string]any) Option {
 	return func(c *Config) error {
 		optionalFields := map[string]any{
-			"logType":      "",
-			"level":        "",
-			"timeTemplate": "",
-			"writer":       "",
+			"format":        "",
+			"level":         "",
+			"time_template": "",
+			"log_stream":    "",
 		}
 
 		ve := &validationError{}
@@ -80,11 +80,11 @@ func WithConfig(cfg map[string]any) Option {
 			}
 		}
 
-		if timeTmpl, ok := cfg["timeTemplate"]; ok {
+		if timeTmpl, ok := cfg["time_template"]; ok {
 			c.timeTemplate = timeTmpl.(string)
 		}
 
-		if writer, ok := cfg["writer"]; ok {
+		if writer, ok := cfg["log_stream"]; ok {
 			switch strings.ToLower(writer.(string)) {
 			case "stdout":
 				c.writer = os.Stdout
@@ -93,7 +93,7 @@ func WithConfig(cfg map[string]any) Option {
 			}
 		}
 
-		if logType, ok := cfg["logType"]; ok {
+		if logType, ok := cfg["format"]; ok {
 			c.logType = logType.(string)
 		}
 
@@ -121,10 +121,10 @@ func WithWriter(w io.Writer) Option {
 // SetDefaults is a wrapper over WithConfig, passing empty config.
 func SetDefaults() Option {
 	return WithConfig(map[string]any{
-		"logType":      DefaultLogType,
-		"level":        DefaultLevel,
-		"timeTemplate": DefaultTimeTemplate,
-		"writer":       DefaultWriter,
+		"format":        DefaultLogType,
+		"level":         DefaultLevel,
+		"time_template": DefaultTimeTemplate,
+		"log_stream":    DefaultWriter,
 	})
 }
 

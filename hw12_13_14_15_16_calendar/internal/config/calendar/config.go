@@ -20,6 +20,7 @@ type LoggerConf struct {
 	Level        string `mapstructure:"level"`
 	Format       string `mapstructure:"format"`
 	TimeTemplate string `mapstructure:"time_template"`
+	LogStream    string `mapstructure:"log_stream"`
 }
 
 // ServerConf is a config for the global server settings.

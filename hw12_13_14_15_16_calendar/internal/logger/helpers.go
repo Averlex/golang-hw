@@ -51,10 +51,10 @@ func validateLogLevel(cfg map[string]any, ve *validationError) {
 
 // validateTimeFormat is a helper that checks if time format is valid.
 func validateTimeFormat(cfg map[string]any, ve *validationError) {
-	if val, ok := cfg["timeTemplate"]; ok {
+	if val, ok := cfg["time_template"]; ok {
 		timeTmpl, ok := val.(string)
 		if !ok {
-			ve.invalidTypes = append(ve.invalidTypes, "timeTemplate")
+			ve.invalidTypes = append(ve.invalidTypes, "time_template")
 			return
 		}
 
@@ -66,41 +66,41 @@ func validateTimeFormat(cfg map[string]any, ve *validationError) {
 		formatted := testTime.Format(timeTmpl)
 		parsedTime, err := time.Parse(timeTmpl, formatted)
 		if err != nil || !parsedTime.Equal(testTime) {
-			ve.invalidValues = append(ve.invalidValues, "timeTemplate")
+			ve.invalidValues = append(ve.invalidValues, "time_template")
 		}
 	}
 }
 
 // validateWriter is a helper that checks if writer is valid.
 func validateWriter(cfg map[string]any, ve *validationError) {
-	if val, ok := cfg["writer"]; ok {
+	if val, ok := cfg["log_stream"]; ok {
 		writerStr, ok := val.(string)
 		if !ok {
-			ve.invalidTypes = append(ve.invalidTypes, "writer")
+			ve.invalidTypes = append(ve.invalidTypes, "log_stream")
 			return
 		}
 
 		switch writerStr {
 		case "stdout", "stderr", "":
 		default:
-			ve.invalidValues = append(ve.invalidValues, "writer")
+			ve.invalidValues = append(ve.invalidValues, "log_stream")
 		}
 	}
 }
 
 // validateLogType is a helper that checks if log type is valid.
 func validateLogType(cfg map[string]any, ve *validationError) {
-	if val, ok := cfg["logType"]; ok {
+	if val, ok := cfg["format"]; ok {
 		logTypeStr, ok := val.(string)
 		if !ok {
-			ve.invalidTypes = append(ve.invalidTypes, "logType")
+			ve.invalidTypes = append(ve.invalidTypes, "format")
 			return
 		}
 
 		switch logTypeStr {
 		case "json", "text", "":
 		default:
-			ve.invalidValues = append(ve.invalidValues, "logType")
+			ve.invalidValues = append(ve.invalidValues, "format")
 		}
 	}
 }

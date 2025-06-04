@@ -114,9 +114,9 @@ func (s *LoggerTestSuite) TestLogLevel() {
 			s.writer.CleanUp()
 			opts := []logger.Option{
 				logger.WithConfig(map[string]any{
-					"level":        tC.level,
-					"timeTemplate": time.UnixDate,
-					"writer":       "stdout",
+					"level":         tC.level,
+					"time_template": time.UnixDate,
+					"log_stream":    "stdout",
 				}),
 				logger.WithWriter(s.writer),
 			}
@@ -165,10 +165,10 @@ func (s *LoggerTestSuite) TestLogType() {
 			s.writer.CleanUp()
 			opts := []logger.Option{
 				logger.WithConfig(map[string]any{
-					"logType":      tC.logType,
-					"level":        "info",
-					"timeTemplate": time.UnixDate,
-					"writer":       "stdout",
+					"format":        tC.logType,
+					"level":         "info",
+					"time_template": time.UnixDate,
+					"log_stream":    "stdout",
 				}),
 				logger.WithWriter(s.writer),
 			}
@@ -230,10 +230,10 @@ func (s *LoggerTestSuite) TestTimeTemplate() {
 			s.writer.CleanUp()
 			opts := []logger.Option{
 				logger.WithConfig(map[string]any{
-					"level":        "info",
-					"logType":      "json",
-					"timeTemplate": tC.template,
-					"writer":       "stdout",
+					"level":         "info",
+					"format":        "json",
+					"time_template": tC.template,
+					"log_stream":    "stdout",
 				}),
 				logger.WithWriter(s.writer),
 			}
@@ -312,9 +312,9 @@ func (s *LoggerTestSuite) TestAdditionalFields() {
 			s.writer.CleanUp()
 			l, err := logger.NewLogger(
 				logger.WithConfig(map[string]any{
-					"level":        "debug",
-					"timeTemplate": time.UnixDate,
-					"writer":       "stdout",
+					"level":         "debug",
+					"time_template": time.UnixDate,
+					"log_stream":    "stdout",
 				}),
 				logger.WithWriter(s.writer),
 			)
@@ -392,9 +392,9 @@ func (s *LoggerTestSuite) TestWith() {
 			s.writer.CleanUp()
 			l, err := logger.NewLogger(
 				logger.WithConfig(map[string]any{
-					"level":        "debug",
-					"timeTemplate": time.UnixDate,
-					"writer":       "stdout",
+					"level":         "debug",
+					"time_template": time.UnixDate,
+					"log_stream":    "stdout",
 				}),
 				logger.WithWriter(s.writer),
 			)
@@ -438,17 +438,20 @@ func (s *LoggerTestSuite) TestInvalidConfigTypes() {
 	}{
 		{
 			name:          "invalid level type",
-			config:        map[string]any{"level": 123, "timeTemplate": time.UnixDate, "writer": "stdout"},
+			config:        map[string]any{"level": 123, "time_template": time.UnixDate, "log_stream": "stdout"},
 			expectedError: errors.ErrCorruptedConfig,
 		},
 		{
-			name:          "invalid log type",
-			config:        map[string]any{"logType": 123, "level": "info", "timeTemplate": time.UnixDate, "writer": "stdout"},
+			name: "invalid log type",
+			config: map[string]any{
+				"format": 123, "level": "info",
+				"time_template": time.UnixDate, "log_stream": "stdout",
+			},
 			expectedError: errors.ErrCorruptedConfig,
 		},
 		{
 			name:          "invalid writer type",
-			config:        map[string]any{"writer": 123, "level": "info", "timeTemplate": time.UnixDate},
+			config:        map[string]any{"log_stream": 123, "level": "info", "time_template": time.UnixDate},
 			expectedError: errors.ErrCorruptedConfig,
 		},
 	}
