@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"log/slog"
 	"os"
 )
@@ -10,29 +11,39 @@ type Logger struct {
 	l *slog.Logger
 }
 
+func (logg Logger) addRequestContext(ctx context.Context, args ...any) []any {
+	requestID, _ := ctx.Value("request_id").(string)
+
+	if requestID != "" {
+		args = append(args, "request_id", requestID)
+	}
+	args = append(args, "request_id", requestID)
+	return args
+}
+
 // Info logs a message with level Info on the standard logger.
-func (logg Logger) Info(msg string, args ...any) {
-	logg.l.Info(msg, args...)
+func (logg Logger) Info(ctx context.Context, msg string, args ...any) {
+	logg.l.Info(msg, logg.addRequestContext(ctx, args...)...)
 }
 
 // Error logs a message with level Error on the standard logger.
-func (logg Logger) Error(msg string, args ...any) {
-	logg.l.Error(msg, args...)
+func (logg Logger) Error(ctx context.Context, msg string, args ...any) {
+	logg.l.Error(msg, logg.addRequestContext(ctx, args...)...)
 }
 
 // Debug logs a message with level Debug on the standard logger.
-func (logg Logger) Debug(msg string, args ...any) {
-	logg.l.Debug(msg, args...)
+func (logg Logger) Debug(ctx context.Context, msg string, args ...any) {
+	logg.l.Debug(msg, logg.addRequestContext(ctx, args...)...)
 }
 
 // Warn logs a message with level Warn on the standard logger.
-func (logg Logger) Warn(msg string, args ...any) {
-	logg.l.Warn(msg, args...)
+func (logg Logger) Warn(ctx context.Context, msg string, args ...any) {
+	logg.l.Warn(msg, logg.addRequestContext(ctx, args...)...)
 }
 
 // Fatal logs a message with level Error on the standard logger and then calls os.Exit(1).
-func (logg Logger) Fatal(msg string, args ...any) {
-	logg.l.Error(msg, args...)
+func (logg Logger) Fatal(ctx context.Context, msg string, args ...any) {
+	logg.l.Error(msg, logg.addRequestContext(ctx, args...)...)
 	os.Exit(1)
 }
 

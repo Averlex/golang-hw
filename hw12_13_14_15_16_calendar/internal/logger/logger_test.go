@@ -1,6 +1,7 @@
 package logger_test
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -68,8 +69,8 @@ func (s *LoggerTestSuite) TestDefaults() {
 		l, err := logger.NewLogger(logger.SetDefaults(), logger.WithWriter(s.writer))
 		s.Require().NoError(err, "got error, expected nil")
 
-		l.Info("test")
-		l.Error("test again")
+		l.Info(context.Background(), "test")
+		l.Error(context.Background(), "test again")
 		s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
 		entry, err := decodeJSON(s.writer.arr[0])
@@ -128,10 +129,10 @@ func (s *LoggerTestSuite) TestLogLevel() {
 			}
 			s.Require().NoError(err, "got error, expected nil")
 
-			l.Debug(tC.msg)
-			l.Info(tC.msg)
-			l.Warn(tC.msg)
-			l.Error(tC.msg)
+			l.Debug(context.Background(), tC.msg)
+			l.Info(context.Background(), tC.msg)
+			l.Warn(context.Background(), tC.msg)
+			l.Error(context.Background(), tC.msg)
 
 			s.Require().Len(s.writer.arr, tC.expectedSize, "unexpected amount of logs received")
 			for i, data := range s.writer.arr {
@@ -180,7 +181,7 @@ func (s *LoggerTestSuite) TestLogType() {
 			}
 			s.Require().NoError(err, "got error, expected nil")
 
-			l.Info(tC.msg)
+			l.Info(context.Background(), tC.msg)
 			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
 			_, err = decodeJSON(s.writer.arr[0])
@@ -246,7 +247,7 @@ func (s *LoggerTestSuite) TestTimeTemplate() {
 			s.Require().NoError(err, "unexpected error received")
 
 			testMsg := "time test"
-			l.Info(testMsg)
+			l.Info(context.Background(), testMsg)
 			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
 			var entry logEntry
@@ -320,7 +321,7 @@ func (s *LoggerTestSuite) TestAdditionalFields() {
 			)
 			s.Require().NoError(err, "got error, expected nil")
 
-			l.Info(tC.msg, tC.fields...)
+			l.Info(context.Background(), tC.msg, tC.fields...)
 			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
 			var logData map[string]any
@@ -407,7 +408,7 @@ func (s *LoggerTestSuite) TestWith() {
 				loggerWithFields = l.With(tC.fields...)
 			}
 
-			loggerWithFields.Info(tC.msg)
+			loggerWithFields.Info(context.Background(), tC.msg)
 			s.Require().Len(s.writer.arr, 1, "unexpected amount of logs received")
 
 			var logData map[string]any
