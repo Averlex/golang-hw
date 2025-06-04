@@ -4,11 +4,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -17,8 +14,6 @@ import (
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                   //nolint:depguard
 	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http" //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                  //nolint:depguard
-	"github.com/spf13/cobra"                                                                   //nolint:depguard
-	"github.com/spf13/viper"                                                                   //nolint:depguard
 )
 
 const (
@@ -26,100 +21,47 @@ const (
 	exitCodeError   = 1
 )
 
-var defaultConfigFile = "configs/config.toml"
+var defaultConfigFile = "../../configs/config.toml"
 
 func main() {
-	cfg := &config.Config{}
-
-	tmpLogger, err := logger.NewLogger("", "", "", os.Stdout)
+	// Creating temporary logger so errors are not lost.
+	logg, err := logger.NewLogger()
 	if err != nil {
-		log.Fatalf("failed to create temporarylogger: %v", err)
+		fmt.Printf("failed to create logger: %s\n", err.Error())
+		os.Exit(exitCodeError)
 	}
 
-	pwd, err := os.Getwd()
+	// Loading configuration from file and env.
+	loader := config.NewViperLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
+		defaultConfigFile, "CALENDAR")
+	cfg, err := loader.Load(printVersion, os.Stdout)
 	if err != nil {
-		tmpLogger.Error("failed to get current directory", "error", err)
-		os.Exit(exitCodeError)
+		logg.Fatal("failed to load config", "err", err)
 	}
-	defaultConfigFile = pwd + "/../" + defaultConfigFile
+	logg.Debug("config loaded successfully")
 
-	rootCmd := &cobra.Command{
-		Use:   "calendar",
-		Short: "Calendar service",
-		Long:  "Calendar service for managing events and reminders",
-		Run: func(_ *cobra.Command, _ []string) {
-			if err := run(cfg); err != nil {
-				tmpLogger.Error("failed to run service", "error", err)
-				os.Exit(exitCodeError)
-			}
-		},
-	}
-
-	rootCmd.Flags().StringP("config", "c", defaultConfigFile, "Path to configuration file")
-	rootCmd.Flags().BoolP("version", "v", false, "Show version info")
-
-	viper.AutomaticEnv()
-
-	if err := viper.BindPFlag("config", rootCmd.Flags().Lookup("config")); err != nil {
-		tmpLogger.Error("failed to bind config flag", "error", err)
-		os.Exit(exitCodeError)
-	}
-
-	if err := viper.BindPFlag("version", rootCmd.Flags().Lookup("version")); err != nil {
-		tmpLogger.Error("failed to bind version flag", "error", err)
-		os.Exit(exitCodeError)
-	}
-
-	rootCmd.PreRun = func(_ *cobra.Command, _ []string) {
-		// Processing -v flag preemptively.
-		if versionFlag := viper.GetBool("version"); versionFlag {
-			if err := printVersion(os.Stdout); err != nil {
-				tmpLogger.Error("failed to print version", "error", err)
-				os.Exit(exitCodeError)
-			}
-			os.Exit(exitCodeSuccess)
-		}
-
-		// Setting the config.
-		configPath := viper.GetString("config")
-		if configPath == "" {
-			configPath = defaultConfigFile
-		}
-		viper.SetConfigFile(configPath)
-		if err := viper.ReadInConfig(); err != nil {
-			tmpLogger.Error("failed to read main config", "error", err, "path", configPath)
-			os.Exit(exitCodeError)
-		}
-		if err := viper.Unmarshal(cfg); err != nil {
-			tmpLogger.Error("failed to unmarshal main config", "error", err)
-			os.Exit(exitCodeError)
-		}
-	}
-
-	if err := rootCmd.Execute(); err != nil {
-		tmpLogger.Error("failed to execute root command", "error", err)
-		os.Exit(exitCodeError)
-	}
-}
-
-func run(cfg *config.Config) error {
-	var w io.Writer
-	switch strings.ToLower(cfg.App.LogStream) {
-	case "stdout":
-		w = os.Stdout
-	case "stderr":
-		w = os.Stderr
-	default:
-		return fmt.Errorf("unknown log stream: %s", cfg.App.LogStream)
-	}
-
-	logg, err := logger.NewLogger(cfg.Logger.Format, cfg.Logger.Level, cfg.Logger.TimeTemplate, w)
+	// Initializing service logger.
+	logCfg, err := cfg.GetSubConfig("logger")
 	if err != nil {
-		return fmt.Errorf("failed to create logger: %w", err)
+		logg.Fatal("failed to get logger config", "err", err)
+	}
+	logg, err = logger.NewLogger(logger.WithConfig(logCfg))
+	if err != nil {
+		logg.Fatal("failed to create logger", "err", err, "config", logCfg)
 	}
 	logg.Debug("logger created successfully")
 
-	storage, _ := storage.NewStorage(cfg.Storage.ToMap())
+	// Initializing the storage.
+	storageCfg, err := cfg.GetSubConfig("storage")
+	if err != nil {
+		logg.Fatal("failed to get storage config", "err", err)
+	}
+	storage, err := storage.NewStorage(storageCfg)
+	if err != nil {
+		logg.Fatal("failed to create storage", "config", storageCfg, "err", err)
+	}
+
+	// App and .....
 	calendar := app.New(logg, storage)
 
 	server := internalhttp.NewServer(logg, calendar)
@@ -143,8 +85,6 @@ func run(cfg *config.Config) error {
 
 	if err := server.Start(ctx); err != nil {
 		cancel()
-		return fmt.Errorf("failed to start http server: %w", err)
+		logg.Fatal("failed to start http server", "err", err)
 	}
-
-	return nil
 }
