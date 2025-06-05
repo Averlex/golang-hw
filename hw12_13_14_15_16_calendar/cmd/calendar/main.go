@@ -28,7 +28,7 @@ var defaultConfigFile = "../../configs/config.toml"
 
 func main() {
 	ctx := context.Background()
-	// Creating temporary logger so errors are not lost.
+	// Creating temporary logger so errors will not be lost.
 	logg, err := logger.NewLogger()
 	if err != nil {
 		fmt.Printf("create temporary logger: %s\n", err.Error())
@@ -46,9 +46,6 @@ func main() {
 		}
 		logg.Fatal(ctx, "load config", slog.Any("err", err))
 	}
-
-	// Wrapping logs with service name.
-	logg = logg.With("service", "calendar")
 	logg.Info(ctx, "config loaded successfully")
 
 	// Initializing service logger.
@@ -60,6 +57,7 @@ func main() {
 	if err != nil {
 		logg.Fatal(ctx, "create logger", slog.Any("err", err))
 	}
+	logg = logg.With(slog.String("service", "calendar"))
 	logg.Info(ctx, "logger created successfully")
 
 	// Initializing the storage.
@@ -73,9 +71,17 @@ func main() {
 	}
 	logg.Info(ctx, "storage created successfully")
 
+	// Initializing signal handler.
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
+
+	// Initializing storage connection.
+	err = storage.Connect(ctx)
+	if err != nil {
+		logg.Fatal(ctx, "connect storage", slog.Any("err", err))
+	}
+	logg.Info(ctx, "storage connected established")
 	defer storage.Close(ctx)
 
 	// Initializing the app.
