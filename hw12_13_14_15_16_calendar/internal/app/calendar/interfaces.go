@@ -64,7 +64,7 @@ type Logger interface {
 	Error(ctx context.Context, msg string, args ...any)
 }
 
-// CreateEvent is trying to create an Event object and save it in the storage.
+// CreateEvent is trying to build an Event object and save it in the storage.
 // Returns *Event, nil on success, nil and error otherwise.
 func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*types.Event, error) {
 	msg := "create event: %w"
@@ -101,4 +101,63 @@ func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*
 	}
 
 	return resEvent, nil
+}
+
+// UpdateEvent is trying to get the existing Event from the storage, update it and save back.
+// Returns *Event, nil on success, nil and error otherwise.
+func (a *App) UpdateEvent(ctx context.Context, input *types.UpdateEventInput) (*types.Event, error) {
+	msg := "update event: %w"
+	if input == nil {
+		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
+	}
+
+	// Constructing the Event object and validating it.
+	eventData, err := types.NewEventData(
+		safeDereference(input.Title),
+		safeDereference(input.Datetime),
+		safeDereference(input.Duration),
+		safeDereference(input.Description),
+		safeDereference(input.UserID),
+		safeDereference(input.RemindIn),
+	)
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	var resEvent *types.Event
+
+	// Trying to update the object in the storage.
+	err = a.withRetries(ctx, func() error {
+		event, err := a.s.UpdateEvent(ctx, input.ID, eventData)
+		if err != nil {
+			return err
+		}
+		resEvent = event
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	return resEvent, nil
+}
+
+// DeleteEvent is trying to delete the Event with the given ID from the storage.
+// Returns nil on success and error otherwise.
+func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
+	msg := "delete event: %w"
+
+	// Trying to update the object in the storage.
+	err := a.withRetries(ctx, func() error {
+		err := a.s.DeleteEvent(ctx, id)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf(msg, err)
+	}
+
+	return nil
 }
