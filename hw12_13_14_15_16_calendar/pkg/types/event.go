@@ -16,9 +16,9 @@ type EventData struct {
 	Title       string
 	Datetime    time.Time
 	Duration    time.Duration
-	Description *string
-	UserID      string         `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
-	RemindIn    *time.Duration `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
+	Description string
+	UserID      string        `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
+	RemindIn    time.Duration `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
 }
 
 // Event contains the data of the event with its ID.
@@ -32,8 +32,7 @@ type Event struct {
 // It validates that the title, datetime, duration, and userID are not empty.
 // If any of these fields are empty, it returns an ErrEmptyField error.
 //
-// It also checks that the duration is not negative, returning ErrNegativeDuration if it is.
-// If the remindIn duration is negative, it returns ErrNegativeRemind.
+// It also checks that the duration and remindIn are not negative, returning ErrEmptyField if they are.
 //
 // The description and remindIn fields are optional and will be set only if provided.
 //
@@ -41,35 +40,40 @@ type Event struct {
 func NewEventData(title string, datetime time.Time, duration time.Duration,
 	description string, userID string, remindIn time.Duration,
 ) (*EventData, error) {
-	var desc string
-	var remind time.Duration
-
-	if description != "" {
-		desc = description
+	missing, invalid := make([]string, 0), make([]string, 0)
+	if title == "" {
+		missing = append(missing, "title")
 	}
-	if remindIn != 0 {
-		remind = remindIn
+	if datetime.IsZero() {
+		missing = append(missing, "datetime")
 	}
-
-	if title == "" || datetime.IsZero() || duration == 0 || userID == "" {
-		return nil, projectErrors.ErrEmptyField
+	if duration == 0 {
+		missing = append(missing, "duration")
+	}
+	if userID == "" {
+		missing = append(missing, "userID")
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("%w: missing=%v", projectErrors.ErrEmptyField, missing)
 	}
 
 	if duration < 0 {
-		return nil, projectErrors.ErrNegativeDuration
+		invalid = append(invalid, "duration")
 	}
-
 	if remindIn < 0 {
-		return nil, projectErrors.ErrNegativeRemind
+		invalid = append(invalid, "remindIn")
+	}
+	if len(invalid) > 0 {
+		return nil, fmt.Errorf("%w: invalid=%v", projectErrors.ErrInvalidFieldData, invalid)
 	}
 
 	return &EventData{
 		Title:       title,
 		Datetime:    datetime,
 		Duration:    duration,
-		Description: &desc,
+		Description: description,
 		UserID:      userID,
-		RemindIn:    &remind,
+		RemindIn:    remindIn,
 	}, nil
 }
 
@@ -125,25 +129,15 @@ func DeepCopyEvent(event *Event) *Event {
 		return nil
 	}
 
-	description := ""
-	remindIn := time.Duration(0)
-
-	if event.Description != nil {
-		description = *event.Description
-	}
-	if event.RemindIn != nil {
-		remindIn = *event.RemindIn
-	}
-
 	return &Event{
 		ID: event.ID,
 		EventData: EventData{
 			Title:       event.Title,
 			Datetime:    event.Datetime,
 			Duration:    event.Duration,
-			Description: &description,
+			Description: event.Description,
 			UserID:      event.UserID,
-			RemindIn:    &remindIn,
+			RemindIn:    event.RemindIn,
 		},
 	}
 }
