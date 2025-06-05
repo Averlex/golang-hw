@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"time"
@@ -36,18 +37,28 @@ func validateFields(args map[string]any, requiredFields map[string]any) ([]strin
 	return missing, wrongType
 }
 
+// withRetries is an app middleware that implemetes the retry logic.
+// It is trying to execute the given function with given retries and timeout, executing it at least once.
+//
+// If an error occurs during the execution and it is retryable, it will be retried.
+// Each attempt is logged with DEBUG level.
+//
+// If the the storage connection is unavailable for some reason, the method will try to reconnect.
+// Each fact of unavailability is logged with ERROR level, each reconnection attempt - with INFO.
+//
+// Receiving any other error stops the execution and passes the error on the upper level.
+//
+// If the retry limit is exceeded, ErrRetriesExceeded is returned, wrapped over the last occurred error.
 func (a *App) withRetries(ctx context.Context, fn func() error) error {
 	var err error
 	a.mu.RLock()
-	retries := a.retries
+	attempts := a.retries + 1 // To guarantee at least 1 execution.
 	timeout := a.retryTimeout
 	a.mu.RUnlock()
 
-	// To guarantee at least 1 execution.
-	retries++
+	msg := "operation failed"
 
-	var i int
-	for i = range retries {
+	for i := range attempts {
 		err = fn()
 		if err == nil {
 			return nil
@@ -55,17 +66,21 @@ func (a *App) withRetries(ctx context.Context, fn func() error) error {
 
 		if !a.isRetryable(err) {
 			if !a.isUninitialized(err) {
-				return err
+				return fmt.Errorf(msg+": %w", err)
 			}
+			// ErrStorageUninitialized is really retryable but with extra logic and another logging level.
+			a.l.Error(ctx, msg, slog.Int("attempt", i+1), slog.Any("error", err))
+			a.l.Info(ctx, "attempting to connect to storage", slog.Int("attempt", i+1))
+			err = a.s.Connect(ctx)
+			if err != nil {
+				return fmt.Errorf(msg+": %w", err)
+			}
+		} else {
+			a.l.Debug(ctx, msg, slog.Int("attempt", i+1), slog.Any("error", err))
 		}
-		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		// ВОТ ТУТ ВСЁ ОСТАНОВИЛОСЬЬЬЬЬЬЬЬЬЬЬЬЬЬЬЬЬ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-		a.l.Debug(ctx, "operation failed", slog.Int("attempt", i+1), slog.Any("error", err))
 
 		// No need in waiting on the last attempt.
-		if i < retries {
+		if i < attempts-1 {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -74,7 +89,12 @@ func (a *App) withRetries(ctx context.Context, fn func() error) error {
 			}
 		}
 	}
-	return err
+
+	if err != nil {
+		return fmt.Errorf("%w: %w", projectErrors.ErrRetriesExceeded, err)
+	}
+
+	return nil
 }
 
 func (a *App) isRetryable(err error) bool {
