@@ -63,10 +63,8 @@ var (
 var (
 	// ErrEmptyField is returned when no data is passed to any of the necessary fields.
 	ErrEmptyField = errors.New("empty event field values received")
-	// ErrNegativeDuration is returned when the event duration is negative.
-	ErrNegativeDuration = errors.New("event duration is negative")
-	// ErrNegativeRemind is returned when the event remind duration is negative.
-	ErrNegativeRemind = errors.New("event remind duration is negative")
+	// ErrIvalidFieldData is returned when invalid data is passed to any of the fields.
+	ErrInvalidFieldData = errors.New("invalid event field values received")
 )
 
 // Storage errors.

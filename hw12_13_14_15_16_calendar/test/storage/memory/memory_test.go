@@ -474,11 +474,11 @@ func (s *MemorySuite) TestUpdateEvent() {
 				s.Require().Equal(tC.data.Title, result.Title, "title mismatch")
 				s.Require().Equal(tC.data.Datetime, result.Datetime, "datetime mismatch")
 				s.Require().Equal(tC.data.Duration, result.Duration, "duration mismatch")
-				if tC.data.Description != nil {
-					s.Require().Equal(*tC.data.Description, *result.Description, "description mismatch")
+				if tC.data.Description != "" {
+					s.Require().Equal(tC.data.Description, result.Description, "description mismatch")
 				}
-				if tC.data.RemindIn != nil {
-					s.Require().Equal(*tC.data.RemindIn, *result.RemindIn, "remindIn mismatch")
+				if tC.data.RemindIn != time.Duration(0) {
+					s.Require().Equal(tC.data.RemindIn, result.RemindIn, "remindIn mismatch")
 				}
 			}
 		})
