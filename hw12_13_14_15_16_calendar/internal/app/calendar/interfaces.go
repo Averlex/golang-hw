@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
@@ -160,4 +161,132 @@ func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+// GetEvent is trying to get the Event with the given ID from the storage.
+// Returns nil on success and error otherwise.
+func (a *App) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) {
+	msg := "get event: %w"
+
+	var resEvent *types.Event
+
+	// Trying to save the object in the storage.
+	err := a.withRetries(ctx, func() error {
+		event, err := a.s.GetEvent(ctx, id)
+		if err != nil {
+			return err
+		}
+		resEvent = event
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	return resEvent, nil
+}
+
+// GetAllUserEvents is trying to get all events for a given user ID from the storage.
+func (a *App) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
+	msg := "get all user events: %w"
+
+	var events []*types.Event
+
+	// Trying to save the object in the storage.
+	err := a.withRetries(ctx, func() error {
+		res, err := a.s.GetAllUserEvents(ctx, userID)
+		if err != nil {
+			return err
+		}
+		events = res
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	return events, nil
+}
+
+// ListEvents is trying to get all events for a given user ID from the storage.
+//
+// period is the period of time to get events for, stratring from the given date.
+// Accepted values are Day, Week and Month.
+//
+// Returns []*Event, nil on success and nil, error otherwise.
+//
+// NOTE: period is casted to the the start of the corresponding calendar period.
+func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*types.Event, error) {
+	msg := "list events: %w"
+	if input == nil {
+		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
+	}
+
+	// period validation. Incorrect value might be cause by programmer only.
+	switch input.Period {
+	case types.Day, types.Week, types.Month:
+	default:
+		a.l.Error(ctx, "unexpected parameter value",
+			slog.String("method", "ListEvents"),
+			slog.String("parameter", "period"),
+			slog.String("value", input.Period.String()),
+			slog.Any("err", projectErrors.ErrInconsistentState),
+		)
+		return nil, fmt.Errorf(msg, projectErrors.ErrInconsistentState)
+	}
+
+	var events []*types.Event
+
+	// Trying to save the object in the storage.
+	err := a.withRetries(ctx, func() error {
+		var res []*types.Event
+		var err error
+		switch input.Period {
+		case types.Day:
+			res, err = a.s.GetEventsForDay(ctx, input.Date, input.UserID)
+		case types.Week:
+			res, err = a.s.GetEventsForWeek(ctx, input.Date, input.UserID)
+		case types.Month:
+			res, err = a.s.GetEventsForMonth(ctx, input.Date, input.UserID)
+		}
+
+		if err != nil {
+			return err
+		}
+		events = res
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	return events, nil
+}
+
+// GetEventsForPeriod is trying to get all events for a given period from the storage.
+// Returns []*Event, nil on success and nil, error otherwise.
+//
+// NOTE: time borders are not casted unlike in ListEvents.
+func (a *App) GetEventsForPeriod(ctx context.Context, input *types.DateRangeInput) ([]*types.Event, error) {
+	msg := "get events for period: %w"
+	if input == nil {
+		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
+	}
+
+	var events []*types.Event
+
+	// Trying to save the object in the storage.
+	err := a.withRetries(ctx, func() error {
+		res, err := a.s.GetEventsForPeriod(ctx, input.DateStart, input.DateEnd, input.UserID)
+		if err != nil {
+			return err
+		}
+		events = res
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	return events, nil
 }

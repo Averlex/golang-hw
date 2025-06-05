@@ -35,6 +35,14 @@ var (
 	ErrStorageFull = errors.New("storage is full")
 )
 
+// Errors, which breaks the normal execution flow.
+// App/Server level.
+// ERROR.
+var (
+	// ErrInconsistentState is returned when an unexpected internal error occurs.
+	ErrInconsistentState = errors.New("unexpected internal error")
+)
+
 // Unsuccessful result of storage operations.
 // Server level.
 // WARN.

@@ -1,10 +1,32 @@
 package types
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid" //nolint:depguard,nolintlint
 )
+
+// Period represents a period of time.
+type Period uint8
+
+// Possible values for Period.
+const (
+	Day Period = iota
+	Week
+	Month
+)
+
+// String returns a string representation of the Period.
+func (p Period) String() string {
+	return [...]string{"day", "week", "month"}[p]
+}
+
+// MarshalJSON impelements custom JSON marshaling for Period type.
+func (p Period) MarshalJSON() ([]byte, error) {
+	// Сериализуем как строку, используя String().
+	return json.Marshal(p.String())
+}
 
 // CreateEventInput represents the input for creating an event.
 //
@@ -37,6 +59,7 @@ type UpdateEventInput struct {
 type DateFilterInput struct {
 	Date   time.Time `json:"date"`
 	UserID *string   `json:"user_id"`
+	Period Period    `json:"period"`
 }
 
 // DateRangeInput represents the input for getters by a range of dates.
