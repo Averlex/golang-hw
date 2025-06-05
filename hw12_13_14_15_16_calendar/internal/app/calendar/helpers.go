@@ -107,3 +107,12 @@ func (a *App) isRetryable(err error) bool {
 func (a *App) isUninitialized(err error) bool {
 	return errors.Is(err, projectErrors.ErrStorageUninitialized)
 }
+
+// safeDereference returns zero value if ptr is nil.
+func safeDereference[T any](ptr *T) T {
+	if ptr == nil {
+		var zero T
+		return zero
+	}
+	return *ptr
+}

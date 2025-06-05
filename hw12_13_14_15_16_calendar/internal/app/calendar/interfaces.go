@@ -2,19 +2,18 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                           //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
 )
 
 // Storage represents a universal storage interface.
 type Storage interface {
 	// Connect establishes a connection to the storage backend.
 	Connect(ctx context.Context) error
-
-	// Close closes the connection to the storage backend.
-	Close(ctx context.Context)
 
 	// CreateEvent creates a new event in the storage.
 	// Returns the created event or an error if the operation fails.
@@ -63,4 +62,43 @@ type Logger interface {
 	Warn(ctx context.Context, msg string, args ...any)
 	// Error logs a message with level Error on the standard logger.
 	Error(ctx context.Context, msg string, args ...any)
+}
+
+// CreateEvent is trying to create an Event object and save it in the storage.
+// Returns *Event, nil on success, nil and error otherwise.
+func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*types.Event, error) {
+	msg := "create event: %w"
+	if input == nil {
+		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
+	}
+
+	// Constructing the Event object and validating it.
+	event, err := types.NewEvent(
+		input.Title,
+		input.Datetime,
+		input.Duration,
+		safeDereference(input.Description),
+		input.UserID,
+		safeDereference(input.RemindIn),
+	)
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	var resEvent *types.Event
+
+	// Trying to save the object in the storage.
+	err = a.withRetries(ctx, func() error {
+		event, err := a.s.CreateEvent(ctx, event)
+		if err != nil {
+			return err
+		}
+		resEvent = event
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	return resEvent, nil
 }
