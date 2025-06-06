@@ -18,5 +18,7 @@ const (
 	DefaultWriter = "stdout"
 )
 
+const contextRequestKey = "request_id"
+
 // DefaultWriterValue is a default writer value.
 var DefaultWriterValue = os.Stdout
