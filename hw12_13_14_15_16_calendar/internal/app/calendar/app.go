@@ -39,10 +39,6 @@ func NewApp(logger Logger, storage Storage, config map[string]any) (*App, error)
 	}
 
 	// Field types validation.
-	expectedFields := map[string]any{
-		"retries":       int(0),
-		"retry_timeout": time.Duration(0),
-	}
 	missing, wrongType := validateFields(config, expectedFields)
 	if len(missing) > 0 || len(wrongType) > 0 {
 		return nil, fmt.Errorf("%w: missing=%v invalid_type=%v",
