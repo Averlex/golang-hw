@@ -1,4 +1,5 @@
-package types
+// Package dto provides data transfer objects for the calendar service.
+package dto
 
 import (
 	"encoding/json"

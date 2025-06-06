@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"         //nolint:depguard,nolintlint
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
@@ -70,7 +71,7 @@ type Logger interface {
 
 // CreateEvent is trying to build an Event object and save it in the storage.
 // Returns *Event, nil on success, nil and error otherwise.
-func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*types.Event, error) {
+func (a *App) CreateEvent(ctx context.Context, input *dto.CreateEventInput) (*types.Event, error) {
 	method := "CreateEvent"
 	msg := method + ": %w"
 	if input == nil {
@@ -110,7 +111,7 @@ func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*
 
 // UpdateEvent is trying to get the existing Event from the storage, update it and save back.
 // Returns *Event, nil on success, nil and error otherwise.
-func (a *App) UpdateEvent(ctx context.Context, input *types.UpdateEventInput) (*types.Event, error) {
+func (a *App) UpdateEvent(ctx context.Context, input *dto.UpdateEventInput) (*types.Event, error) {
 	method := "UpdateEvent"
 	msg := method + ": %w"
 	if input == nil {
@@ -224,7 +225,7 @@ func (a *App) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Eve
 // Returns []*Event, nil on success and nil, error otherwise.
 //
 // NOTE: period is casted to the the start of the corresponding calendar period.
-func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*types.Event, error) {
+func (a *App) ListEvents(ctx context.Context, input *dto.DateFilterInput) ([]*types.Event, error) {
 	method := "ListEvents"
 	msg := method + ": %w"
 
@@ -234,7 +235,7 @@ func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*
 
 	// period validation. Incorrect value might be cause by programmer only.
 	switch input.Period {
-	case types.Day, types.Week, types.Month:
+	case dto.Day, dto.Week, dto.Month:
 	default:
 		a.l.Error(ctx, "unexpected parameter value",
 			slog.String("method", method),
@@ -252,11 +253,11 @@ func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*
 		var res []*types.Event
 		var err error
 		switch input.Period {
-		case types.Day:
+		case dto.Day:
 			res, err = a.s.GetEventsForDay(ctx, input.Date, input.UserID)
-		case types.Week:
+		case dto.Week:
 			res, err = a.s.GetEventsForWeek(ctx, input.Date, input.UserID)
-		case types.Month:
+		case dto.Month:
 			res, err = a.s.GetEventsForMonth(ctx, input.Date, input.UserID)
 		}
 
@@ -277,7 +278,7 @@ func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*
 // Returns []*Event, nil on success and nil, error otherwise.
 //
 // NOTE: time borders are not casted unlike in ListEvents.
-func (a *App) GetEventsForPeriod(ctx context.Context, input *types.DateRangeInput) ([]*types.Event, error) {
+func (a *App) GetEventsForPeriod(ctx context.Context, input *dto.DateRangeInput) ([]*types.Event, error) {
 	method := "GetEventsForPeriod"
 	msg := method + ": %w"
 
