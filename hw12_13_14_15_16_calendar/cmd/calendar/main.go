@@ -24,7 +24,7 @@ const (
 	exitCodeError   = 1
 )
 
-var defaultConfigFile = "../../configs/config.toml"
+var defaultConfigFile = "../../configs/calendar/config.toml"
 
 func main() {
 	ctx := context.Background()
