@@ -18,7 +18,7 @@ host = "localhost"
 port = "5432"
 user = "" # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_USER
 password = "" # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_PASSWORD
-dbname = "calendar"
+dbname = ""
 timeout = "3s" # 0s means timeout will be disabled. Values lesser than seconds are also suppoted
 driver = "postgres" # Currently suppoted drivers: postgres, postgresql
 
