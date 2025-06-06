@@ -12,8 +12,8 @@ import (
 // SQL queries for basic CRUD operations on events.
 const (
 	queryCreateEvent = `
-	INSERT INTO events (title, datetime, duration, description, user_id, remind_in)
-	VALUES (:title, :datetime, :duration, :description, :user_id, :remind_in)
+	INSERT INTO events (id, title, datetime, duration, description, user_id, remind_in)
+	VALUES (:id, :title, :datetime, :duration, :description, :user_id, :remind_in)
 	`
 	queryUpdateEvent = `
 	UPDATE events
