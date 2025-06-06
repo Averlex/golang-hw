@@ -37,7 +37,7 @@ func main() {
 	logg = logg.With(slog.String("service", "calendar"))
 
 	// Loading configuration from file and env.
-	loader := config.NewViperLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
+	loader := config.NewLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
 		defaultConfigFile, "CALENDAR")
 	cfg, err := loader.Load(printVersion, os.Stdout)
 	if err != nil {
