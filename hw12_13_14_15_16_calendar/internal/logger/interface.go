@@ -12,15 +12,12 @@ type Logger struct {
 }
 
 func (logg Logger) addRequestContext(ctx context.Context, args ...any) []any {
-	requestID, _ := ctx.Value("request_id").(string)
-	userID, _ := ctx.Value("user_id").(string)
+	if v := ctx.Value("request"); v != nil {
+		if attr, ok := v.(slog.Attr); ok {
+			args = append(args, attr)
+		}
+	}
 
-	if requestID != "" {
-		args = append(args, "request_id", requestID)
-	}
-	if userID != "" {
-		args = append(args, "user_id", userID)
-	}
 	return args
 }
 
