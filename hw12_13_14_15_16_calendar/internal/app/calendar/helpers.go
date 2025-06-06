@@ -49,7 +49,7 @@ func validateFields(args map[string]any, requiredFields map[string]any) ([]strin
 // Receiving any other error stops the execution and passes the error on the upper level.
 //
 // If the retry limit is exceeded, ErrRetriesExceeded is returned, wrapped over the last occurred error.
-func (a *App) withRetries(ctx context.Context, fn func() error) error {
+func (a *App) withRetries(ctx context.Context, method string, fn func() error) error {
 	var err error
 	a.mu.RLock()
 	attempts := a.retries + 1 // To guarantee at least 1 execution.
@@ -65,18 +65,36 @@ func (a *App) withRetries(ctx context.Context, fn func() error) error {
 		}
 
 		if !a.isRetryable(err) {
+			// The error here is not really expected, therefore no special processing implemented.
 			if !a.isUninitialized(err) {
+				a.l.Error(ctx,
+					"unexpected error occurred on method call",
+					slog.String("method", method),
+					slog.Any("error", err),
+				)
 				return fmt.Errorf(msg+": %w", err)
 			}
 			// ErrStorageUninitialized is really retryable but with extra logic and another logging level.
-			a.l.Error(ctx, msg, slog.Int("attempt", i+1), slog.Any("error", err))
-			a.l.Info(ctx, "attempting to connect to storage", slog.Int("attempt", i+1))
+			a.l.Error(ctx,
+				"operation failed due to storage unavailability",
+				slog.String("method", method),
+				slog.Int("attempt", i+1),
+				slog.Any("error", err),
+			)
+			a.l.Info(ctx, "attempting to connect to storage", slog.String("method", method), slog.Int("attempt", i+1))
 			err = a.s.Connect(ctx)
 			if err != nil {
+				a.l.Error(ctx,
+					"unable re-establish storage connection",
+					slog.String("method", method),
+					slog.Int("attempt", i+1),
+					slog.Any("error", err),
+				)
 				return fmt.Errorf(msg+": %w", err)
 			}
+			a.l.Info(ctx, "storage connection re-established", slog.String("method", method), slog.Int("attempt", i+1))
 		} else {
-			a.l.Debug(ctx, msg, slog.Int("attempt", i+1), slog.Any("error", err))
+			a.l.Debug(ctx, "operation failed", slog.String("method", method), slog.Int("attempt", i+1), slog.Any("error", err))
 		}
 
 		// No need in waiting on the last attempt.
@@ -91,6 +109,12 @@ func (a *App) withRetries(ctx context.Context, fn func() error) error {
 	}
 
 	if err != nil {
+		a.l.Error(ctx,
+			"retry limit exceeded",
+			slog.String("method", method),
+			slog.Int("total_attempts", attempts),
+			slog.Any("error", err),
+		)
 		return fmt.Errorf("%w: %w", projectErrors.ErrRetriesExceeded, err)
 	}
 

@@ -35,22 +35,6 @@ var (
 	ErrStorageFull = errors.New("storage is full")
 )
 
-// Errors, which breaks the normal execution flow.
-// App/Server level.
-// ERROR.
-var (
-	// ErrInconsistentState is returned when an unexpected internal error occurs.
-	ErrInconsistentState = errors.New("unexpected internal error")
-)
-
-// Unsuccessful result of storage operations.
-// Server level.
-// WARN.
-var (
-	// ErrRetriesExceeded is returned when the retry count is exceeded.
-	ErrRetriesExceeded = errors.New("maximum retries exceeded")
-)
-
 // Business errors.
 // Server level.
 // INFO - potential 40x codes.
@@ -75,9 +59,25 @@ var (
 	ErrInvalidFieldData = errors.New("invalid event field values received")
 )
 
+// Unsuccessful result of storage operations.
+// App and Server level.
+// ERROR on App, WARN on Server.
+var (
+	// ErrRetriesExceeded is returned when the retry count is exceeded.
+	ErrRetriesExceeded = errors.New("maximum retries exceeded")
+)
+
+// Errors, which breaks the normal execution flow.
+// App level. Not retryable.
+// ERROR.
+var (
+	// ErrInconsistentState is returned when an unexpected internal error occurs.
+	ErrInconsistentState = errors.New("unexpected internal error")
+)
+
 // Storage errors.
 // App level, retryable.
-// ERROR level only.
+// ERROR.
 var (
 	// ErrStorageUninitialized is returned when the database connection is not initialized.
 	ErrStorageUninitialized = errors.New("storage is not initialized (initialize connection first?)")

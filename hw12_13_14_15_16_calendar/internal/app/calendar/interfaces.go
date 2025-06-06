@@ -1,3 +1,6 @@
+//go:generate mockery --name=Logger --dir=. --output=mocks --filename=mock_logger.go --with-expecter
+//go:generate mockery --name=Storage --dir=. --output=mocks --filename=mock_storage.go --with-expecter
+
 package app
 
 import (
@@ -68,7 +71,8 @@ type Logger interface {
 // CreateEvent is trying to build an Event object and save it in the storage.
 // Returns *Event, nil on success, nil and error otherwise.
 func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*types.Event, error) {
-	msg := "create event: %w"
+	method := "CreateEvent"
+	msg := method + ": %w"
 	if input == nil {
 		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
 	}
@@ -89,7 +93,7 @@ func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*
 	var resEvent *types.Event
 
 	// Trying to save the object in the storage.
-	err = a.withRetries(ctx, func() error {
+	err = a.withRetries(ctx, method, func() error {
 		event, err := a.s.CreateEvent(ctx, event)
 		if err != nil {
 			return err
@@ -107,7 +111,8 @@ func (a *App) CreateEvent(ctx context.Context, input *types.CreateEventInput) (*
 // UpdateEvent is trying to get the existing Event from the storage, update it and save back.
 // Returns *Event, nil on success, nil and error otherwise.
 func (a *App) UpdateEvent(ctx context.Context, input *types.UpdateEventInput) (*types.Event, error) {
-	msg := "update event: %w"
+	method := "UpdateEvent"
+	msg := method + ": %w"
 	if input == nil {
 		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
 	}
@@ -128,7 +133,7 @@ func (a *App) UpdateEvent(ctx context.Context, input *types.UpdateEventInput) (*
 	var resEvent *types.Event
 
 	// Trying to update the object in the storage.
-	err = a.withRetries(ctx, func() error {
+	err = a.withRetries(ctx, method, func() error {
 		event, err := a.s.UpdateEvent(ctx, input.ID, eventData)
 		if err != nil {
 			return err
@@ -146,10 +151,11 @@ func (a *App) UpdateEvent(ctx context.Context, input *types.UpdateEventInput) (*
 // DeleteEvent is trying to delete the Event with the given ID from the storage.
 // Returns nil on success and error otherwise.
 func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
-	msg := "delete event: %w"
+	method := "DeleteEvent"
+	msg := method + ": %w"
 
 	// Trying to update the object in the storage.
-	err := a.withRetries(ctx, func() error {
+	err := a.withRetries(ctx, method, func() error {
 		err := a.s.DeleteEvent(ctx, id)
 		if err != nil {
 			return err
@@ -166,12 +172,13 @@ func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 // GetEvent is trying to get the Event with the given ID from the storage.
 // Returns nil on success and error otherwise.
 func (a *App) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) {
-	msg := "get event: %w"
+	method := "GetEvent"
+	msg := method + ": %w"
 
 	var resEvent *types.Event
 
 	// Trying to save the object in the storage.
-	err := a.withRetries(ctx, func() error {
+	err := a.withRetries(ctx, method, func() error {
 		event, err := a.s.GetEvent(ctx, id)
 		if err != nil {
 			return err
@@ -188,12 +195,13 @@ func (a *App) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) 
 
 // GetAllUserEvents is trying to get all events for a given user ID from the storage.
 func (a *App) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
-	msg := "get all user events: %w"
+	method := "GetAllUserEvents"
+	msg := method + ": %w"
 
 	var events []*types.Event
 
 	// Trying to save the object in the storage.
-	err := a.withRetries(ctx, func() error {
+	err := a.withRetries(ctx, method, func() error {
 		res, err := a.s.GetAllUserEvents(ctx, userID)
 		if err != nil {
 			return err
@@ -217,7 +225,9 @@ func (a *App) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Eve
 //
 // NOTE: period is casted to the the start of the corresponding calendar period.
 func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*types.Event, error) {
-	msg := "list events: %w"
+	method := "ListEvents"
+	msg := method + ": %w"
+
 	if input == nil {
 		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
 	}
@@ -227,7 +237,7 @@ func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*
 	case types.Day, types.Week, types.Month:
 	default:
 		a.l.Error(ctx, "unexpected parameter value",
-			slog.String("method", "ListEvents"),
+			slog.String("method", method),
 			slog.String("parameter", "period"),
 			slog.String("value", input.Period.String()),
 			slog.Any("err", projectErrors.ErrInconsistentState),
@@ -238,7 +248,7 @@ func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*
 	var events []*types.Event
 
 	// Trying to save the object in the storage.
-	err := a.withRetries(ctx, func() error {
+	err := a.withRetries(ctx, method, func() error {
 		var res []*types.Event
 		var err error
 		switch input.Period {
@@ -268,7 +278,9 @@ func (a *App) ListEvents(ctx context.Context, input *types.DateFilterInput) ([]*
 //
 // NOTE: time borders are not casted unlike in ListEvents.
 func (a *App) GetEventsForPeriod(ctx context.Context, input *types.DateRangeInput) ([]*types.Event, error) {
-	msg := "get events for period: %w"
+	method := "GetEventsForPeriod"
+	msg := method + ": %w"
+
 	if input == nil {
 		return nil, fmt.Errorf(msg, projectErrors.ErrNoData)
 	}
@@ -276,7 +288,7 @@ func (a *App) GetEventsForPeriod(ctx context.Context, input *types.DateRangeInpu
 	var events []*types.Event
 
 	// Trying to save the object in the storage.
-	err := a.withRetries(ctx, func() error {
+	err := a.withRetries(ctx, method, func() error {
 		res, err := a.s.GetEventsForPeriod(ctx, input.DateStart, input.DateEnd, input.UserID)
 		if err != nil {
 			return err
