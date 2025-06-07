@@ -79,6 +79,7 @@ linters:
       - builtin$
       - examples$
       - mocks$
+      - ".*mock_.*.go$"
 formatters:
   enable:
     - gci
@@ -91,3 +92,4 @@ formatters:
       - builtin$
       - examples$
       - mocks$
+      - ".*mock_.*.go$"
