@@ -93,3 +93,9 @@ formatters:
       - examples$
       - mocks$
       - ".*mock_.*.go$"
+issues:
+  exclude-dirs:
+    - mocks
+  exclude-files:
+    - .*_test\.go
+    - .*mock_.*\.go
