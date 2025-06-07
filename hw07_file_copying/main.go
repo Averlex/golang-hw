@@ -1,7 +1,10 @@
+// main contains a function for copying a file from a source path to
+// a destination path with optional offset and limit.
 package main
 
 import (
 	"flag"
+	"log"
 )
 
 var (
@@ -18,5 +21,8 @@ func init() {
 
 func main() {
 	flag.Parse()
-	// Place your code here.
+	res := Copy(from, to, offset, limit)
+	if res != nil {
+		log.Fatal(res.Error())
+	}
 }
