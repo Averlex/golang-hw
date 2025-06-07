@@ -5,6 +5,9 @@ DOCKER_IMG="calendar:develop"
 
 JQ_MARKER_FILE := .jq_installed
 
+HOST := "localhost"
+DBPORT := "5432"
+DBNAME := "calendar"
 CALENDAR_STORAGE_SQL_USER := "calendar_user"
 CALENDAR_STORAGE_SQL_PASSWORD := "calendar_pass"
 
@@ -70,15 +73,15 @@ migrate: migrate-up
 
 # Apply all pending migrations
 migrate-up: run-db
-	goose -dir ./migrations postgres "host=localhost port=5432 user=$(CALENDAR_STORAGE_SQL_USER) password=$(CALENDAR_STORAGE_SQL_PASSWORD) dbname=calendar sslmode=disable" up
+	goose -dir ./migrations postgres "host=$(HOST) port=$(DBPORT) user=$(CALENDAR_STORAGE_SQL_USER) password=$(CALENDAR_STORAGE_SQL_PASSWORD) dbname=$(DBNAME) sslmode=disable" up
 
 # Apply one next migration
 migrate-up-1: run-db
-	goose -dir ./migrations postgres "host=localhost port=5432 user=$(CALENDAR_STORAGE_SQL_USER) password=$(CALENDAR_STORAGE_SQL_PASSWORD) dbname=calendar sslmode=disable" up 1
+	goose -dir ./migrations postgres "host=$(HOST) port=$(DBPORT) user=$(CALENDAR_STORAGE_SQL_USER) password=$(CALENDAR_STORAGE_SQL_PASSWORD) dbname=$(DBNAME) sslmode=disable" up 1
 
 # Rollback one last migration
 migrate-down-1: run-db
-	goose -dir ./migrations postgres "host=localhost port=5432 user=$(CALENDAR_STORAGE_SQL_USER) password=$(CALENDAR_STORAGE_SQL_PASSWORD) dbname=calendar sslmode=disable" down 1
+	goose -dir ./migrations postgres "host=$(HOST) port=$(DBPORT) user=$(CALENDAR_STORAGE_SQL_USER) password=$(CALENDAR_STORAGE_SQL_PASSWORD) dbname=$(DBNAME) sslmode=disable" down 1
 
 # --- Generate ---
 
