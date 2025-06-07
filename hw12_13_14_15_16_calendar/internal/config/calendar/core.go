@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+// SetSecrets sets the user and password for the SQL storage.
+func (c *Config) SetSecrets(user, pw string) {
+	c.Storage.SQL.User = user
+	c.Storage.SQL.Password = pw
+}
+
 // GetSubConfig returns a nested section of the configuration as a map[string]any.
 // The section is identified by the given key, which matches either the field name or its mapstructure tag.
 // If the key does not correspond to a struct field, an error is returned.

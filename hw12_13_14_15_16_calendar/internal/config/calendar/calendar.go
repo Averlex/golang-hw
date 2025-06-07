@@ -9,8 +9,8 @@ import (
 type Config struct {
 	Logger  LoggerConf  `mapstructure:"logger"`
 	Storage StorageConf `mapstructure:"storage"`
-	Server  ServerConf  `mapstructure:"server"`
 	App     AppConf     `mapstructure:"app"`
+	Server  ServerConf  `mapstructure:"server"`
 }
 
 // LoggerConf is a config for logger.
@@ -19,11 +19,6 @@ type LoggerConf struct {
 	Format       string `mapstructure:"format"`
 	TimeTemplate string `mapstructure:"time_template"`
 	LogStream    string `mapstructure:"log_stream"`
-}
-
-// ServerConf is a config for the global server settings.
-type ServerConf struct {
-	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
 
 // StorageConf is a config for storage containing storage type.
@@ -53,4 +48,14 @@ type MemoryConf struct {
 type AppConf struct {
 	RetryTimeout time.Duration `mapstructure:"retry_timeout"`
 	Retries      int           `mapstructure:"retries"`
+}
+
+// ServerConf is a config for the global server settings.
+type ServerConf struct {
+	Host            string        `mapstructure:"host"`
+	Port            string        `mapstructure:"port"`
+	ReadTimeout     time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout     time.Duration `mapstructure:"idle_timeout"`
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }

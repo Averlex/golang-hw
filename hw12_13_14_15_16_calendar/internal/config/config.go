@@ -11,6 +11,8 @@ import (
 type ServiceConfig interface {
 	// GetSubConfig returns the part of the config that corresponds to the key.
 	GetSubConfig(key string) (map[string]any, error)
+	// SetSecrets sets the user and password for the SQL storage.
+	SetSecrets(user, pw string)
 }
 
 // NewServiceConfig creates a concrete config based on service name.

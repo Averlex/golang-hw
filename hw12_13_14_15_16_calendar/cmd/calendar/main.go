@@ -9,14 +9,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar"         //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                   //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                   //nolint:depguard
-	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http" //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                  //nolint:depguard
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"          //nolint:depguard
+	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar"                  //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                            //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                            //nolint:depguard
+	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/http" //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                           //nolint:depguard
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"                   //nolint:depguard
 )
 
 const (
@@ -65,6 +64,14 @@ func main() {
 	if err != nil {
 		logg.Fatal(ctx, "get storage config", slog.Any("err", err))
 	}
+	user, pw := os.Getenv("CALENDAR_STORAGE_SQL_USER"), os.Getenv("CALENDAR_STORAGE_SQL_PASSWORD")
+	storageCfg["sql"]["user"] = user
+	storageCfg["sql"]["password"] = pw
+	cfg.SetSecrets(user, pw)
+
+	logg.Warn(ctx, "debug output", slog.String("DB_HOST", os.Getenv("CALENDAR_STORAGE_SQL_USER")), slog.String("DB_PW", os.Getenv("CALENDAR_STORAGE_SQL_PASSWORD")))
+	logg.Warn(ctx, "debug output", slog.String("DB_HOST", storageCfg["host"].(string)), slog.String("DB_PW", storageCfg["password"].(string)))
+
 	storage, err := storage.NewStorage(storageCfg)
 	if err != nil {
 		logg.Fatal(ctx, "create storage", slog.Any("err", err))
@@ -95,16 +102,22 @@ func main() {
 	}
 	logg.Info(ctx, "app created successfully")
 
-	server := internalhttp.NewServer(logg, calendar)
+	// Starting http server.
+	serverCfg, err := cfg.GetSubConfig("server")
+	if err != nil {
+		logg.Fatal(ctx, "get server config", slog.Any("err", err))
+	}
+	server, err := internalhttp.NewServer(logg, calendar, serverCfg)
+	if err != nil {
+		logg.Fatal(ctx, "create http server", slog.Any("err", err))
+	}
+	logg.Info(ctx, "server created successfully")
 
 	go func() {
 		<-ctx.Done()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-
 		if err := server.Stop(ctx); err != nil {
-			logg.Error(ctx, "stop http server: "+err.Error())
+			logg.Error(ctx, "stop http server", slog.Any("err", err))
 		}
 	}()
 
@@ -112,6 +125,6 @@ func main() {
 
 	if err := server.Start(ctx); err != nil {
 		cancel()
-		logg.Fatal(ctx, "start http server", "err", err)
+		logg.Fatal(ctx, "start http server", slog.Any("err", err))
 	}
 }
