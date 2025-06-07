@@ -128,7 +128,6 @@ func (s *Server) Stop(ctx context.Context) error {
 		return nil
 	}
 
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 	defer cancel()
 

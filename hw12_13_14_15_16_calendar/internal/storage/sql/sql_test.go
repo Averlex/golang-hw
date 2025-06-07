@@ -85,33 +85,47 @@ func (s *SQLSuite) mockEventExists(event *types.Event) {
 
 // mockEventNotExists is a helper function to mock the case when an event does not exist.
 func (s *SQLSuite) mockEventNotExists() {
-	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errNotExists).Once()
+	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
+		mock.Anything).Return(errNotExists).Once()
 }
 
 func (s *SQLSuite) mockEventOverlaps(isOverlaps bool) {
+	// We expect 7 arguments for the GetContext call:
+	// 3 necessary + variadic of 4 arguments.
+	callArgs := make([]any, 7)
+	for i := range callArgs {
+		callArgs[i] = mock.Anything
+	}
 	if !isOverlaps {
-		s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-			mock.Anything).Return(nil).Once()
+		s.txMock.On("GetContext", callArgs...).Return(nil).Once()
 		return
 	}
-	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything).Run(func(args mock.Arguments) {
+	s.txMock.On("GetContext", callArgs...).Run(func(args mock.Arguments) {
 		// Simulating query returning true for overlapping dates.
 		dest := args.Get(1).(*bool)
 		*dest = true
 	}).Return(nil).Once()
 }
 
-func (s *SQLSuite) mockGetEvents(events *[]*types.Event, isFound bool) {
+func (s *SQLSuite) mockGetEvents(events *[]*types.Event, isFound bool, argLen int) {
+	args := make([]any, argLen)
+	for i := range args {
+		args[i] = mock.Anything
+	}
+	callArgs := append([]any{
+		mock.Anything,
+		mock.Anything,
+		mock.Anything,
+	}, args...)
 	if !isFound {
-		s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		s.txMock.On("SelectContext", callArgs...).
 			Run(func(args mock.Arguments) {
 				dest := args.Get(1).(*[]*types.Event)
 				*dest = []*types.Event{} // Simulate no events found.
 			}).Return(nil).Once()
 		return
 	}
-	s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.txMock.On("SelectContext", callArgs...).
 		Run(func(args mock.Arguments) {
 			dest := args.Get(1).(*[]*types.Event)
 			*dest = *events
@@ -718,7 +732,7 @@ func (s *SQLSuite) TestGetAllUserEvents() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.mockGetEvents(&events, true)
+				s.mockGetEvents(&events, true, 1)
 				s.mockCommit(true)
 			},
 			expected: nil,
@@ -728,7 +742,7 @@ func (s *SQLSuite) TestGetAllUserEvents() {
 			userID:   userID,
 			dbMockFn: func() { s.mockBeginTx(true) },
 			txMockFn: func() {
-				s.mockGetEvents(&events, false)
+				s.mockGetEvents(&events, false, 1)
 				s.mockCommit(true)
 			},
 			expected: projectErrors.ErrEventNotFound,
@@ -791,7 +805,7 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.mockGetEvents(&events, true)
+				s.mockGetEvents(&events, true, 3)
 				s.mockCommit(true)
 			},
 			expected: nil,
@@ -803,7 +817,7 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.mockGetEvents(&events, true)
+				s.mockGetEvents(&events, true, 3)
 				s.mockCommit(true)
 			},
 			expected: nil,
@@ -815,7 +829,7 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.mockGetEvents(&events, false)
+				s.mockGetEvents(&events, false, 3)
 				s.mockCommit(true)
 			},
 			expected: projectErrors.ErrEventNotFound,
@@ -827,7 +841,7 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.mockGetEvents(&events, false)
+				s.mockGetEvents(&events, false, 3)
 				s.mockCommit(true)
 			},
 			expected: projectErrors.ErrEventNotFound,
@@ -839,7 +853,8 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything, mock.Anything, mock.Anything).
 					Return(errUnknownErr).Once()
 				s.mockRollback(true)
 			},
@@ -852,7 +867,8 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				s.txMock.On("SelectContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+					mock.Anything, mock.Anything, mock.Anything).
 					Return(errUnknownErr).Once()
 				s.mockRollback(true)
 			},

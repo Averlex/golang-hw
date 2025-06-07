@@ -123,8 +123,11 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 	}
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
-		query := fmt.Sprintf(queryGetEventsForPeriod, userIDClause)
-		err := tx.SelectContext(localCtx, &events, query, params)
+		query, qArgs, err := s.rebindQuery(fmt.Sprintf(queryGetEventsForPeriod, userIDClause), params)
+		if err != nil {
+			return err
+		}
+		err = tx.SelectContext(localCtx, &events, query, qArgs...)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
@@ -174,9 +177,14 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
 	var events []*types.Event
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
-		args := map[string]any{"user_id": userID}
-		query := queryGetAllUserEvents
-		err := tx.SelectContext(localCtx, &events, query, args)
+		args := struct {
+			UserID string `db:"user_id"`
+		}{userID}
+		query, qArgs, err := s.rebindQuery(queryGetAllUserEvents, args)
+		if err != nil {
+			return err
+		}
+		err = tx.SelectContext(localCtx, &events, query, qArgs...)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
