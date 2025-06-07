@@ -1,1 +1,16 @@
-version: "3"
+services:
+  calendar:
+    image: postgres:17
+    container_name: database
+    environment:
+      POSTGRES_USER: "calendar_user"
+      POSTGRES_PASSWORD: "calendar_pass"
+      POSTGRES_DB: "calendar"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

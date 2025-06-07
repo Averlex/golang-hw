@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
 )
 
 var (
@@ -12,8 +12,8 @@ var (
 	gitHash   = "UNKNOWN"
 )
 
-func printVersion() {
-	if err := json.NewEncoder(os.Stdout).Encode(struct {
+func printVersion(w io.Writer) error {
+	if err := json.NewEncoder(w).Encode(struct {
 		Release   string
 		BuildDate string
 		GitHash   string
@@ -22,6 +22,7 @@ func printVersion() {
 		BuildDate: buildDate,
 		GitHash:   gitHash,
 	}); err != nil {
-		fmt.Printf("error while decode version info: %v\n", err)
+		return fmt.Errorf("error while decode version info: %w", err)
 	}
+	return nil
 }

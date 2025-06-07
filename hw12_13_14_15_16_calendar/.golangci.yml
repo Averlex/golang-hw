@@ -1,0 +1,101 @@
+version: "2"
+run:
+  build-tags: []
+  tests: true
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bodyclose
+    - copyloopvar
+    - depguard
+    - dogsled
+    - dupl
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - goheader
+    - goprintffuncname
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - lll
+    - makezero
+    - misspell
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - staticcheck
+    - tagliatelle
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        Main:
+          files:
+            - $all
+            - "!$test"
+          allow:
+            - $gostd
+        Test:
+          files:
+            - $test
+          allow:
+            - $gostd
+            - github.com/stretchr/testify
+    funlen:
+      lines: 150
+      statements: 80
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - gocyclo
+          - gosec
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - mocks$
+      - ".*mock_.*.go$"
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - mocks$
+      - ".*mock_.*.go$"
+issues:
+  exclude-dirs:
+    - mocks
+  exclude-files:
+    - .*_test\.go
+    - .*mock_.*\.go
