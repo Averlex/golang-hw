@@ -78,6 +78,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - mocks$
 formatters:
   enable:
     - gci
@@ -89,3 +90,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - mocks$
