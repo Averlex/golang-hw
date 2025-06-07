@@ -64,13 +64,6 @@ func main() {
 	if err != nil {
 		logg.Fatal(ctx, "get storage config", slog.Any("err", err))
 	}
-	user, pw := os.Getenv("CALENDAR_STORAGE_SQL_USER"), os.Getenv("CALENDAR_STORAGE_SQL_PASSWORD")
-	storageCfg["sql"]["user"] = user
-	storageCfg["sql"]["password"] = pw
-	cfg.SetSecrets(user, pw)
-
-	logg.Warn(ctx, "debug output", slog.String("DB_HOST", os.Getenv("CALENDAR_STORAGE_SQL_USER")), slog.String("DB_PW", os.Getenv("CALENDAR_STORAGE_SQL_PASSWORD")))
-	logg.Warn(ctx, "debug output", slog.String("DB_HOST", storageCfg["host"].(string)), slog.String("DB_PW", storageCfg["password"].(string)))
 
 	storage, err := storage.NewStorage(storageCfg)
 	if err != nil {

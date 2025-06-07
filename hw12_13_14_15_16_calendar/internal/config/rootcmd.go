@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra" //nolint:depguard,nolintlint
 	"github.com/spf13/viper" //nolint:depguard,nolintlint
@@ -31,14 +32,9 @@ func (l *Loader) buildRootCommand(name, short, long string,
 	rootCmd.Flags().StringP("config", "c", "", "Path to configuration file")
 	rootCmd.Flags().BoolP("version", "v", false, "Show version info")
 
-	// viper.SetEnvPrefix(l.envPrefix)
-	// viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	// if err := viper.BindEnv("storage.sql.host"); err != nil {
-	// 	return nil, fmt.Errorf("bind env storage.sql.host: %w", err)
-	// }
-	// if err := viper.BindEnv("storage.sql.password"); err != nil {
-	// 	return nil, fmt.Errorf("bind env storage.sql.password: %w", err)
-	// }
+	viper.SetEnvPrefix(l.envPrefix)
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	if err := viper.BindPFlag("config", rootCmd.Flags().Lookup("config")); err != nil {
 		return nil, fmt.Errorf("bind config flag: %w", err)
@@ -47,7 +43,7 @@ func (l *Loader) buildRootCommand(name, short, long string,
 	if err := viper.BindPFlag("version", rootCmd.Flags().Lookup("version")); err != nil {
 		return nil, fmt.Errorf("bind version flag: %w", err)
 	}
-	viper.Debug()
+	// viper.Debug()
 
 	rootCmd.PreRunE = func(_ *cobra.Command, _ []string) error {
 		// Processing -v flag preemptively.
@@ -61,6 +57,7 @@ func (l *Loader) buildRootCommand(name, short, long string,
 		// Setting the config.
 		configPath := viper.GetString("config")
 		viper.SetConfigFile(configPath)
+		viper.ReadInConfig()
 
 		if err := viper.ReadInConfig(); err != nil {
 			return fmt.Errorf("read main config at %s: %w", configPath, err)
@@ -69,6 +66,7 @@ func (l *Loader) buildRootCommand(name, short, long string,
 			return fmt.Errorf("unmarshal main config: %w", err)
 		}
 
+		// viper.Debug()
 		return nil
 	}
 

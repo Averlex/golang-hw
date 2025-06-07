@@ -13,7 +13,7 @@ build:
 run: build
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
-	$(BIN) --config ./configs/calendar/config.toml
+	$(BIN) --config ./configs/calendar/config.toml | jq -R 'fromjson?' 2>/dev/null
 
 build-img:
 	docker build \
