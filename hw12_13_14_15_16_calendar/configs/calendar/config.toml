@@ -4,7 +4,7 @@ retry_timeout = "100ms"                   # Any duration. Values <= 0 are treate
 
 [logger]
 level = "debug"                           # debug, info, warn, error
-format = "json"                           # json, text
+format = "text"                           # json, text
 time_template = "02.01.2006 15:04:05.000" # Any valid time template. Default is "02.01.2006 15:04:05.000"
 log_stream = "stdout"                     # stdout, stderr
 
