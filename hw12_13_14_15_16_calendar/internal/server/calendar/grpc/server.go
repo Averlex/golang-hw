@@ -102,6 +102,13 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server = grpcServer
 	s.lis = lis
 
+	// Avoiding server start.
+	select {
+	case <-ctx.Done():
+		return lis.Close()
+	default:
+	}
+
 	s.l.Info(ctx, "starting gRPC server", slog.String("addr", addr))
 	return grpcServer.Serve(lis)
 }
@@ -116,12 +123,12 @@ func (s *Server) Stop(ctx context.Context) error {
 	s.mu.Unlock()
 
 	if server == nil {
-		s.l.Warn(ctx, "server is not running")
+		s.l.Warn(ctx, "gRPC server is not running")
 		return nil
 	}
 
 	if lis == nil {
-		return fmt.Errorf("listener is not running")
+		return fmt.Errorf("gRPC listener is not running")
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)

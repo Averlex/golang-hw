@@ -124,7 +124,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	s.mu.RUnlock()
 
 	if srv == nil {
-		s.l.Warn(ctx, "server is not running")
+		s.l.Warn(ctx, "HTTP server is not running")
 		return nil
 	}
 
@@ -136,6 +136,6 @@ func (s *Server) Stop(ctx context.Context) error {
 		return err
 	}
 
-	s.l.Info(ctx, "server stopped successfully")
+	s.l.Info(ctx, "HTTP server stopped successfully")
 	return nil
 }
