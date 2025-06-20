@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package calendar.v1;
+
+option go_package = "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+service CalendarService {
+    rpc CreateEvent (CreateEventRequest) returns (CreateEventResponse);
+    rpc UpdateEvent (UpdateEventRequest) returns (UpdateEventResponse);
+    rpc DeleteEvent (DeleteEventRequest) returns (DeleteEventResponse);
+    rpc GetEvent (GetEventRequest) returns (GetEventResponse);
+    rpc GetAllUserEvents (GetAllUserEventsRequest) returns (GetAllUserEventsResponse);
+    rpc GetEventsForDay (GetEventsForDayRequest) returns (GetEventsForDayResponse);
+    rpc GetEventsForWeek (GetEventsForWeekRequest) returns (GetEventsForWeekResponse);
+    rpc GetEventsForMonth (GetEventsForMonthRequest) returns (GetEventsForMonthResponse);
+    rpc GetEventsForPeriod (GetEventsForPeriodRequest) returns (GetEventsForPeriodResponse);
+}
+
+message Event {
+    string id = 1;
+    EventData data = 2;
+}
+
+message EventData {
+    string title = 1;
+    google.protobuf.Timestamp datetime = 2;
+    google.protobuf.Duration duration = 3;
+    string description = 4;
+    string user_id = 5;
+    google.protobuf.Duration remind_in = 6;
+}
+
+message Status {
+    int32 code = 1;
+    string message = 2;
+    repeated google.protobuf.Any details = 3;
+}
+
+message CreateEventRequest {
+    EventData data = 1;
+}
+
+message CreateEventResponse {
+    Event event = 1;
+    Status status = 2;
+}
+
+message UpdateEventRequest {
+    string id = 1;
+    EventData data = 2;
+}
+
+message UpdateEventResponse {
+    Event event = 1;
+    Status status = 2;
+}
+
+message DeleteEventRequest {
+    string id = 1;
+}
+
+message DeleteEventResponse {
+    Status status = 1;
+}
+
+message GetEventRequest {
+    string id = 1;
+}
+
+message GetEventResponse {
+    Event event = 1;
+    Status status = 2;
+}
+
+message GetAllUserEventsRequest {
+    string user_id = 1;
+}
+
+message GetAllUserEventsResponse {
+    repeated Event events = 1;
+    Status status = 2;
+}
+
+message GetEventsForDayRequest {
+    google.protobuf.Timestamp date = 1;
+    optional string user_id = 2;
+}
+
+message GetEventsForDayResponse {
+    repeated Event events = 1;
+    Status status = 2;
+}
+
+message GetEventsForWeekRequest {
+    google.protobuf.Timestamp date = 1;
+    optional string user_id = 2;
+}
+
+message GetEventsForWeekResponse {
+    repeated Event events = 1;
+    Status status = 2;
+}
+
+message GetEventsForMonthRequest {
+    google.protobuf.Timestamp date = 1;
+    optional string user_id = 2;
+}
+
+message GetEventsForMonthResponse {
+    repeated Event events = 1;
+    Status status = 2;
+}
+
+message GetEventsForPeriodRequest {
+    google.protobuf.Timestamp start_date = 1;
+    google.protobuf.Timestamp end_date = 2;
+    optional string user_id = 3;
+}
+
+message GetEventsForPeriodResponse {
+    repeated Event events = 1;
+    Status status = 2;
+}
