@@ -12,9 +12,11 @@ type Logger struct {
 }
 
 func (logg Logger) addRequestContext(ctx context.Context, args ...any) []any {
-	if v := ctx.Value(contextRequestKey); v != nil {
-		if attr, ok := v.(slog.Attr); ok {
-			args = append(args, attr)
+	for _, k := range contextRequestKeys {
+		if v := ctx.Value(k); v != nil {
+			if attr, ok := v.(slog.Attr); ok {
+				args = append(args, attr)
+			}
 		}
 	}
 

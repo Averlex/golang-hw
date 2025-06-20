@@ -132,7 +132,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		s.l.Error(ctx, "failed to gracefully shutdown server", slog.Any("error", err))
+		s.l.Error(ctx, "HTTP server graceful shutdown", slog.Any("error", err))
 		return err
 	}
 

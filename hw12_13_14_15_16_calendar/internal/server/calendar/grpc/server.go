@@ -135,10 +135,10 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	select {
 	case <-done:
-		s.l.Info(ctx, "server stopped successfully")
+		s.l.Info(ctx, "gRPC server stopped successfully")
 	case <-shutdownCtx.Done():
 		server.Stop()
-		s.l.Warn(ctx, "server stoppped forcefully", slog.String("error", shutdownCtx.Err().Error()))
+		s.l.Warn(ctx, "gRPC server stoppped forcefully", slog.String("error", shutdownCtx.Err().Error()))
 	}
 
 	return nil
