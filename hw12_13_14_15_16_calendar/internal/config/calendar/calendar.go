@@ -10,7 +10,8 @@ type Config struct {
 	Logger  LoggerConf  `mapstructure:"logger"`
 	Storage StorageConf `mapstructure:"storage"`
 	App     AppConf     `mapstructure:"app"`
-	Server  ServerConf  `mapstructure:"server"`
+	HTTP    HTTPConf    `mapstructure:"http"`
+	GRPC    GRPCConf    `mapstructure:"grpc"`
 }
 
 // LoggerConf is a config for logger.
@@ -50,12 +51,19 @@ type AppConf struct {
 	Retries      int           `mapstructure:"retries"`
 }
 
-// ServerConf is a config for the global server settings.
-type ServerConf struct {
+// HTTPConf is a config for http server.
+type HTTPConf struct {
 	Host            string        `mapstructure:"host"`
 	Port            string        `mapstructure:"port"`
 	ReadTimeout     time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
 	IdleTimeout     time.Duration `mapstructure:"idle_timeout"`
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+}
+
+// GRPCConf is a config for gRPC server.
+type GRPCConf struct {
+	Host            string        `mapstructure:"host"`
+	Port            string        `mapstructure:"port"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }

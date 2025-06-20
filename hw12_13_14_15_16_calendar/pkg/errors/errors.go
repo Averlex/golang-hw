@@ -15,6 +15,8 @@ var (
 	ErrLoggerInitFailed = errors.New("logger initialization failed")
 	// ErrAppInitFailed is returned when the app initialization fails.
 	ErrAppInitFailed = errors.New("app initialization failed")
+	// ErrServerInitFailed is returned when the server initialization fails.
+	ErrServerInitFailed = errors.New("server initialization failed")
 )
 
 // Additional errors to control the execution flow.

@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar"                  //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                            //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                            //nolint:depguard
+	internalgrpc "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/grpc" //nolint:depguard
 	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/http" //nolint:depguard
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                           //nolint:depguard
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"                   //nolint:depguard
@@ -25,6 +27,7 @@ const (
 
 var defaultConfigFile = "../../configs/calendar/config.toml"
 
+//nolint:funlen
 func main() {
 	ctx := context.Background()
 	// Creating temporary logger so errors will not be lost.
@@ -95,29 +98,68 @@ func main() {
 	}
 	logg.Info(ctx, "app created successfully")
 
-	// Starting http server.
-	serverCfg, err := cfg.GetSubConfig("server")
+	var wg sync.WaitGroup
+
+	// Starting gRPC server.
+	grpcCfg, err := cfg.GetSubConfig("grpc")
 	if err != nil {
-		logg.Fatal(ctx, "get server config", slog.Any("err", err))
+		logg.Fatal(ctx, "get grpc server config", slog.Any("err", err))
 	}
-	server, err := internalhttp.NewServer(logg, calendar, serverCfg)
+	grpcServer, err := internalgrpc.NewServer(logg, calendar, grpcCfg)
+	if err != nil {
+		logg.Fatal(ctx, "create gRPC server", slog.Any("err", err))
+	}
+	logg.Info(ctx, "grpc server created successfully")
+
+	wg.Add(1)
+	defer wg.Wait()
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+
+		if err := grpcServer.Stop(ctx); err != nil {
+			logg.Error(ctx, "stop grpc server", slog.Any("err", err))
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := grpcServer.Start(ctx); err != nil {
+			cancel()
+			logg.Fatal(ctx, "start grpc server", slog.Any("err", err))
+		}
+	}()
+
+	// Starting http server.
+	httpCfg, err := cfg.GetSubConfig("http")
+	if err != nil {
+		logg.Fatal(ctx, "get http server config", slog.Any("err", err))
+	}
+	httpServer, err := internalhttp.NewServer(logg, calendar, httpCfg)
 	if err != nil {
 		logg.Fatal(ctx, "create http server", slog.Any("err", err))
 	}
-	logg.Info(ctx, "server created successfully")
+	logg.Info(ctx, "http server created successfully")
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		<-ctx.Done()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := httpServer.Stop(ctx); err != nil {
 			logg.Error(ctx, "stop http server", slog.Any("err", err))
 		}
 	}()
 
 	logg.Info(ctx, "calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
-		cancel()
-		logg.Fatal(ctx, "start http server", slog.Any("err", err))
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := httpServer.Start(ctx); err != nil {
+			cancel()
+			logg.Fatal(ctx, "start http server", slog.Any("err", err))
+		}
+	}()
 }

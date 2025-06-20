@@ -4,17 +4,22 @@ retry_timeout = "100ms"                   # Any duration. Values <= 0 are treate
 
 [logger]
 level = "debug"                           # debug, info, warn, error
-format = "text"                           # json, text
+format = "json"                           # json, text
 time_template = "02.01.2006 15:04:05.000" # Any valid time template. Default is "02.01.2006 15:04:05.000"
 log_stream = "stdout"                     # stdout, stderr
 
-[server]
+[http]
 host = "localhost"
 port = "8080"
 shutdown_timeout = "3s"                   # Time to gracefully shutdown. Values <= 0 are treated as no shutdown
 read_timeout = "2s"                       # Any duration. Values <= 0 are treated as no timeout
 write_timeout = "5s"                      # Any duration. Values <= 0 are treated as no timeout
 idle_timeout = "30s"                      # Any duration. Values <= 0 are treated as no timeout
+
+[grpc]
+host = "localhost"
+port = "9090"
+shutdown_timeout = "3s"                   # Time to gracefully shutdown. Values <= 0 are treated as no shutdown
 
 [storage]
 type = "sql" # memory, sql
