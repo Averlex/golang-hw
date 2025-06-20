@@ -103,13 +103,13 @@ func main() {
 	// Starting gRPC server.
 	grpcCfg, err := cfg.GetSubConfig("grpc")
 	if err != nil {
-		logg.Fatal(ctx, "get grpc server config", slog.Any("err", err))
+		logg.Fatal(ctx, "get gRPC server config", slog.Any("err", err))
 	}
 	grpcServer, err := internalgrpc.NewServer(logg, calendar, grpcCfg)
 	if err != nil {
 		logg.Fatal(ctx, "create gRPC server", slog.Any("err", err))
 	}
-	logg.Info(ctx, "grpc server created successfully")
+	logg.Info(ctx, "gRPC server created successfully")
 
 	wg.Add(1)
 	defer wg.Wait()
@@ -118,7 +118,7 @@ func main() {
 		<-ctx.Done()
 
 		if err := grpcServer.Stop(ctx); err != nil {
-			logg.Error(ctx, "stop grpc server", slog.Any("err", err))
+			logg.Error(ctx, "stop gRPC server", slog.Any("err", err))
 		}
 	}()
 
@@ -127,20 +127,20 @@ func main() {
 		defer wg.Done()
 		if err := grpcServer.Start(ctx); err != nil {
 			cancel()
-			logg.Fatal(ctx, "start grpc server", slog.Any("err", err))
+			logg.Fatal(ctx, "start gRPC server", slog.Any("err", err))
 		}
 	}()
 
 	// Starting http server.
 	httpCfg, err := cfg.GetSubConfig("http")
 	if err != nil {
-		logg.Fatal(ctx, "get http server config", slog.Any("err", err))
+		logg.Fatal(ctx, "get HTTP server config", slog.Any("err", err))
 	}
 	httpServer, err := internalhttp.NewServer(logg, calendar, httpCfg)
 	if err != nil {
-		logg.Fatal(ctx, "create http server", slog.Any("err", err))
+		logg.Fatal(ctx, "create HTTP server", slog.Any("err", err))
 	}
-	logg.Info(ctx, "http server created successfully")
+	logg.Info(ctx, "HTTP server created successfully")
 
 	wg.Add(1)
 	go func() {
@@ -148,18 +148,18 @@ func main() {
 		<-ctx.Done()
 
 		if err := httpServer.Stop(ctx); err != nil {
-			logg.Error(ctx, "stop http server", slog.Any("err", err))
+			logg.Error(ctx, "stop HTTP server", slog.Any("err", err))
 		}
 	}()
-
-	logg.Info(ctx, "calendar is running...")
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := httpServer.Start(ctx); err != nil {
 			cancel()
-			logg.Fatal(ctx, "start http server", slog.Any("err", err))
+			logg.Fatal(ctx, "start HTTP server", slog.Any("err", err))
 		}
 	}()
+
+	logg.Info(ctx, "calendar is running...")
 }
