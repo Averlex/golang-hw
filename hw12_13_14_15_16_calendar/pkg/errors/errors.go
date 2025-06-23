@@ -49,6 +49,8 @@ var (
 	ErrPermissionDenied = errors.New("cannot modify another user's event")
 	// ErrNoData is returned when no data is passed to any of the CRUD methods.
 	ErrNoData = errors.New("no data passed")
+	// ErrInvalidID is returned when the event ID is invalid.
+	ErrInvalidID = errors.New("invalid event id")
 )
 
 // Data validation errors.
