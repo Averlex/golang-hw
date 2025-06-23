@@ -142,7 +142,7 @@ func retryableSuccess(t *testing.T) {
 		retryTimeout: time.Millisecond * 100,
 	}
 
-	event, err := app.GetEvent(context.Background(), uuid.Nil)
+	event, err := app.GetEvent(context.Background(), uuid.New().String())
 
 	require.NoError(t, err, "method should return no error after retries")
 	require.NotNil(t, event, "event should not be nil")
@@ -205,7 +205,7 @@ func retryableStorageErrorSuccess(t *testing.T) {
 		retryTimeout: time.Millisecond * 100,
 	}
 
-	event, err := app.GetEvent(context.Background(), uuid.Nil)
+	event, err := app.GetEvent(context.Background(), uuid.New().String())
 
 	require.NoError(t, err, "method should return no error after retries")
 	require.NotNil(t, event, "event should not be nil")
@@ -238,7 +238,7 @@ func retryableLimitExceeded(t *testing.T) {
 		retryTimeout: time.Millisecond * 100,
 	}
 
-	event, err := app.GetEvent(context.Background(), uuid.Nil)
+	event, err := app.GetEvent(context.Background(), uuid.New().String())
 
 	require.Error(t, err, "got nil, expected error")
 	require.Nil(t, event, "not expecting event data")
@@ -267,7 +267,7 @@ func nonRetryable(t *testing.T) {
 		retryTimeout: time.Millisecond * 100,
 	}
 
-	event, err := app.GetEvent(context.Background(), uuid.Nil)
+	event, err := app.GetEvent(context.Background(), uuid.New().String())
 
 	require.Error(t, err, "got nil, expected error")
 	require.Nil(t, event, "not expecting event data")

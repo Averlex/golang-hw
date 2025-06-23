@@ -2,8 +2,10 @@ package app
 
 import (
 	"errors"
+	"fmt"
 
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
 )
 
 func (a *App) isRetryable(err error) bool {
@@ -24,4 +26,12 @@ func safeDereference[T any](ptr *T) T {
 		return zero
 	}
 	return *ptr
+}
+
+func idFromString(id string) (*uuid.UUID, error) {
+	res, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", projectErrors.ErrInvalidID, err)
+	}
+	return &res, nil
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"         //nolint:depguard,nolintlint
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
 )
 
 // CreateEvent is trying to build an Event object and save it in the storage.
@@ -93,13 +92,18 @@ func (a *App) UpdateEvent(ctx context.Context, input *dto.UpdateEventInput) (*ty
 
 // DeleteEvent is trying to delete the Event with the given ID from the storage.
 // Returns nil on success and error otherwise.
-func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
+func (a *App) DeleteEvent(ctx context.Context, id string) error {
 	method := "DeleteEvent"
 	msg := method + ": %w"
 
+	uuidID, err := idFromString(id)
+	if err != nil {
+		return fmt.Errorf(msg, err)
+	}
+
 	// Trying to update the object in the storage.
-	err := a.withRetries(ctx, method, func() error {
-		err := a.s.DeleteEvent(ctx, id)
+	err = a.withRetries(ctx, method, func() error {
+		err := a.s.DeleteEvent(ctx, *uuidID)
 		if err != nil {
 			return err
 		}
@@ -114,15 +118,20 @@ func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 
 // GetEvent is trying to get the Event with the given ID from the storage.
 // Returns nil on success and error otherwise.
-func (a *App) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error) {
+func (a *App) GetEvent(ctx context.Context, id string) (*types.Event, error) {
 	method := "GetEvent"
 	msg := method + ": %w"
 
 	var resEvent *types.Event
 
+	uuidID, err := idFromString(id)
+	if err != nil {
+		return nil, fmt.Errorf(msg, err)
+	}
+
 	// Trying to save the object in the storage.
-	err := a.withRetries(ctx, method, func() error {
-		event, err := a.s.GetEvent(ctx, id)
+	err = a.withRetries(ctx, method, func() error {
+		event, err := a.s.GetEvent(ctx, *uuidID)
 		if err != nil {
 			return err
 		}
