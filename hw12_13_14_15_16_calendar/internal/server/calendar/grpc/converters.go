@@ -13,31 +13,12 @@ import (
 
 // Functions return following wrapped errors: ErrInvalidID, ErrInvalidFieldData, ErrEmptyField.
 
-func toInternalEvent(event *pb.Event) (*types.Event, error) {
-	id, err := uuid.Parse(event.Id)
+func idFromString(id string) (*uuid.UUID, error) {
+	res, err := uuid.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", packageErrors.ErrInvalidID, err)
 	}
-
-	data, err := toInternalEventData(event.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.Event{
-		ID:        id,
-		EventData: *data,
-	}, nil
-}
-
-func toInternalEventData(data *pb.EventData) (*types.EventData, error) {
-	res, err := types.NewEventData(data.Title, data.Datetime.AsTime(), data.Duration.AsDuration(),
-		data.Description, data.UserId, data.RemindIn.AsDuration())
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return &res, nil
 }
 
 func fromInternalEvent(event *types.Event) *pb.Event {
