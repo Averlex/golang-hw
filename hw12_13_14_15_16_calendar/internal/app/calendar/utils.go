@@ -31,7 +31,7 @@ func safeDereference[T any](ptr *T) T {
 func idFromString(id string) (*uuid.UUID, error) {
 	res, err := uuid.Parse(id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", projectErrors.ErrInvalidID, err)
+		return nil, fmt.Errorf("%w: event id: %w", projectErrors.ErrInvalidFieldData, err)
 	}
 	return &res, nil
 }
