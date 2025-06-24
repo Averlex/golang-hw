@@ -164,7 +164,7 @@ type Status struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	Details       []*anypb.Any           `protobuf:"bytes,3,rep,name=details,proto3" json:"details,omitempty"`
+	Details       *anypb.Any             `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -213,7 +213,7 @@ func (x *Status) GetMessage() string {
 	return ""
 }
 
-func (x *Status) GetDetails() []*anypb.Any {
+func (x *Status) GetDetails() *anypb.Any {
 	if x != nil {
 		return x.Details
 	}
@@ -1142,7 +1142,7 @@ const file_api_calendar_v1_CalendarService_proto_rawDesc = "" +
 	"\x06Status\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12.\n" +
-	"\adetails\x18\x03 \x03(\v2\x14.google.protobuf.AnyR\adetails\"@\n" +
+	"\adetails\x18\x03 \x01(\v2\x14.google.protobuf.AnyR\adetails\"@\n" +
 	"\x12CreateEventRequest\x12*\n" +
 	"\x04data\x18\x01 \x01(\v2\x16.calendar.v1.EventDataR\x04data\"l\n" +
 	"\x13CreateEventResponse\x12(\n" +
