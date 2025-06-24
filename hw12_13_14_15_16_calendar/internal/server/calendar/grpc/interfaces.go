@@ -5,7 +5,6 @@ import (
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"        //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                  //nolint:depguard,nolintlint
 )
 
 // Logger represents an interface of logger visible to the app.
@@ -29,10 +28,10 @@ type Application interface {
 	UpdateEvent(ctx context.Context, input *dto.UpdateEventInput) (*types.Event, error)
 
 	// DeleteEvent is trying to delete the Event with the given ID from the storage.
-	DeleteEvent(ctx context.Context, id uuid.UUID) error
+	DeleteEvent(ctx context.Context, id string) error
 
 	// GetEvent is trying to get the Event with the given ID from the storage.
-	GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, error)
+	GetEvent(ctx context.Context, id string) (*types.Event, error)
 
 	// GetAllUserEvents is trying to get all events for a given user ID from the storage.
 	GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error)

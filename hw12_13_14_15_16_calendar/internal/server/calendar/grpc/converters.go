@@ -1,25 +1,15 @@
 package grpc
 
 import (
-	"fmt"
+	"time"
 
-	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"       //nolint:depguard,nolintlint
-	packageErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
-	"google.golang.org/protobuf/types/known/durationpb"                               //nolint:depguard,nolintlint
-	"google.golang.org/protobuf/types/known/timestamppb"                              //nolint:depguard,nolintlint
+	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"          //nolint:depguard,nolintlint
+	"google.golang.org/protobuf/types/known/durationpb"                         //nolint:depguard,nolintlint
+	"google.golang.org/protobuf/types/known/timestamppb"                        //nolint:depguard,nolintlint
 )
 
 // Functions return following wrapped errors: ErrInvalidID, ErrInvalidFieldData, ErrEmptyField.
-
-func idFromString(id string) (*uuid.UUID, error) {
-	res, err := uuid.Parse(id)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", packageErrors.ErrInvalidID, err)
-	}
-	return &res, nil
-}
 
 func fromInternalEvent(event *types.Event) *pb.Event {
 	return &pb.Event{
@@ -43,4 +33,20 @@ func fromInternalEventData(data *types.EventData) *pb.EventData {
 		UserId:      data.UserID,
 		RemindIn:    remindIn,
 	}
+}
+
+func setDesctription(description string) *string {
+	desc := description
+	if desc != "" {
+		return &desc
+	}
+	return nil
+}
+
+func setRemindIn(remindIn *durationpb.Duration) *time.Duration {
+	if remindIn == nil {
+		return nil
+	}
+	res := remindIn.AsDuration()
+	return &res
 }
