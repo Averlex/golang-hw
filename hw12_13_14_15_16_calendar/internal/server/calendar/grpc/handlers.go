@@ -12,9 +12,7 @@ import (
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"          //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                    //nolint:depguard,nolintlint
 	"google.golang.org/grpc"                                                    //nolint:depguard,nolintlint
-	"google.golang.org/grpc/codes"                                              //nolint:depguard,nolintlint
 	"google.golang.org/grpc/metadata"                                           //nolint:depguard,nolintlint
-	"google.golang.org/grpc/status"                                             //nolint:depguard,nolintlint
 )
 
 // CreateEvent validates the request data and tries to create a new event in the storage.
@@ -39,14 +37,16 @@ func (s *Server) CreateEvent(ctx context.Context, event *pb.CreateEventRequest) 
 	}
 
 	res, err := s.a.CreateEvent(ctx, &obj)
+	st := s.wrapError(ctx, err)
 
-	// if err != nil {
-	// 	return nil, respSt.Err()
-	// }
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
 
 	return &pb.CreateEventResponse{
-		Event:  fromInternalEvent(res),
-		Status: s.wrapError(ctx, err),
+		Event: fromInternalEvent(res),
 	}, nil
 }
 
@@ -85,17 +85,14 @@ func (s *Server) UpdateEvent(ctx context.Context, data *pb.UpdateEventRequest) (
 	}
 	st := s.wrapError(ctx, err)
 
-	respSt := status.New(codes.Code(st.Code), st.Message) //nolint:gosec
-
 	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
 
 	if err != nil {
-		return nil, respSt.Err()
+		return nil, st.Err()
 	}
 
 	return &pb.UpdateEventResponse{
-		Event:  fromInternalEvent(res),
-		Status: s.wrapError(ctx, err),
+		Event: fromInternalEvent(res),
 	}, nil
 }
 

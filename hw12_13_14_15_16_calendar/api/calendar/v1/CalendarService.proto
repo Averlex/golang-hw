@@ -4,7 +4,6 @@ package calendar.v1;
 
 option go_package = "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1";
 
-import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
@@ -34,19 +33,12 @@ message EventData {
     google.protobuf.Duration remind_in = 6;
 }
 
-message Status {
-    int32 code = 1;
-    string message = 2;
-    google.protobuf.Any details = 3;
-}
-
 message CreateEventRequest {
     EventData data = 1;
 }
 
 message CreateEventResponse {
     Event event = 1;
-    Status status = 2;
 }
 
 message UpdateEventRequest {
@@ -56,7 +48,6 @@ message UpdateEventRequest {
 
 message UpdateEventResponse {
     Event event = 1;
-    Status status = 2;
 }
 
 message DeleteEventRequest {
@@ -64,7 +55,6 @@ message DeleteEventRequest {
 }
 
 message DeleteEventResponse {
-    Status status = 1;
 }
 
 message GetEventRequest {
@@ -73,7 +63,6 @@ message GetEventRequest {
 
 message GetEventResponse {
     Event event = 1;
-    Status status = 2;
 }
 
 message GetAllUserEventsRequest {
@@ -82,7 +71,6 @@ message GetAllUserEventsRequest {
 
 message GetAllUserEventsResponse {
     repeated Event events = 1;
-    Status status = 2;
 }
 
 message GetEventsForDayRequest {
@@ -92,7 +80,6 @@ message GetEventsForDayRequest {
 
 message GetEventsForDayResponse {
     repeated Event events = 1;
-    Status status = 2;
 }
 
 message GetEventsForWeekRequest {
@@ -102,7 +89,6 @@ message GetEventsForWeekRequest {
 
 message GetEventsForWeekResponse {
     repeated Event events = 1;
-    Status status = 2;
 }
 
 message GetEventsForMonthRequest {
@@ -112,7 +98,6 @@ message GetEventsForMonthRequest {
 
 message GetEventsForMonthResponse {
     repeated Event events = 1;
-    Status status = 2;
 }
 
 message GetEventsForPeriodRequest {
@@ -123,5 +108,4 @@ message GetEventsForPeriodRequest {
 
 message GetEventsForPeriodResponse {
     repeated Event events = 1;
-    Status status = 2;
 }
