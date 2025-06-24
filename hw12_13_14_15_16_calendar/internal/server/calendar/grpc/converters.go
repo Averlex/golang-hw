@@ -43,10 +43,18 @@ func setDesctription(description string) *string {
 	return nil
 }
 
-func setRemindIn(remindIn *durationpb.Duration) *time.Duration {
-	if remindIn == nil {
+func setDuration(reqDuration *durationpb.Duration) *time.Duration {
+	if reqDuration == nil {
 		return nil
 	}
-	res := remindIn.AsDuration()
+	res := reqDuration.AsDuration()
 	return &res
+}
+
+func setTime(reqTime *timestamppb.Timestamp) time.Time {
+	if reqTime == nil {
+		return time.Time{}
+	}
+	res := reqTime.AsTime()
+	return res
 }

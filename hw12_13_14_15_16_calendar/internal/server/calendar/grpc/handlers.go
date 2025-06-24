@@ -4,6 +4,8 @@ package grpc
 
 import (
 	"context"
+	"log/slog"
+	"time"
 
 	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"   //nolint:depguard,nolintlint
@@ -11,21 +13,35 @@ import (
 
 // CreateEvent validates the request data and tries to create a new event in the storage.
 func (s *Server) CreateEvent(ctx context.Context, event *pb.CreateEventRequest) (*pb.CreateEventResponse, error) {
-	obj := dto.CreateEventInput{
-		Title:       event.Data.Title,
-		Datetime:    event.Data.Datetime.AsTime(),
-		Duration:    event.Data.Duration.AsDuration(),
-		Description: setDesctription(event.Data.Description),
-		RemindIn:    setRemindIn(event.Data.RemindIn),
-		UserID:      event.Data.UserId,
+	var obj dto.CreateEventInput
+
+	if event != nil {
+		if event.Data != nil {
+			// Request data preprocessing.
+			var reqDuration time.Duration
+			if setDuration(event.Data.Duration) != nil {
+				reqDuration = *setDuration(event.Data.Duration)
+			}
+
+			obj = dto.CreateEventInput{
+				Title:       event.Data.Title,
+				Datetime:    setTime(event.Data.Datetime),
+				Duration:    reqDuration,
+				Description: setDesctription(event.Data.Description),
+				RemindIn:    setDuration(event.Data.RemindIn),
+				UserID:      event.Data.UserId,
+			}
+		}
 	}
+
+	s.l.Error(ctx, "DEEEEEEEEBUUUUUUG MEEEEEESSAAAAAAAAAAAAAGEEEEEEEEE", slog.Duration("duration", obj.Duration))
 
 	res, err := s.a.CreateEvent(ctx, &obj)
 	if err != nil {
 		return &pb.CreateEventResponse{
 			Event:  nil,
 			Status: s.wrapError(ctx, err),
-		}, err
+		}, nil
 	}
 
 	return &pb.CreateEventResponse{
