@@ -12,6 +12,9 @@ import (
 // Functions return following wrapped errors: ErrInvalidID, ErrInvalidFieldData, ErrEmptyField.
 
 func fromInternalEvent(event *types.Event) *pb.Event {
+	if event == nil {
+		return nil
+	}
 	return &pb.Event{
 		Id:   event.ID.String(),
 		Data: fromInternalEventData(&event.EventData),
