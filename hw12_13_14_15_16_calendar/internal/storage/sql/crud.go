@@ -112,7 +112,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 		}
 
 		query := queryUpdateEvent
-		res, err := tx.NamedExecContext(localCtx, query, *data.ToDBEventData())
+		res, err := tx.NamedExecContext(localCtx, query, event.ToDBEvent())
 		if err != nil {
 			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}

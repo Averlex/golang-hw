@@ -21,6 +21,7 @@ const (
 		WHERE user_id = :user_id
 			AND datetime < :end_time
 			AND datetime + duration > :datetime
+			AND id != :id
 	) AS has_conflicts
 	`
 )
@@ -30,7 +31,7 @@ const (
 //
 // Returns (nil, nil) or (*types.Event, nil) if no errors occurred, (nil, error) otherwise.
 func (s *Storage) getExistingEvent(ctx context.Context, tx Tx, id uuid.UUID) (*types.Event, error) {
-	var event types.Event
+	var dbEvent types.DBEvent
 	args := struct {
 		ID uuid.UUID `db:"id"`
 	}{id}
@@ -38,14 +39,14 @@ func (s *Storage) getExistingEvent(ctx context.Context, tx Tx, id uuid.UUID) (*t
 	if err != nil {
 		return nil, fmt.Errorf("event existence check: %w", err)
 	}
-	err = tx.GetContext(ctx, &event, query, qArgs...)
+	err = tx.GetContext(ctx, &dbEvent, query, qArgs...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("event existence check: %w", err)
 	}
-	return &event, nil
+	return dbEvent.ToEvent(), nil
 }
 
 // isOverlaps checks if the given user event overlaps with any of his existing events in the database.

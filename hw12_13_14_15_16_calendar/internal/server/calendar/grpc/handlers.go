@@ -80,9 +80,10 @@ func (s *Server) UpdateEvent(ctx context.Context, data *pb.UpdateEventRequest) (
 		}
 	}
 
-	if err != nil {
+	if err == nil {
 		res, err = s.a.UpdateEvent(ctx, &obj)
 	}
+	// s.l.Error(ctx, "DUBBBBBBBBBUUUUUUUUUUUUUUUUUUUUUG", slog.Any("res", res), slog.Any("err", err))
 	st := s.wrapError(ctx, err)
 
 	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.

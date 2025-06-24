@@ -179,3 +179,34 @@ func (ed *EventData) ToDBEventData() *DBEventData {
 		RemindIn:    fmt.Sprintf("%d", int64(ed.RemindIn.Seconds())),
 	}
 }
+
+// ToEvent converts the DBEvent to Event preserving duration types compatibility.
+func (de *DBEvent) ToEvent() *Event {
+	duration, _ := time.ParseDuration(de.Duration)
+	remindIn, _ := time.ParseDuration(de.RemindIn)
+	return &Event{
+		ID: de.ID,
+		EventData: EventData{
+			Title:       de.Title,
+			Datetime:    de.Datetime,
+			Duration:    duration,
+			Description: de.Description,
+			UserID:      de.UserID,
+			RemindIn:    remindIn,
+		},
+	}
+}
+
+// ToEventData converts the DBEventData to EventData preserving duration types compatibility.
+func (de *DBEventData) ToEventData() *EventData {
+	duration, _ := time.ParseDuration(de.Duration)
+	remindIn, _ := time.ParseDuration(de.RemindIn)
+	return &EventData{
+		Title:       de.Title,
+		Datetime:    de.Datetime,
+		Duration:    duration,
+		Description: de.Description,
+		UserID:      de.UserID,
+		RemindIn:    remindIn,
+	}
+}
