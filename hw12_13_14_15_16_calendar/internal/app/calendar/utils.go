@@ -19,6 +19,13 @@ func (a *App) isUninitialized(err error) bool {
 	return errors.Is(err, projectErrors.ErrStorageUninitialized)
 }
 
+func (a *App) isBusiness(err error) bool {
+	return errors.Is(err, projectErrors.ErrDateBusy) ||
+		errors.Is(err, projectErrors.ErrPermissionDenied) ||
+		errors.Is(err, projectErrors.ErrEventNotFound) ||
+		errors.Is(err, projectErrors.ErrNoData)
+}
+
 // safeDereference returns zero value if ptr is nil.
 func safeDereference[T any](ptr *T) T {
 	if ptr == nil {
