@@ -4,7 +4,6 @@ package grpc
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
@@ -33,8 +32,6 @@ func (s *Server) CreateEvent(ctx context.Context, event *pb.CreateEventRequest) 
 			}
 		}
 	}
-
-	s.l.Error(ctx, "DEEEEEEEEBUUUUUUG MEEEEEESSAAAAAAAAAAAAAGEEEEEEEEE", slog.Duration("duration", obj.Duration))
 
 	res, err := s.a.CreateEvent(ctx, &obj)
 	if err != nil {

@@ -141,7 +141,7 @@ func initializeApp(
 		logg.Error(ctx, "get app config", slog.Any("err", err))
 		return nil, err
 	}
-	calendar, err := app.NewApp(logg, storage, appCfg)
+	calendar, err := app.NewApp(logg.With(slog.String("layer", "APP")), storage, appCfg)
 	if err != nil {
 		logg.Error(ctx, "create app", slog.Any("err", err))
 		return nil, err
@@ -160,12 +160,12 @@ func startServers(
 	var wg sync.WaitGroup
 	errChan := make(chan error, 2) // Buffer for Start errors of both servers.
 
-	grpcServer, err := initializeGRPCServer(ctx, logg, cfg, calendar)
+	grpcServer, err := initializeGRPCServer(ctx, logg.With(slog.String("layer", "gRPC server")), cfg, calendar)
 	if err != nil {
 		return err
 	}
 
-	httpServer, err := initializeHTTPServer(ctx, logg, cfg, calendar)
+	httpServer, err := initializeHTTPServer(ctx, logg.With(slog.String("layer", "HTTP server")), cfg, calendar)
 	if err != nil {
 		return err
 	}
