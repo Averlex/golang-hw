@@ -78,15 +78,15 @@ func (r ResultMock) RowsAffected() (int64, error) {
 func (s *SQLSuite) mockEventExists(event *types.Event) {
 	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
-			dest := args.Get(1).(*types.Event)
-			*dest = *event // Simulate fetching the existing event.
+			dest := args.Get(1).(*types.DBEvent)
+			*dest = *event.ToDBEvent() // Simulate fetching the existing event.
 		}).Return(nil).Once()
 }
 
 // mockEventNotExists is a helper function to mock the case when an event does not exist.
 func (s *SQLSuite) mockEventNotExists() {
-	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything).Return(errNotExists).Once()
+	s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(errNotExists).Once()
 }
 
 func (s *SQLSuite) mockEventOverlaps(isOverlaps bool) {
@@ -284,8 +284,8 @@ func (s *SQLSuite) TestCreateEvent() {
 			txMockFn: func() {
 				s.mockEventNotExists()
 				s.mockEventOverlaps(false)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*event).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(true)
 			},
 			expected: nil,
@@ -331,8 +331,8 @@ func (s *SQLSuite) TestCreateEvent() {
 			txMockFn: func() {
 				s.mockEventNotExists()
 				s.mockEventOverlaps(false)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*event).Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
 				s.mockRollback(true)
 			},
 			expected: projectErrors.ErrQeuryError,
@@ -354,8 +354,8 @@ func (s *SQLSuite) TestCreateEvent() {
 			txMockFn: func() {
 				s.mockEventNotExists()
 				s.mockEventOverlaps(false)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*event).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(false)
 				s.mockRollback(true)
 			},
@@ -368,8 +368,8 @@ func (s *SQLSuite) TestCreateEvent() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Return(nil).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).Once()
 				s.mockRollback(false)
 			},
 			expected: errors.New(rollbackErrCase),
@@ -400,27 +400,28 @@ func (s *SQLSuite) TestCreateEvent() {
 func (s *SQLSuite) TestUpdateEvent() {
 	event := s.newTestEvent("Update event", "user1")
 	dataToUpdate := s.newTestEventData("Update event", "user1")
+	updEvent := &types.Event{EventData: *dataToUpdate}
 	eventWrongUser := s.newTestEvent("Update event", "user2")
 
 	testCases := []struct {
 		name     string
 		id       uuid.UUID
-		data     *types.EventData
+		data     *types.Event
 		dbMockFn func()
 		txMockFn func()
 		expected error
 	}{
 		{
 			name: "valid update",
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
 				s.mockEventOverlaps(false)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(true)
 			},
 			expected: nil,
@@ -435,7 +436,7 @@ func (s *SQLSuite) TestUpdateEvent() {
 		{
 			name: "event not found",
 			id:   uuid.New(),
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
@@ -448,18 +449,18 @@ func (s *SQLSuite) TestUpdateEvent() {
 		{
 			name: "permission denied",
 			id:   event.ID,
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
 				// Simulate an event with the same ID but different user.
 				eventWrongUser.ID = event.ID
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Run(func(args mock.Arguments) {
-					dest := args.Get(1).(*types.Event)
-					*dest = *eventWrongUser // Simulate fetching the existing event with a different user.
-				}).Return(nil).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args mock.Arguments) {
+						dest := args.Get(1).(*types.DBEvent)
+						*dest = *eventWrongUser.ToDBEvent() // Simulate fetching the existing event with a different user.
+					}).Return(nil).Once()
 				s.mockRollback(true)
 			},
 			expected: projectErrors.ErrPermissionDenied,
@@ -467,7 +468,7 @@ func (s *SQLSuite) TestUpdateEvent() {
 		{
 			name: "date busy",
 			id:   event.ID,
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
@@ -481,15 +482,15 @@ func (s *SQLSuite) TestUpdateEvent() {
 		{
 			name: "query error",
 			id:   event.ID,
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
 				s.mockEventOverlaps(false)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, errUnknownErr).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, errUnknownErr).Once()
 				s.mockRollback(true)
 			},
 			expected: projectErrors.ErrQeuryError,
@@ -497,15 +498,15 @@ func (s *SQLSuite) TestUpdateEvent() {
 		{
 			name: commitErrCase,
 			id:   event.ID,
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
 				s.mockEventOverlaps(false)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					*dataToUpdate).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(false)
 				s.mockRollback(true)
 			},
@@ -514,13 +515,13 @@ func (s *SQLSuite) TestUpdateEvent() {
 		{
 			name: rollbackErrCase,
 			id:   event.ID,
-			data: dataToUpdate,
+			data: updEvent,
 			dbMockFn: func() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Return(errUnknownErr).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(errUnknownErr).Once()
 				s.mockRollback(false)
 			},
 			expected: errors.New(rollbackErrCase),
@@ -531,7 +532,11 @@ func (s *SQLSuite) TestUpdateEvent() {
 		s.Run(tC.name, func() {
 			tC.dbMockFn()
 			tC.txMockFn()
-			result, err := s.storage.UpdateEvent(s.ctx, tC.id, tC.data)
+			var data *types.EventData
+			if tC.data != nil {
+				data = &tC.data.EventData
+			}
+			result, err := s.storage.UpdateEvent(s.ctx, tC.id, data)
 			if tC.expected != nil {
 				s.Require().Error(err, "expected error, got nil")
 				if tC.name != rollbackErrCase && tC.name != commitErrCase {
@@ -565,8 +570,8 @@ func (s *SQLSuite) TestDeleteEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					mock.Anything).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(true)
 			},
 			expected: nil,
@@ -591,8 +596,8 @@ func (s *SQLSuite) TestDeleteEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					mock.Anything).Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 0}, errUnknownErr).Once()
 				s.mockRollback(true)
 			},
 			expected: projectErrors.ErrQeuryError,
@@ -605,8 +610,8 @@ func (s *SQLSuite) TestDeleteEvent() {
 			},
 			txMockFn: func() {
 				s.mockEventExists(event)
-				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything,
-					mock.Anything).Return(ResultMock{rowsAffected: 1}, nil).Once()
+				s.txMock.On("NamedExecContext", mock.Anything, mock.Anything, mock.Anything).
+					Return(ResultMock{rowsAffected: 1}, nil).Once()
 				s.mockCommit(false)
 				s.mockRollback(true)
 			},
@@ -619,8 +624,8 @@ func (s *SQLSuite) TestDeleteEvent() {
 				s.mockBeginTx(true)
 			},
 			txMockFn: func() {
-				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything,
-					mock.Anything).Return(errUnknownErr).Once()
+				s.txMock.On("GetContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(errUnknownErr).Once()
 				s.mockRollback(false)
 			},
 			expected: errors.New(rollbackErrCase),
