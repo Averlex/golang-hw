@@ -21,6 +21,24 @@ type EventData struct {
 	RemindIn    time.Duration `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
 }
 
+// DBEvent contains the data of the event with its ID.
+type DBEvent struct {
+	ID uuid.UUID `db:"id" json:"id"`
+	DBEventData
+}
+
+// DBEventData contains the data of the event whithout its ID.
+// Pointer fields are optional.
+// Duration types are stored as strings.
+type DBEventData struct {
+	Title       string
+	Datetime    time.Time
+	Duration    string
+	Description string
+	UserID      string `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
+	RemindIn    string `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
+}
+
 // Event contains the data of the event with its ID.
 type Event struct {
 	ID uuid.UUID `db:"id" json:"id"`
@@ -139,5 +157,25 @@ func DeepCopyEvent(event *Event) *Event {
 			UserID:      event.UserID,
 			RemindIn:    event.RemindIn,
 		},
+	}
+}
+
+// ToDBEvent converts the Event to DBEvent for duration types compatibility.
+func (e *Event) ToDBEvent() *DBEvent {
+	return &DBEvent{
+		ID:          e.ID,
+		DBEventData: *e.ToDBEventData(),
+	}
+}
+
+// ToDBEventData converts the EventData to DBEventData for duration types compatibility.
+func (ed *EventData) ToDBEventData() *DBEventData {
+	return &DBEventData{
+		Title:       ed.Title,
+		Datetime:    ed.Datetime,
+		Duration:    fmt.Sprintf("%d", int64(ed.Duration.Seconds())),
+		Description: ed.Description,
+		UserID:      ed.UserID,
+		RemindIn:    fmt.Sprintf("%d", int64(ed.RemindIn.Seconds())),
 	}
 }

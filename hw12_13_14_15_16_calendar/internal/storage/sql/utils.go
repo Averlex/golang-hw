@@ -16,11 +16,11 @@ const (
 	queryGetExistingEvent = "SELECT * FROM events WHERE id = :id"
 	queryIsOverlaps       = `
 	SELECT EXISTS (
+		SELECT 1
 		FROM events
 		WHERE user_id = :user_id
 			AND datetime < :end_time
 			AND datetime + duration > :datetime
-			AND id != COALESCE(:id, '00000000-0000-0000-0000-000000000000')
 	) AS has_conflicts
 	`
 )
