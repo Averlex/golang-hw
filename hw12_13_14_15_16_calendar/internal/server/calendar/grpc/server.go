@@ -12,6 +12,7 @@ import (
 	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"       //nolint:depguard,nolintlint
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 	"google.golang.org/grpc"                                                          //nolint:depguard,nolintlint
+	"google.golang.org/grpc/reflection"                                               //nolint:depguard,nolintlint
 )
 
 // Server represents a gRPC server.
@@ -101,6 +102,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.server = grpcServer
 	s.lis = lis
+	reflection.Register(s.server)
 
 	// Avoiding server start.
 	select {

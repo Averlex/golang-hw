@@ -8,37 +8,40 @@ import (
 
 	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"   //nolint:depguard,nolintlint
+	"google.golang.org/grpc"                                                    //nolint:depguard,nolintlint
+	"google.golang.org/grpc/codes"                                              //nolint:depguard,nolintlint
+	"google.golang.org/grpc/metadata"                                           //nolint:depguard,nolintlint
+	"google.golang.org/grpc/status"                                             //nolint:depguard,nolintlint
 )
 
 // CreateEvent validates the request data and tries to create a new event in the storage.
 func (s *Server) CreateEvent(ctx context.Context, event *pb.CreateEventRequest) (*pb.CreateEventResponse, error) {
 	var obj dto.CreateEventInput
 
-	if event != nil {
-		if event.Data != nil {
-			// Request data preprocessing.
-			var reqDuration time.Duration
-			if setDuration(event.Data.Duration) != nil {
-				reqDuration = *setDuration(event.Data.Duration)
-			}
+	if event != nil && event.Data != nil {
+		// Request data preprocessing.
+		var reqDuration time.Duration
+		if setDuration(event.Data.Duration) != nil {
+			reqDuration = *setDuration(event.Data.Duration)
+		}
 
-			obj = dto.CreateEventInput{
-				Title:       event.Data.Title,
-				Datetime:    setTime(event.Data.Datetime),
-				Duration:    reqDuration,
-				Description: setDesctription(event.Data.Description),
-				RemindIn:    setDuration(event.Data.RemindIn),
-				UserID:      event.Data.UserId,
-			}
+		obj = dto.CreateEventInput{
+			Title:       event.Data.Title,
+			Datetime:    setTime(event.Data.Datetime),
+			Duration:    reqDuration,
+			Description: setDesctription(event.Data.Description),
+			RemindIn:    setDuration(event.Data.RemindIn),
+			UserID:      event.Data.UserId,
 		}
 	}
 
 	res, err := s.a.CreateEvent(ctx, &obj)
+	st := s.wrapError(ctx, err)
+
+	respSt := status.New(codes.Code(st.Code), st.Message) //nolint:gosec
+	_ = grpc.SetHeader(ctx, metadata.MD{})
 	if err != nil {
-		return &pb.CreateEventResponse{
-			Event:  nil,
-			Status: s.wrapError(ctx, err),
-		}, nil
+		return nil, respSt.Err()
 	}
 
 	return &pb.CreateEventResponse{

@@ -14,7 +14,6 @@ import (
 )
 
 func (s *Server) wrapError(ctx context.Context, err error) *pb.Status {
-	var st *pb.Status
 	if err == nil {
 		return &pb.Status{
 			Code:    int32(codes.OK),
@@ -32,64 +31,40 @@ func (s *Server) wrapError(ctx context.Context, err error) *pb.Status {
 		}
 	}
 
+	var msg error
 	// Processing different kinds of errors.
 	switch {
 	// Crucial errors.
 	case errors.Is(err, projectErrors.ErrStorageFull):
 		s.l.Error(ctx, "storage is full", slog.String("err", err.Error()))
-		st = &pb.Status{
-			Code:    int32(codes.ResourceExhausted),
-			Message: status.Errorf(codes.ResourceExhausted, "Storage is full").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.ResourceExhausted, "Storage is full")
 	case errors.Is(err, projectErrors.ErrInconsistentState):
-		st = &pb.Status{
-			Code:    int32(codes.Internal),
-			Message: status.Errorf(codes.Internal, "Unexpected internal error occurred").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.Internal, "Unexpected internal error occurred")
 	// This one means the user can try again.
 	// We should warn the dev about this anyway - it might be a connection error, query error or something else,
 	// which might involve a developer intervention.
 	case errors.Is(err, projectErrors.ErrRetriesExceeded):
 		s.l.Warn(ctx, "retries exceeded", slog.String("err", err.Error()))
-		st = &pb.Status{
-			Code:    int32(codes.ResourceExhausted),
-			Message: status.Errorf(codes.ResourceExhausted, "Retries exceeded. Please, try again later").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.ResourceExhausted, "Retries exceeded. Please, try again later")
 	// Business errors.
 	case errors.Is(err, projectErrors.ErrEmptyField), errors.Is(err, projectErrors.ErrInvalidFieldData):
-		st = &pb.Status{
-			Code:    int32(codes.InvalidArgument),
-			Message: status.Errorf(codes.InvalidArgument, "Provided data is invalid").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.InvalidArgument, "Provided data is invalid")
 	case errors.Is(err, projectErrors.ErrNoData):
-		st = &pb.Status{
-			Code:    int32(codes.InvalidArgument),
-			Message: status.Errorf(codes.InvalidArgument, "Request received no data").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.InvalidArgument, "Request received no data")
 	case errors.Is(err, projectErrors.ErrEventNotFound):
-		st = &pb.Status{
-			Code:    int32(codes.NotFound),
-			Message: status.Errorf(codes.NotFound, "Requested event was not found").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.NotFound, "Requested event was not found")
 	case errors.Is(err, projectErrors.ErrDateBusy):
-		st = &pb.Status{
-			Code:    int32(codes.AlreadyExists),
-			Message: status.Errorf(codes.AlreadyExists, "Requested event date is already busy").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.AlreadyExists, "Requested event date is already busy")
 	case errors.Is(err, projectErrors.ErrPermissionDenied):
-		st = &pb.Status{
-			Code:    int32(codes.PermissionDenied),
-			Message: status.Errorf(codes.PermissionDenied, "Cannot modify another user's event").Error(),
-			Details: []*anypb.Any{anyDetail},
-		}
+		msg = status.Errorf(codes.PermissionDenied, "Cannot modify another user's event")
+	default:
+		s.l.Error(ctx, "unknown error received", slog.String("err", err.Error()))
+		msg = status.Errorf(codes.Internal, "Unexpected internal error occurred")
 	}
 
-	return st
+	return &pb.Status{
+		Code:    int32(status.Code(msg)), //nolint:gosec
+		Message: msg.Error(),
+		Details: anyDetail,
+	}
 }
