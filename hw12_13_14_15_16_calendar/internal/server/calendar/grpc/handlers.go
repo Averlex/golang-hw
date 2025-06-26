@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"   //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"          //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                    //nolint:depguard,nolintlint
-	"google.golang.org/grpc"                                                    //nolint:depguard,nolintlint
-	"google.golang.org/grpc/metadata"                                           //nolint:depguard,nolintlint
+	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"       //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"         //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
+	"google.golang.org/grpc"                                                          //nolint:depguard,nolintlint
+	"google.golang.org/grpc/metadata"                                                 //nolint:depguard,nolintlint
 )
 
 // CreateEvent validates the request data and tries to create a new event in the storage.
@@ -65,7 +66,7 @@ func (s *Server) UpdateEvent(ctx context.Context, data *pb.UpdateEventRequest) (
 		id, idErr := uuid.Parse(data.Id)
 		if idErr != nil {
 			id = uuid.Nil
-			err = fmt.Errorf("invalid id format in request data: %w", idErr)
+			err = fmt.Errorf("%w: invalid id format in request data: %w", projectErrors.ErrInvalidFieldData, idErr)
 		}
 		datetime := setTime(data.Data.Datetime)
 
@@ -83,7 +84,6 @@ func (s *Server) UpdateEvent(ctx context.Context, data *pb.UpdateEventRequest) (
 	if err == nil {
 		res, err = s.a.UpdateEvent(ctx, &obj)
 	}
-	// s.l.Error(ctx, "DUBBBBBBBBBUUUUUUUUUUUUUUUUUUUUUG", slog.Any("res", res), slog.Any("err", err))
 	st := s.wrapError(ctx, err)
 
 	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
@@ -97,9 +97,34 @@ func (s *Server) UpdateEvent(ctx context.Context, data *pb.UpdateEventRequest) (
 	}, nil
 }
 
-// func (s *Server) DeleteEvent(context.Context, *pb.DeleteEventRequest) (*pb.DeleteEventResponse, error) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEvent not implemented")
-// }
+// DeleteEvent tries to delete the Event with the given ID from the storage.
+func (s *Server) DeleteEvent(ctx context.Context, data *pb.DeleteEventRequest) (*pb.DeleteEventResponse, error) {
+	var id uuid.UUID
+	var err error
+
+	// Request data preprocessing.
+	if data != nil {
+		var idErr error
+		id, idErr = uuid.Parse(data.Id)
+		if idErr != nil {
+			id = uuid.Nil
+			err = fmt.Errorf("%w: invalid id format in request data: %w", projectErrors.ErrInvalidFieldData, idErr)
+		}
+	}
+
+	if err == nil {
+		err = s.a.DeleteEvent(ctx, id.String())
+	}
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	return &pb.DeleteEventResponse{}, nil
+}
 
 // func (s *Server) GetEvent(context.Context, *pb.GetEventRequest) (*pb.GetEventResponse, error) {
 // 	return nil, status.Errorf(codes.Unimplemented, "method GetEvent not implemented")

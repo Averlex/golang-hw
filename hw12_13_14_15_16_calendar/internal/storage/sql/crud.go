@@ -145,8 +145,13 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return projectErrors.ErrEventNotFound
 		}
 
+		queryArgs := struct {
+			ID uuid.UUID `db:"id"`
+		}{
+			ID: id,
+		}
 		query := queryDeleteEvent
-		res, err := tx.NamedExecContext(localCtx, query, id)
+		res, err := tx.NamedExecContext(localCtx, query, &queryArgs)
 		if err != nil {
 			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
