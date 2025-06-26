@@ -126,16 +126,72 @@ func (s *Server) DeleteEvent(ctx context.Context, data *pb.DeleteEventRequest) (
 	return &pb.DeleteEventResponse{}, nil
 }
 
-// func (s *Server) GetEvent(context.Context, *pb.GetEventRequest) (*pb.GetEventResponse, error) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method GetEvent not implemented")
-// }
+// GetEvent tries to get the Event with the given ID from the storage.
+func (s *Server) GetEvent(ctx context.Context, data *pb.GetEventRequest) (*pb.GetEventResponse, error) {
+	var id uuid.UUID
+	var res *types.Event
+	var err error
 
-// func (s *Server) GetAllUserEvents(context.Context, *pb.GetAllUserEventsRequest) (
-// *pb.GetAllUserEventsResponse,
-// error,
-// ) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method GetAllUserEvents not implemented")
-// }
+	// Request data preprocessing.
+	if data != nil {
+		var idErr error
+		id, idErr = uuid.Parse(data.Id)
+		if idErr != nil {
+			id = uuid.Nil
+			err = fmt.Errorf("%w: invalid id format in request data: %w", projectErrors.ErrInvalidFieldData, idErr)
+		}
+	}
+
+	if err == nil {
+		res, err = s.a.GetEvent(ctx, id.String())
+	}
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	return &pb.GetEventResponse{
+		Event: fromInternalEvent(res),
+	}, nil
+}
+
+// GetAllUserEvents is trying to get all events for a given user ID from the storage.
+func (s *Server) GetAllUserEvents(ctx context.Context, data *pb.GetAllUserEventsRequest) (
+	*pb.GetAllUserEventsResponse,
+	error,
+) {
+	var userID string
+	var res []*types.Event
+	var err error
+	pbRes := make([]*pb.Event, 0)
+
+	// Request data preprocessing.
+	if data != nil {
+		userID = data.UserId
+	}
+
+	if err == nil {
+		res, err = s.a.GetAllUserEvents(ctx, userID)
+	}
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	for i := range res {
+		pbRes = append(pbRes, fromInternalEvent(res[i]))
+	}
+
+	return &pb.GetAllUserEventsResponse{
+		Events: pbRes,
+	}, nil
+}
 
 // func (s *Server) GetEventsForDay(context.Context, *pb.GetEventsForDayRequest) (*pb.GetEventsForDayResponse, error) {
 // 	return nil, status.Errorf(codes.Unimplemented, "method GetEventsForDay not implemented")

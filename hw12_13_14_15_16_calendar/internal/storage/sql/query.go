@@ -110,7 +110,7 @@ func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID 
 func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time,
 	userID *string,
 ) ([]*types.Event, error) {
-	var events []*types.Event
+	var dbEvents []*types.DBEvent
 	type Params struct {
 		UserID    *string   `db:"user_id"` // Optional, can be nil.
 		DateStart time.Time `db:"date_start"`
@@ -127,7 +127,7 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 		if err != nil {
 			return err
 		}
-		err = tx.SelectContext(localCtx, &events, query, qArgs...)
+		err = tx.SelectContext(localCtx, &dbEvents, query, qArgs...)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
@@ -140,8 +140,13 @@ func (s *Storage) GetEventsForPeriod(ctx context.Context, dateStart, dateEnd tim
 		return nil, fmt.Errorf("get events for period: %w", err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
-	if len(events) == 0 {
+	if len(dbEvents) == 0 {
 		return nil, fmt.Errorf("get events for period: %w", projectErrors.ErrEventNotFound)
+	}
+
+	events := make([]*types.Event, len(dbEvents))
+	for i := 0; i < len(dbEvents); i++ {
+		events[i] = dbEvents[i].ToEvent()
 	}
 
 	return events, nil
@@ -175,7 +180,7 @@ func (s *Storage) GetEvent(ctx context.Context, id uuid.UUID) (*types.Event, err
 // Returns a slice of Event pointers and nil on success, or nil and any error encountered during the transaction.
 // If no events for the given user ID are found, it returns (nil, ErrEventNotFound).
 func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types.Event, error) {
-	var events []*types.Event
+	var dbEvents []*types.DBEvent
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		args := struct {
 			UserID string `db:"user_id"`
@@ -184,7 +189,7 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 		if err != nil {
 			return err
 		}
-		err = tx.SelectContext(localCtx, &events, query, qArgs...)
+		err = tx.SelectContext(localCtx, &dbEvents, query, qArgs...)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil
@@ -197,8 +202,13 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 		return nil, fmt.Errorf("get all user events: %w", err)
 	}
 	// If no events found, set the error to ErrEventNotFound.
-	if len(events) == 0 {
+	if len(dbEvents) == 0 {
 		return nil, fmt.Errorf("get all user events: %w", projectErrors.ErrEventNotFound)
+	}
+
+	events := make([]*types.Event, len(dbEvents))
+	for i := 0; i < len(dbEvents); i++ {
+		events[i] = dbEvents[i].ToEvent()
 	}
 
 	return events, nil
