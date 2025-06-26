@@ -166,16 +166,14 @@ func (s *Server) GetAllUserEvents(ctx context.Context, data *pb.GetAllUserEvents
 	var userID string
 	var res []*types.Event
 	var err error
-	pbRes := make([]*pb.Event, 0)
 
 	// Request data preprocessing.
 	if data != nil {
 		userID = data.UserId
 	}
 
-	if err == nil {
-		res, err = s.a.GetAllUserEvents(ctx, userID)
-	}
+	res, err = s.a.GetAllUserEvents(ctx, userID)
+
 	st := s.wrapError(ctx, err)
 
 	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
@@ -184,8 +182,9 @@ func (s *Server) GetAllUserEvents(ctx context.Context, data *pb.GetAllUserEvents
 		return nil, st.Err()
 	}
 
+	pbRes := make([]*pb.Event, len(res))
 	for i := range res {
-		pbRes = append(pbRes, fromInternalEvent(res[i]))
+		pbRes[i] = fromInternalEvent(res[i])
 	}
 
 	return &pb.GetAllUserEventsResponse{
@@ -193,27 +192,152 @@ func (s *Server) GetAllUserEvents(ctx context.Context, data *pb.GetAllUserEvents
 	}, nil
 }
 
-// func (s *Server) GetEventsForDay(context.Context, *pb.GetEventsForDayRequest) (*pb.GetEventsForDayResponse, error) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method GetEventsForDay not implemented")
-// }
+// GetEventsForDay is trying to get all events for a given day from the storage.
+//
+//nolint:dupl
+func (s *Server) GetEventsForDay(
+	ctx context.Context,
+	data *pb.GetEventsForDayRequest,
+) (*pb.GetEventsForDayResponse, error) {
+	var obj dto.DateFilterInput
+	var res []*types.Event
+	var err error
 
-// func (s *Server) GetEventsForWeek(context.Context, *pb.GetEventsForWeekRequest) (
-// *pb.GetEventsForWeekResponse,
-// error,
-// ) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method GetEventsForWeek not implemented")
-// }
+	// Request data preprocessing.
+	if data != nil {
+		obj.Date = setTime(data.Date)
+		obj.UserID = data.UserId
+		obj.Period = dto.Day
+	}
 
-// func (s *Server) GetEventsForMonth(context.Context, *pb.GetEventsForMonthRequest) (
-// *pb.GetEventsForMonthResponse,
-// error,
-// ) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method GetEventsForMonth not implemented")
-// }
+	res, err = s.a.ListEvents(ctx, &obj)
 
-// func (s *Server) GetEventsForPeriod(context.Context, *pb.GetEventsForPeriodRequest) (
-// *pb.GetEventsForPeriodResponse,
-// error,
-// ) {
-// 	return nil, status.Errorf(codes.Unimplemented, "method GetEventsForPeriod not implemented")
-// }
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	pbRes := make([]*pb.Event, len(res))
+	for i := range res {
+		pbRes[i] = fromInternalEvent(res[i])
+	}
+
+	return &pb.GetEventsForDayResponse{
+		Events: pbRes,
+	}, nil
+}
+
+// GetEventsForWeek is trying to get all events for a given week from the storage.
+//
+//nolint:dupl
+func (s *Server) GetEventsForWeek(
+	ctx context.Context,
+	data *pb.GetEventsForWeekRequest,
+) (*pb.GetEventsForWeekResponse, error) {
+	var obj dto.DateFilterInput
+	var res []*types.Event
+	var err error
+
+	// Request data preprocessing.
+	if data != nil {
+		obj.Date = setTime(data.Date)
+		obj.UserID = data.UserId
+		obj.Period = dto.Week
+	}
+
+	res, err = s.a.ListEvents(ctx, &obj)
+
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	pbRes := make([]*pb.Event, len(res))
+	for i := range res {
+		pbRes[i] = fromInternalEvent(res[i])
+	}
+
+	return &pb.GetEventsForWeekResponse{
+		Events: pbRes,
+	}, nil
+}
+
+// GetEventsForMonth is trying to get all events for a given month from the storage.
+//
+//nolint:dupl
+func (s *Server) GetEventsForMonth(
+	ctx context.Context,
+	data *pb.GetEventsForMonthRequest,
+) (*pb.GetEventsForMonthResponse, error) {
+	var obj dto.DateFilterInput
+	var res []*types.Event
+	var err error
+
+	// Request data preprocessing.
+	if data != nil {
+		obj.Date = setTime(data.Date)
+		obj.UserID = data.UserId
+		obj.Period = dto.Month
+	}
+
+	res, err = s.a.ListEvents(ctx, &obj)
+
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	pbRes := make([]*pb.Event, len(res))
+	for i := range res {
+		pbRes[i] = fromInternalEvent(res[i])
+	}
+
+	return &pb.GetEventsForMonthResponse{
+		Events: pbRes,
+	}, nil
+}
+
+// GetEventsForPeriod is trying to get all events for a given period from the storage.
+func (s *Server) GetEventsForPeriod(
+	ctx context.Context,
+	data *pb.GetEventsForPeriodRequest,
+) (*pb.GetEventsForPeriodResponse, error) {
+	var obj dto.DateRangeInput
+	var res []*types.Event
+	var err error
+
+	// Request data preprocessing.
+	if data != nil {
+		obj.DateStart = setTime(data.StartDate)
+		obj.DateEnd = setTime(data.EndDate)
+		obj.UserID = data.UserId
+	}
+
+	res, err = s.a.GetEventsForPeriod(ctx, &obj)
+
+	st := s.wrapError(ctx, err)
+
+	_ = grpc.SetHeader(ctx, metadata.MD{}) // To ensure that the error is sent to the client.
+
+	if err != nil {
+		return nil, st.Err()
+	}
+
+	pbRes := make([]*pb.Event, len(res))
+	for i := range res {
+		pbRes[i] = fromInternalEvent(res[i])
+	}
+
+	return &pb.GetEventsForPeriodResponse{
+		Events: pbRes,
+	}, nil
+}
