@@ -65,7 +65,6 @@ func (d *Duration) Scan(value any) error {
 		}
 		return nil
 	case nil:
-		// Handle NULL values.
 		*d = Duration{
 			value: 0,
 			str:   "0 seconds",
@@ -76,9 +75,7 @@ func (d *Duration) Scan(value any) error {
 	}
 
 	v = strings.ToLower(v)
-	// Remove spaces.
 	v = strings.ReplaceAll(v, " ", "")
-	// Normalize interval strings using regular expressions.
 	replacements := []struct {
 		re          *regexp.Regexp
 		replacement string
