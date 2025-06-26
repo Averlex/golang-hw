@@ -50,14 +50,18 @@ func (d Duration) ToDuration() time.Duration {
 
 // Scan implements the sql.Scanner interface for converting SQL interval values to Duration.
 func (d *Duration) Scan(value any) error {
-	switch v := value.(type) {
+	var v string
+	switch val := value.(type) {
 	case string:
-		break
+		v = val
+	case []uint8:
+		// Handle byte slice (e.g., from PostgreSQL with sqlx).
+		v = string(val)
 	case int64:
 		// Numeric format (seconds, e.g., in SQLite).
 		*d = Duration{
-			value: time.Duration(v) * time.Second,
-			str:   fmt.Sprintf("%d seconds", v),
+			value: time.Duration(val) * time.Second,
+			str:   fmt.Sprintf("%d seconds", val),
 		}
 		return nil
 	case nil:
@@ -71,7 +75,7 @@ func (d *Duration) Scan(value any) error {
 		return fmt.Errorf("unsupported scan type for Duration: %T", value)
 	}
 
-	v := strings.ToLower(value.(string))
+	v = strings.ToLower(v)
 	// Remove spaces.
 	v = strings.ReplaceAll(v, " ", "")
 	// Normalize interval strings using regular expressions.

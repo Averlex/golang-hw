@@ -33,10 +33,10 @@ type DBEvent struct {
 type DBEventData struct {
 	Title       string
 	Datetime    time.Time
-	Duration    string
+	Duration    Duration
 	Description string
-	UserID      string `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
-	RemindIn    string `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
+	UserID      string   `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
+	RemindIn    Duration `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
 }
 
 // Event contains the data of the event with its ID.
@@ -173,40 +173,36 @@ func (ed *EventData) ToDBEventData() *DBEventData {
 	return &DBEventData{
 		Title:       ed.Title,
 		Datetime:    ed.Datetime,
-		Duration:    fmt.Sprintf("%d", int64(ed.Duration.Seconds())),
+		Duration:    NewDuration(ed.Duration),
 		Description: ed.Description,
 		UserID:      ed.UserID,
-		RemindIn:    fmt.Sprintf("%d", int64(ed.RemindIn.Seconds())),
+		RemindIn:    NewDuration(ed.RemindIn),
 	}
 }
 
 // ToEvent converts the DBEvent to Event preserving duration types compatibility.
 func (de *DBEvent) ToEvent() *Event {
-	duration, _ := time.ParseDuration(de.Duration)
-	remindIn, _ := time.ParseDuration(de.RemindIn)
 	return &Event{
 		ID: de.ID,
 		EventData: EventData{
 			Title:       de.Title,
 			Datetime:    de.Datetime,
-			Duration:    duration,
+			Duration:    de.Duration.ToDuration(),
 			Description: de.Description,
 			UserID:      de.UserID,
-			RemindIn:    remindIn,
+			RemindIn:    de.RemindIn.ToDuration(),
 		},
 	}
 }
 
 // ToEventData converts the DBEventData to EventData preserving duration types compatibility.
 func (de *DBEventData) ToEventData() *EventData {
-	duration, _ := time.ParseDuration(de.Duration)
-	remindIn, _ := time.ParseDuration(de.RemindIn)
 	return &EventData{
 		Title:       de.Title,
 		Datetime:    de.Datetime,
-		Duration:    duration,
+		Duration:    de.Duration.ToDuration(),
 		Description: de.Description,
 		UserID:      de.UserID,
-		RemindIn:    remindIn,
+		RemindIn:    de.RemindIn.ToDuration(),
 	}
 }
