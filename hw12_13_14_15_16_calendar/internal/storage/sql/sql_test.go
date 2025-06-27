@@ -107,7 +107,7 @@ func (s *SQLSuite) mockEventOverlaps(isOverlaps bool) {
 	}).Return(nil).Once()
 }
 
-func (s *SQLSuite) mockGetEvents(events *[]*types.Event, isFound bool, argLen int) {
+func (s *SQLSuite) mockGetEvents(events *[]*types.DBEvent, isFound bool, argLen int) {
 	args := make([]any, argLen)
 	for i := range args {
 		args[i] = mock.Anything
@@ -120,14 +120,14 @@ func (s *SQLSuite) mockGetEvents(events *[]*types.Event, isFound bool, argLen in
 	if !isFound {
 		s.txMock.On("SelectContext", callArgs...).
 			Run(func(args mock.Arguments) {
-				dest := args.Get(1).(*[]*types.Event)
-				*dest = []*types.Event{} // Simulate no events found.
+				dest := args.Get(1).(*[]*types.DBEvent)
+				*dest = []*types.DBEvent{} // Simulate no events found.
 			}).Return(nil).Once()
 		return
 	}
 	s.txMock.On("SelectContext", callArgs...).
 		Run(func(args mock.Arguments) {
-			dest := args.Get(1).(*[]*types.Event)
+			dest := args.Get(1).(*[]*types.DBEvent)
 			*dest = *events
 		}).Return(nil).Once()
 }
@@ -718,9 +718,9 @@ func (s *SQLSuite) TestGetEvent() {
 
 func (s *SQLSuite) TestGetAllUserEvents() {
 	userID := "user1"
-	events := []*types.Event{
-		s.newTestEvent("Event 1", userID),
-		s.newTestEvent("Event 2", userID),
+	events := []*types.DBEvent{
+		s.newTestEvent("Event 1", userID).ToDBEvent(),
+		s.newTestEvent("Event 2", userID).ToDBEvent(),
 	}
 
 	testCases := []struct {
@@ -779,7 +779,11 @@ func (s *SQLSuite) TestGetAllUserEvents() {
 				if tC.name == "no events" {
 					s.Require().Empty(result, "expected empty result, got non-empty")
 				} else {
-					s.Require().Equal(events, result, "events do not match the expected ones")
+					castedEvents := make([]*types.Event, len(events))
+					for i := range events {
+						castedEvents[i] = events[i].ToEvent()
+					}
+					s.Require().Equal(castedEvents, result, "events do not match the expected ones")
 				}
 			}
 		})
@@ -790,9 +794,9 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 	userID := "user1"
 	start := time.Now()
 	end := start.Add(24 * time.Hour)
-	events := []*types.Event{
-		s.newTestEvent("Event 1", userID),
-		s.newTestEvent("Event 2", userID),
+	events := []*types.DBEvent{
+		s.newTestEvent("Event 1", userID).ToDBEvent(),
+		s.newTestEvent("Event 2", userID).ToDBEvent(),
 	}
 	userIDPtr := &userID
 
@@ -895,7 +899,11 @@ func (s *SQLSuite) TestGetEventsForPeriod() {
 				if tC.name == "no events with user" || tC.name == "no events without user" {
 					s.Require().Empty(result, "expected empty result, got non-empty")
 				} else {
-					s.Require().Equal(events, result, "events do not match the expected ones")
+					castedEvents := make([]*types.Event, len(events))
+					for i := range events {
+						castedEvents[i] = events[i].ToEvent()
+					}
+					s.Require().Equal(castedEvents, result, "events do not match the expected ones")
 				}
 			}
 		})
