@@ -22,7 +22,7 @@ port = "9090"
 shutdown_timeout = "3s"                   # Time to gracefully shutdown. Values <= 0 are treated as no shutdown
 
 [storage]
-type = "sql" # memory, sql
+type = "sql"                              # memory, sql
 
 [storage.sql]
 host = "localhost"
