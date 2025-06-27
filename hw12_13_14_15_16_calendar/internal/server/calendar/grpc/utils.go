@@ -5,9 +5,10 @@ import (
 	"errors"
 	"log/slog"
 
-	//nolint:depguard,nolintlint
 	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"google.golang.org/grpc"                                                          //nolint:depguard,nolintlint
 	"google.golang.org/grpc/codes"                                                    //nolint:depguard,nolintlint
+	"google.golang.org/grpc/metadata"                                                 //nolint:depguard,nolintlint
 	"google.golang.org/grpc/status"                                                   //nolint:depguard,nolintlint
 	"google.golang.org/protobuf/types/known/anypb"                                    //nolint:depguard,nolintlint
 	"google.golang.org/protobuf/types/known/wrapperspb"                               //nolint:depguard,nolintlint
@@ -63,5 +64,12 @@ func (s *Server) wrapError(ctx context.Context, err error) *status.Status {
 	}
 	st = resSt
 
+	return st
+}
+
+// handleError wraps the error and sets gRPC headers.
+func (s *Server) handleError(ctx context.Context, err error) *status.Status {
+	st := s.wrapError(ctx, err)
+	_ = grpc.SetHeader(ctx, metadata.MD{})
 	return st
 }

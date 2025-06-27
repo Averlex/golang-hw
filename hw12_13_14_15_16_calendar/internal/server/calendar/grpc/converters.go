@@ -61,3 +61,12 @@ func setTime(reqTime *timestamppb.Timestamp) time.Time {
 	res := reqTime.AsTime()
 	return res
 }
+
+// convertEventsToPB converts a slice of internal events to protobuf events.
+func convertEventsToPB(events []*types.Event) []*pb.Event {
+	pbEvents := make([]*pb.Event, len(events))
+	for i, event := range events {
+		pbEvents[i] = fromInternalEvent(event)
+	}
+	return pbEvents
+}
