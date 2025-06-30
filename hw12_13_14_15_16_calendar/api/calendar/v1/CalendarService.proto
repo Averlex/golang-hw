@@ -6,17 +6,73 @@ option go_package = "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/api/annotations.proto";
 
 service CalendarService {
-    rpc CreateEvent (CreateEventRequest) returns (CreateEventResponse);
-    rpc UpdateEvent (UpdateEventRequest) returns (UpdateEventResponse);
-    rpc DeleteEvent (DeleteEventRequest) returns (DeleteEventResponse);
-    rpc GetEvent (GetEventRequest) returns (GetEventResponse);
-    rpc GetAllUserEvents (GetAllUserEventsRequest) returns (GetAllUserEventsResponse);
-    rpc GetEventsForDay (GetEventsForDayRequest) returns (GetEventsForDayResponse);
-    rpc GetEventsForWeek (GetEventsForWeekRequest) returns (GetEventsForWeekResponse);
-    rpc GetEventsForMonth (GetEventsForMonthRequest) returns (GetEventsForMonthResponse);
-    rpc GetEventsForPeriod (GetEventsForPeriodRequest) returns (GetEventsForPeriodResponse);
+    // POST /v1/events
+    rpc CreateEvent (CreateEventRequest) returns (CreateEventResponse) {
+        option (google.api.http) = {
+            post: "/v1/events"
+            body: "data"
+            response_body: "event"
+        };
+    };
+    // PUT /v1/events/{id}
+    rpc UpdateEvent (UpdateEventRequest) returns (UpdateEventResponse) {
+        option (google.api.http) = {
+            put: "/v1/events/{id}"
+            body: "data"
+            response_body: "event"
+        };
+    };
+    // DELETE /v1/events/{id}
+    rpc DeleteEvent (DeleteEventRequest) returns (DeleteEventResponse) {
+        option (google.api.http) = {
+            delete: "/v1/events/{id}"
+        };
+    };
+    // GET /v1/events/{id}
+    rpc GetEvent (GetEventRequest) returns (GetEventResponse) {
+        option (google.api.http) = {
+            get: "/v1/events/{id}"
+            response_body: "event"
+        };
+    };
+    // GET /v1/events/user/{user_id}
+    rpc GetAllUserEvents (GetAllUserEventsRequest) returns (GetAllUserEventsResponse) {
+        option (google.api.http) = {
+            get: "/v1/events/user/{user_id}"
+            response_body: "events"
+        };
+    };
+    // GET /v1/events/day
+    rpc GetEventsForDay (GetEventsForDayRequest) returns (GetEventsForDayResponse) {
+        option (google.api.http) = {
+            get: "/v1/events/day"
+            response_body: "events"
+        };
+    };
+    // GET /v1/events/week
+    rpc GetEventsForWeek (GetEventsForWeekRequest) returns (GetEventsForWeekResponse) {
+        option (google.api.http) = {
+            get: "/v1/events/week"
+            response_body: "events"
+        };
+    };
+    // GET /v1/events/month
+    rpc GetEventsForMonth (GetEventsForMonthRequest) returns (GetEventsForMonthResponse) {
+        option (google.api.http) = {
+            get: "/v1/events/month"
+            response_body: "events"
+        };
+    };
+    // GET /v1/events/period
+    rpc GetEventsForPeriod (GetEventsForPeriodRequest) returns (GetEventsForPeriodResponse) {
+        option (google.api.http) = {
+            get: "/v1/events/period"
+            response_body: "events"
+        };
+    };
 }
 
 message Event {
