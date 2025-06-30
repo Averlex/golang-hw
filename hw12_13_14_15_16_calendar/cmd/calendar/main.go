@@ -251,7 +251,12 @@ func initializeHTTPServer(
 		logg.Error(ctx, "get HTTP server config", slog.Any("err", err))
 		return nil, err
 	}
-	httpServer, err := internalhttp.NewServer(logg, calendar, httpCfg)
+	grpcCfg, err := cfg.GetSubConfig("grpc")
+	if err != nil {
+		logg.Error(ctx, "get gRPC server config for HTTP server", slog.Any("err", err))
+		return nil, err
+	}
+	httpServer, err := internalhttp.NewServer(logg, calendar, httpCfg, grpcCfg)
 	if err != nil {
 		logg.Error(ctx, "create HTTP server", slog.Any("err", err))
 		return nil, err
