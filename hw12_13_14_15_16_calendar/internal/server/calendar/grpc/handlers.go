@@ -4,6 +4,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"   //nolint:depguard,nolintlint
@@ -12,10 +13,15 @@ import (
 
 // CreateEvent validates the request data and tries to create a new event in the storage.
 func (s *Server) CreateEvent(ctx context.Context, event *pb.CreateEventRequest) (*pb.CreateEventResponse, error) {
+	var duration time.Duration
+	reqDuration := setDuration(event.Data.Duration)
+	if reqDuration != nil {
+		duration = *reqDuration
+	}
 	obj := dto.CreateEventInput{
 		Title:       event.Data.Title,
 		Datetime:    setTime(event.Data.Datetime),
-		Duration:    *setDuration(event.Data.Duration),
+		Duration:    duration,
 		Description: setDesctription(event.Data.Description),
 		RemindIn:    setDuration(event.Data.RemindIn),
 		UserID:      event.Data.UserId,

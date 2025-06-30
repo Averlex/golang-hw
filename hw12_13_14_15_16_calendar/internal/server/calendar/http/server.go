@@ -133,10 +133,14 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	// Register protobuf endpoints. Non-blocking.
-	engine.NoRoute(func(c *gin.Context) {
-		if gwHandler != nil {
-			gwHandler.ServeHTTP(c.Writer, c.Request)
+	engine.Any("/v1/*any", func(c *gin.Context) {
+		if gwHandler == nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": "gRPC-Gateway handler not initialized",
+			})
+			return
 		}
+		gwHandler.ServeHTTP(c.Writer, c.Request)
 	})
 
 	s.engine = engine
