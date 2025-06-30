@@ -7,6 +7,7 @@
 package v1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -995,7 +996,7 @@ var File_api_calendar_v1_CalendarService_proto protoreflect.FileDescriptor
 
 const file_api_calendar_v1_CalendarService_proto_rawDesc = "" +
 	"\n" +
-	"%api/calendar/v1/CalendarService.proto\x12\vcalendar.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\"C\n" +
+	"%api/calendar/v1/CalendarService.proto\x12\vcalendar.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/api/annotations.proto\"C\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12*\n" +
 	"\x04data\x18\x02 \x01(\v2\x16.calendar.v1.EventDataR\x04data\"\x83\x02\n" +
@@ -1055,17 +1056,18 @@ const file_api_calendar_v1_CalendarService_proto_rawDesc = "" +
 	"\n" +
 	"\b_user_id\"H\n" +
 	"\x1aGetEventsForPeriodResponse\x12*\n" +
-	"\x06events\x18\x01 \x03(\v2\x12.calendar.v1.EventR\x06events2\xbb\x06\n" +
-	"\x0fCalendarService\x12P\n" +
-	"\vCreateEvent\x12\x1f.calendar.v1.CreateEventRequest\x1a .calendar.v1.CreateEventResponse\x12P\n" +
-	"\vUpdateEvent\x12\x1f.calendar.v1.UpdateEventRequest\x1a .calendar.v1.UpdateEventResponse\x12P\n" +
-	"\vDeleteEvent\x12\x1f.calendar.v1.DeleteEventRequest\x1a .calendar.v1.DeleteEventResponse\x12G\n" +
-	"\bGetEvent\x12\x1c.calendar.v1.GetEventRequest\x1a\x1d.calendar.v1.GetEventResponse\x12_\n" +
-	"\x10GetAllUserEvents\x12$.calendar.v1.GetAllUserEventsRequest\x1a%.calendar.v1.GetAllUserEventsResponse\x12\\\n" +
-	"\x0fGetEventsForDay\x12#.calendar.v1.GetEventsForDayRequest\x1a$.calendar.v1.GetEventsForDayResponse\x12_\n" +
-	"\x10GetEventsForWeek\x12$.calendar.v1.GetEventsForWeekRequest\x1a%.calendar.v1.GetEventsForWeekResponse\x12b\n" +
-	"\x11GetEventsForMonth\x12%.calendar.v1.GetEventsForMonthRequest\x1a&.calendar.v1.GetEventsForMonthResponse\x12e\n" +
-	"\x12GetEventsForPeriod\x12&.calendar.v1.GetEventsForPeriodRequest\x1a'.calendar.v1.GetEventsForPeriodResponseBHZFgithub.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1b\x06proto3"
+	"\x06events\x18\x01 \x03(\v2\x12.calendar.v1.EventR\x06events2\xf0\b\n" +
+	"\x0fCalendarService\x12q\n" +
+	"\vCreateEvent\x12\x1f.calendar.v1.CreateEventRequest\x1a .calendar.v1.CreateEventResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x04datab\x05event\"\n" +
+	"/v1/events\x12v\n" +
+	"\vUpdateEvent\x12\x1f.calendar.v1.UpdateEventRequest\x1a .calendar.v1.UpdateEventResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x04datab\x05event\x1a\x0f/v1/events/{id}\x12i\n" +
+	"\vDeleteEvent\x12\x1f.calendar.v1.DeleteEventRequest\x1a .calendar.v1.DeleteEventResponse\"\x17\x82\xd3\xe4\x93\x02\x11*\x0f/v1/events/{id}\x12g\n" +
+	"\bGetEvent\x12\x1c.calendar.v1.GetEventRequest\x1a\x1d.calendar.v1.GetEventResponse\"\x1e\x82\xd3\xe4\x93\x02\x18b\x05event\x12\x0f/v1/events/{id}\x12\x8a\x01\n" +
+	"\x10GetAllUserEvents\x12$.calendar.v1.GetAllUserEventsRequest\x1a%.calendar.v1.GetAllUserEventsResponse\")\x82\xd3\xe4\x93\x02#b\x06events\x12\x19/v1/events/user/{user_id}\x12|\n" +
+	"\x0fGetEventsForDay\x12#.calendar.v1.GetEventsForDayRequest\x1a$.calendar.v1.GetEventsForDayResponse\"\x1e\x82\xd3\xe4\x93\x02\x18b\x06events\x12\x0e/v1/events/day\x12\x80\x01\n" +
+	"\x10GetEventsForWeek\x12$.calendar.v1.GetEventsForWeekRequest\x1a%.calendar.v1.GetEventsForWeekResponse\"\x1f\x82\xd3\xe4\x93\x02\x19b\x06events\x12\x0f/v1/events/week\x12\x84\x01\n" +
+	"\x11GetEventsForMonth\x12%.calendar.v1.GetEventsForMonthRequest\x1a&.calendar.v1.GetEventsForMonthResponse\" \x82\xd3\xe4\x93\x02\x1ab\x06events\x12\x10/v1/events/month\x12\x88\x01\n" +
+	"\x12GetEventsForPeriod\x12&.calendar.v1.GetEventsForPeriodRequest\x1a'.calendar.v1.GetEventsForPeriodResponse\"!\x82\xd3\xe4\x93\x02\x1bb\x06events\x12\x11/v1/events/periodBHZFgithub.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1b\x06proto3"
 
 var (
 	file_api_calendar_v1_CalendarService_proto_rawDescOnce sync.Once

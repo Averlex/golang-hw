@@ -34,14 +34,23 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CalendarServiceClient interface {
+	// POST /v1/events
 	CreateEvent(ctx context.Context, in *CreateEventRequest, opts ...grpc.CallOption) (*CreateEventResponse, error)
+	// PUT /v1/events/{id}
 	UpdateEvent(ctx context.Context, in *UpdateEventRequest, opts ...grpc.CallOption) (*UpdateEventResponse, error)
+	// DELETE /v1/events/{id}
 	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
+	// GET /v1/events/{id}
 	GetEvent(ctx context.Context, in *GetEventRequest, opts ...grpc.CallOption) (*GetEventResponse, error)
+	// GET /v1/events/user/{user_id}
 	GetAllUserEvents(ctx context.Context, in *GetAllUserEventsRequest, opts ...grpc.CallOption) (*GetAllUserEventsResponse, error)
+	// GET /v1/events/day
 	GetEventsForDay(ctx context.Context, in *GetEventsForDayRequest, opts ...grpc.CallOption) (*GetEventsForDayResponse, error)
+	// GET /v1/events/week
 	GetEventsForWeek(ctx context.Context, in *GetEventsForWeekRequest, opts ...grpc.CallOption) (*GetEventsForWeekResponse, error)
+	// GET /v1/events/month
 	GetEventsForMonth(ctx context.Context, in *GetEventsForMonthRequest, opts ...grpc.CallOption) (*GetEventsForMonthResponse, error)
+	// GET /v1/events/period
 	GetEventsForPeriod(ctx context.Context, in *GetEventsForPeriodRequest, opts ...grpc.CallOption) (*GetEventsForPeriodResponse, error)
 }
 
@@ -147,14 +156,23 @@ func (c *calendarServiceClient) GetEventsForPeriod(ctx context.Context, in *GetE
 // All implementations must embed UnimplementedCalendarServiceServer
 // for forward compatibility.
 type CalendarServiceServer interface {
+	// POST /v1/events
 	CreateEvent(context.Context, *CreateEventRequest) (*CreateEventResponse, error)
+	// PUT /v1/events/{id}
 	UpdateEvent(context.Context, *UpdateEventRequest) (*UpdateEventResponse, error)
+	// DELETE /v1/events/{id}
 	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
+	// GET /v1/events/{id}
 	GetEvent(context.Context, *GetEventRequest) (*GetEventResponse, error)
+	// GET /v1/events/user/{user_id}
 	GetAllUserEvents(context.Context, *GetAllUserEventsRequest) (*GetAllUserEventsResponse, error)
+	// GET /v1/events/day
 	GetEventsForDay(context.Context, *GetEventsForDayRequest) (*GetEventsForDayResponse, error)
+	// GET /v1/events/week
 	GetEventsForWeek(context.Context, *GetEventsForWeekRequest) (*GetEventsForWeekResponse, error)
+	// GET /v1/events/month
 	GetEventsForMonth(context.Context, *GetEventsForMonthRequest) (*GetEventsForMonthResponse, error)
+	// GET /v1/events/period
 	GetEventsForPeriod(context.Context, *GetEventsForPeriodRequest) (*GetEventsForPeriodResponse, error)
 	mustEmbedUnimplementedCalendarServiceServer()
 }
