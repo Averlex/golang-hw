@@ -85,8 +85,23 @@ migrate-down-1: run-db
 
 # --- Generate ---
 
-generate: setup-mockery
+generate: generate-mocks generate-grpc
+
+generate-mocks: setup-mockery
 	go generate ./...
+
+generate-grpc: setup-grpc
+	protoc \
+		-I . \
+		-I third_party \
+		--go_out . \
+		--go_opt paths=source_relative \
+		--go-grpc_out . \
+		--go-grpc_opt paths=source_relative \
+		--grpc-gateway_out . \
+		--grpc-gateway_opt paths=source_relative \
+		--openapiv2_out . \
+		api/calendar/v1/CalendarService.proto
 
 # --- Docker ---
 
@@ -101,7 +116,13 @@ run-img: build-img
 
 # --- Setup additional tools: mocks, migration and pretty shell json logs ---
 
-setup-tools: setup-mockery setup-goose setup-jq
+setup-tools: setup-grpc setup-mockery setup-goose setup-jq
+
+setup-grpc:
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
 setup-mockery:
     GOBIN=$(TOOLS_DIR) go install github.com/vektra/mockery/v2@latest
@@ -118,7 +139,13 @@ setup-jq:
 
 # --- Cleanup additional tools ---
 
-clean-tools: clean-mockery clean-goose clean-jq
+clean-tools: clean-grpc clean-mockery clean-goose clean-jq
+
+clean-grpc:
+	rm -f $(TOOLS_DIR)/protoc-gen-go-grpc
+	rm -f $(TOOLS_DIR)/protoc-gen-go
+	rm -f $(TOOLS_DIR)/protoc-gen-grpc-gateway
+	rm -f $(TOOLS_DIR)/protoc-gen-openapiv2
 
 clean-mockery:
 	rm -f $(TOOLS_DIR)/mockery
@@ -137,4 +164,4 @@ clean-jq:
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
 
-.PHONY: build run run-json version help test test-fast test-cover lint install-lint-deps migrate-up migrate-up-1 migrate-down-1 generate build-img run-img run-db stop-db clean-tools clean-mockery clean-goose clean-jq setup-tools setup-mockery setup-goose setup-jq
+.PHONY: build run run-json version help test test-fast test-cover lint install-lint-deps migrate-up migrate-up-1 migrate-down-1 generate generate-mocks generate-grpc build-img run-img run-db stop-db clean-tools clean-grpc clean-mockery clean-goose clean-jq setup-tools setup-grpc setup-mockery setup-goose setup-jq
