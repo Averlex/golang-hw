@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -121,6 +122,16 @@ func (s *Server) Start(ctx context.Context) error {
 	})
 	engine.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/hello")
+	})
+
+	// swagger.json route.
+	engine.GET("/swagger/swagger.json", func(c *gin.Context) {
+		swaggerJSON, err := os.ReadFile(swaggerPath)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not read swagger file"})
+			return
+		}
+		c.Data(http.StatusOK, "application/json", swaggerJSON)
 	})
 
 	s.mu.Lock()
