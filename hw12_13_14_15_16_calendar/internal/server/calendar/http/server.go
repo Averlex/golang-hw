@@ -132,6 +132,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to init gRPC gateway: %w", err)
 	}
 
+	// Register protobuf endpoints. Non-blocking.
 	engine.NoRoute(func(c *gin.Context) {
 		if gwHandler != nil {
 			gwHandler.ServeHTTP(c.Writer, c.Request)
