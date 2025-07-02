@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"                                                //nolint:depguard,nolintlint
 )
 
+const basicUserID = "user1"
+
 func TestServerSuite(t *testing.T) {
 	suite.Run(t, new(ServerSuite))
 }
@@ -100,7 +102,7 @@ func (s *ServerSuite) TestGetEvent() {
 			Datetime:    time.Now(),
 			Duration:    time.Hour,
 			Description: "Test Description",
-			UserID:      "user1",
+			UserID:      basicUserID,
 			RemindIn:    time.Minute * 30,
 		},
 	}
@@ -205,7 +207,7 @@ func (s *ServerSuite) TestCreateEvent() {
 		Datetime:    time.Now(),
 		Duration:    time.Hour,
 		Description: "Test Description",
-		UserID:      "user1",
+		UserID:      basicUserID,
 		RemindIn:    time.Minute * 30,
 	}
 	expectedOutput := &pb.CreateEventResponse{
@@ -408,7 +410,7 @@ func (s *ServerSuite) TestUpdateEvent() {
 		Datetime:    time.Now(),
 		Duration:    time.Hour,
 		Description: "Test Description",
-		UserID:      "user1",
+		UserID:      basicUserID,
 		RemindIn:    time.Minute * 30,
 	}
 	expectedOutput := &pb.UpdateEventResponse{
@@ -680,6 +682,416 @@ func (s *ServerSuite) TestDeleteEvent() {
 
 			s.Require().NoError(err, "unexpected error on DeleteEvent")
 			s.Require().NotNil(resp, "got nil response, expected non-nil")
+		})
+	}
+}
+
+//nolint:funlen
+func (s *ServerSuite) TestGetAllUserEvents() {
+	userID := basicUserID
+	now := time.Now()
+	eventID1 := uuid.New()
+	eventID2 := uuid.New()
+
+	eventsFromApp := []*types.Event{
+		{
+			ID: eventID1,
+			EventData: types.EventData{
+				Title:       "Event 1",
+				Datetime:    now,
+				Duration:    time.Hour,
+				Description: "Description 1",
+				UserID:      userID,
+				RemindIn:    time.Minute * 15,
+			},
+		},
+		{
+			ID: eventID2,
+			EventData: types.EventData{
+				Title:       "Event 2",
+				Datetime:    now.Add(time.Hour),
+				Duration:    time.Hour * 2,
+				Description: "Description 2",
+				UserID:      userID,
+				RemindIn:    time.Minute * 30,
+			},
+		},
+	}
+
+	expectedPBEvents := []*pb.Event{
+		{
+			Id: eventID1.String(),
+			Data: &pb.EventData{
+				Title:       "Event 1",
+				Datetime:    timestamppb.New(now),
+				Duration:    durationpb.New(time.Hour),
+				Description: "Description 1",
+				UserId:      userID,
+				RemindIn:    durationpb.New(time.Minute * 15),
+			},
+		},
+		{
+			Id: eventID2.String(),
+			Data: &pb.EventData{
+				Title:       "Event 2",
+				Datetime:    timestamppb.New(now.Add(time.Hour)),
+				Duration:    durationpb.New(time.Hour * 2),
+				Description: "Description 2",
+				UserId:      userID,
+				RemindIn:    durationpb.New(time.Minute * 30),
+			},
+		},
+	}
+
+	testCases := []struct {
+		name         string
+		req          *pb.GetAllUserEventsRequest
+		mockApp      func(*mocks.Application)
+		want         *pb.GetAllUserEventsResponse
+		expectedCode codes.Code
+	}{
+		{
+			name: "success",
+			req:  &pb.GetAllUserEventsRequest{UserId: userID},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetAllUserEvents", mock.Anything, mock.Anything).Return(eventsFromApp, nil).Once()
+			},
+			want: &pb.GetAllUserEventsResponse{
+				Events: expectedPBEvents,
+			},
+			expectedCode: codes.OK,
+		},
+		{
+			name: "empty user_id",
+			req:  &pb.GetAllUserEventsRequest{UserId: ""},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetAllUserEvents", mock.Anything, mock.Anything).Return(nil, projectErrors.ErrInvalidFieldData).Once()
+			},
+			expectedCode: codes.InvalidArgument,
+		},
+		{
+			name: "no events found",
+			req:  &pb.GetAllUserEventsRequest{UserId: userID},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetAllUserEvents", mock.Anything, mock.Anything).Return(nil, projectErrors.ErrEventNotFound).Once()
+			},
+			expectedCode: codes.NotFound,
+		},
+		{
+			name: "internal error",
+			req:  &pb.GetAllUserEventsRequest{UserId: userID},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetAllUserEvents", mock.Anything, mock.Anything).Return(nil, errors.New("unexpected error")).Once()
+			},
+			expectedCode: codes.Internal,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			tC.mockApp(s.app)
+			s.loggerMocks(s.T())
+
+			resp, err := s.client.GetAllUserEvents(context.Background(), tC.req)
+
+			if tC.expectedCode != codes.OK {
+				s.Require().Error(err, "expected error, got nil")
+				s.Require().Nil(resp, "expected nil response on error, got non-nil")
+				s.Require().Equal(tC.expectedCode, status.Code(err), "unexpected error code")
+				return
+			}
+
+			s.Require().NoError(err, "unexpected error on GetAllUserEvents")
+			s.Require().NotNil(resp, "got nil response, expected non-nil")
+
+			s.Require().Len(resp.Events, len(tC.want.Events), "unexpected number of events")
+
+			for i := range resp.Events {
+				s.Require().Equal(tC.want.Events[i].Id, resp.Events[i].Id, "event ID mismatch at index %d", i)
+				s.Require().Equal(
+					tC.want.Events[i].Data.Title,
+					resp.Events[i].Data.Title,
+					"title mismatch at index %d",
+					i,
+				)
+				s.Require().Equal(
+					tC.want.Events[i].Data.Description,
+					resp.Events[i].Data.Description,
+					"description mismatch at index %d",
+					i,
+				)
+				s.Require().Equal(
+					tC.want.Events[i].Data.UserId,
+					resp.Events[i].Data.UserId,
+					"user ID mismatch at index %d",
+					i,
+				)
+				s.Require().WithinDuration(
+					tC.want.Events[i].Data.Datetime.AsTime(),
+					resp.Events[i].Data.Datetime.AsTime(),
+					time.Second,
+					"datetime mismatch at index %d",
+					i,
+				)
+				s.Require().Equal(
+					int(tC.want.Events[i].Data.Duration.AsDuration().Seconds()),
+					int(resp.Events[i].Data.Duration.AsDuration().Seconds()),
+					"duration mismatch at index %d",
+					i,
+				)
+				s.Require().Equal(
+					int(tC.want.Events[i].Data.RemindIn.AsDuration().Seconds()),
+					int(resp.Events[i].Data.RemindIn.AsDuration().Seconds()),
+					"remind_in mismatch at index %d",
+					i,
+				)
+			}
+		})
+	}
+}
+
+func (s *ServerSuite) TestGetEventsForPeriod() {
+	userID := basicUserID
+	now := time.Now()
+
+	eventsFromApp := []*types.Event{
+		{
+			ID: uuid.New(),
+			EventData: types.EventData{
+				Title:       "Event 1",
+				Datetime:    now,
+				Duration:    time.Hour,
+				Description: "Description 1",
+				UserID:      userID,
+				RemindIn:    time.Minute * 15,
+			},
+		},
+		{
+			ID: uuid.New(),
+			EventData: types.EventData{
+				Title:       "Event 2",
+				Datetime:    now.Add(time.Hour),
+				Duration:    time.Hour * 2,
+				Description: "Description 2",
+				UserID:      userID,
+				RemindIn:    time.Minute * 30,
+			},
+		},
+	}
+
+	pbStartDate := timestamppb.New(now)
+	pbEndDate := timestamppb.New(now.Add(24 * time.Hour))
+
+	req := &pb.GetEventsForPeriodRequest{
+		StartDate: pbStartDate,
+		EndDate:   pbEndDate,
+		UserId:    &userID,
+	}
+
+	testCases := []struct {
+		name         string
+		req          *pb.GetEventsForPeriodRequest
+		mockApp      func(*mocks.Application)
+		expectedCode codes.Code
+		expectedLen  int
+	}{
+		{
+			name: "success",
+			req:  req,
+			mockApp: func(m *mocks.Application) {
+				m.On("GetEventsForPeriod", mock.Anything, mock.Anything).Return(eventsFromApp, nil).Once()
+			},
+			expectedCode: codes.OK,
+			expectedLen:  len(eventsFromApp),
+		},
+		{
+			name: "empty user_id",
+			req: &pb.GetEventsForPeriodRequest{
+				StartDate: pbStartDate,
+				EndDate:   pbEndDate,
+				UserId:    nil,
+			},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetEventsForPeriod", mock.Anything, mock.Anything).Return(eventsFromApp, nil).Once()
+			},
+			expectedCode: codes.OK,
+			expectedLen:  len(eventsFromApp),
+		},
+		{
+			name: "invalid start date",
+			req: &pb.GetEventsForPeriodRequest{
+				StartDate: nil,
+				EndDate:   pbEndDate,
+				UserId:    &userID,
+			},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetEventsForPeriod", mock.Anything, mock.Anything).Return(nil, projectErrors.ErrInvalidFieldData).Once()
+			},
+			expectedCode: codes.InvalidArgument,
+		},
+		{
+			name: "invalid end date",
+			req: &pb.GetEventsForPeriodRequest{
+				StartDate: pbStartDate,
+				EndDate:   nil,
+				UserId:    &userID,
+			},
+			mockApp: func(m *mocks.Application) {
+				m.On("GetEventsForPeriod", mock.Anything, mock.Anything).Return(nil, projectErrors.ErrInvalidFieldData).Once()
+			},
+			expectedCode: codes.InvalidArgument,
+		},
+		{
+			name: "no events found",
+			req:  req,
+			mockApp: func(m *mocks.Application) {
+				m.On("GetEventsForPeriod", mock.Anything, mock.Anything).Return([]*types.Event{}, nil).Once()
+			},
+			expectedCode: codes.OK,
+			expectedLen:  0,
+		},
+		{
+			name: "internal error",
+			req:  req,
+			mockApp: func(m *mocks.Application) {
+				m.On("GetEventsForPeriod", mock.Anything, mock.Anything).Return(nil, errors.New("unexpected error")).Once()
+			},
+			expectedCode: codes.Internal,
+			expectedLen:  0,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			tc.mockApp(s.app)
+			s.loggerMocks(s.T())
+
+			resp, err := s.client.GetEventsForPeriod(context.Background(), tc.req)
+
+			if tc.expectedCode != codes.OK {
+				s.Require().Error(err)
+				s.Require().Nil(resp)
+				s.Require().Equal(tc.expectedCode, status.Code(err))
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotNil(resp)
+			s.Require().Len(resp.Events, tc.expectedLen)
+		})
+	}
+}
+
+func (s *ServerSuite) TestGetEventsForDay_Week_Month() {
+	userID := basicUserID
+	now := time.Now()
+
+	eventsFromApp := []*types.Event{
+		{
+			ID: uuid.New(),
+			EventData: types.EventData{
+				Title:       "Event 1",
+				Datetime:    now,
+				Duration:    time.Hour,
+				Description: "Description 1",
+				UserID:      userID,
+				RemindIn:    time.Minute * 15,
+			},
+		},
+		{
+			ID: uuid.New(),
+			EventData: types.EventData{
+				Title:       "Event 2",
+				Datetime:    now.Add(time.Hour),
+				Duration:    time.Hour * 2,
+				Description: "Description 2",
+				UserID:      userID,
+				RemindIn:    time.Minute * 30,
+			},
+		},
+	}
+
+	pbDate := timestamppb.New(now)
+
+	req := &pb.GetEventsForDayRequest{
+		Date:   pbDate,
+		UserId: &userID,
+	}
+
+	testCases := []struct {
+		name         string
+		req          *pb.GetEventsForDayRequest
+		mockApp      func(*mocks.Application)
+		expectedCode codes.Code
+		expectedLen  int
+	}{
+		{
+			name: "success",
+			req:  req,
+			mockApp: func(m *mocks.Application) {
+				m.On("ListEvents", mock.Anything, mock.Anything).Return(eventsFromApp, nil).Once()
+			},
+			expectedCode: codes.OK,
+			expectedLen:  len(eventsFromApp),
+		},
+		{
+			name: "empty user_id",
+			req: &pb.GetEventsForDayRequest{
+				Date:   pbDate,
+				UserId: nil,
+			},
+			mockApp: func(m *mocks.Application) {
+				m.On("ListEvents", mock.Anything, mock.Anything).Return(eventsFromApp, nil).Once()
+			},
+			expectedCode: codes.OK,
+			expectedLen:  len(eventsFromApp),
+		},
+		{
+			name: "invalid date",
+			req: &pb.GetEventsForDayRequest{
+				Date:   nil,
+				UserId: &userID,
+			},
+			mockApp: func(m *mocks.Application) {
+				m.On("ListEvents", mock.Anything, mock.Anything).Return(nil, projectErrors.ErrInvalidFieldData).Once()
+			},
+			expectedCode: codes.InvalidArgument,
+		},
+		{
+			name: "no events found",
+			req:  req,
+			mockApp: func(m *mocks.Application) {
+				m.On("ListEvents", mock.Anything, mock.Anything).Return(nil, projectErrors.ErrEventNotFound).Once()
+			},
+			expectedCode: codes.NotFound,
+		},
+		{
+			name: "internal error",
+			req:  req,
+			mockApp: func(m *mocks.Application) {
+				m.On("ListEvents", mock.Anything, mock.Anything).Return(nil, errors.New("some error")).Once()
+			},
+			expectedCode: codes.Internal,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			tc.mockApp(s.app)
+			s.loggerMocks(s.T())
+
+			resp, err := s.client.GetEventsForDay(context.Background(), tc.req)
+
+			if tc.expectedCode != codes.OK {
+				s.Require().Error(err)
+				s.Require().Nil(resp)
+				s.Require().Equal(tc.expectedCode, status.Code(err))
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotNil(resp)
+			s.Require().Len(resp.Events, tc.expectedLen)
 		})
 	}
 }
