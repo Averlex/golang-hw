@@ -7,7 +7,7 @@ import (
 	"time"
 
 	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto"   //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/dto"       //nolint:depguard,nolintlint
 	"google.golang.org/protobuf/types/known/timestamppb"                        //nolint:depguard,nolintlint
 )
 

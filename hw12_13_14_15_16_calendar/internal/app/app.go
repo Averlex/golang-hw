@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
 )
 
 // App represents a calendar application.

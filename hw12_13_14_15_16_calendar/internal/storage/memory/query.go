@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"  //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                            //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"  //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                 //nolint:depguard,nolintlint
 )
 
 // GetEvent retrieves the event with the given ID from the in-memory storage.

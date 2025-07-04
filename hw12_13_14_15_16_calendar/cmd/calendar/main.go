@@ -11,13 +11,13 @@ import (
 	"sync"
 	"syscall"
 
-	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar"                  //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                            //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                            //nolint:depguard
-	internalgrpc "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/grpc" //nolint:depguard
-	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/http" //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                           //nolint:depguard
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"                   //nolint:depguard
+	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app"                  //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                   //nolint:depguard
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors"     //nolint:depguard
+	internalgrpc "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/grpc" //nolint:depguard
+	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http" //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                  //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/logger"                        //nolint:depguard
 )
 
 const (

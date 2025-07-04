@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors"         //nolint:depguard,nolintlint
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/memory" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"              //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"               //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"          //nolint:depguard,nolintlint
 	"github.com/google/uuid"                                                         //nolint:depguard,nolintlint
 	"github.com/stretchr/testify/require"                                            //nolint:depguard,nolintlint
 	"github.com/stretchr/testify/suite"                                              //nolint:depguard,nolintlint

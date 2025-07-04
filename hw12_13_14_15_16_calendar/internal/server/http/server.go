@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"       //nolint:depguard,nolintlint
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/gin-gonic/gin"                                                        //nolint:depguard,nolintlint
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"                               //nolint:depguard,nolintlint
-	"google.golang.org/grpc"                                                          //nolint:depguard,nolintlint
-	"google.golang.org/grpc/credentials/insecure"                                     //nolint:depguard,nolintlint
+	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"            //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/gin-gonic/gin"                                                             //nolint:depguard,nolintlint
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"                                    //nolint:depguard,nolintlint
+	"google.golang.org/grpc"                                                               //nolint:depguard,nolintlint
+	"google.golang.org/grpc/credentials/insecure"                                          //nolint:depguard,nolintlint
 )
 
 // Server represents an HTTP server with a gin engine.

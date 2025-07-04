@@ -8,7 +8,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	types "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"
+	types "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"
 
 	uuid "github.com/google/uuid"
 )

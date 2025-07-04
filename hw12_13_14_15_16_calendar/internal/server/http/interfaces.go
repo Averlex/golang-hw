@@ -3,8 +3,8 @@ package http
 import (
 	"context"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/calendar/dto" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"        //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/dto"   //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types" //nolint:depguard,nolintlint
 )
 
 // Logger represents an interface of logger visible to the app.

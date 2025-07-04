@@ -7,22 +7,22 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"                         //nolint:depguard,nolintlint
-	calendarGRPC "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/grpc" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/grpc/mocks"        //nolint:depguard,nolintlint
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"                   //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                                  //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                                            //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/mock"                                                                  //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/require"                                                               //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/suite"                                                                 //nolint:depguard,nolintlint
-	"google.golang.org/grpc"                                                                            //nolint:depguard,nolintlint
-	"google.golang.org/grpc/codes"                                                                      //nolint:depguard,nolintlint
-	"google.golang.org/grpc/credentials/insecure"                                                       //nolint:depguard,nolintlint
-	"google.golang.org/grpc/status"                                                                     //nolint:depguard,nolintlint
-	"google.golang.org/grpc/test/bufconn"                                                               //nolint:depguard,nolintlint
-	"google.golang.org/protobuf/types/known/durationpb"                                                 //nolint:depguard,nolintlint
-	"google.golang.org/protobuf/types/known/timestamppb"                                                //nolint:depguard,nolintlint
+	pb "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/api/calendar/v1"                //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors"     //nolint:depguard,nolintlint
+	calendarGRPC "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/grpc" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/grpc/mocks"        //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"                    //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                                   //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/mock"                                                         //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/require"                                                      //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/suite"                                                        //nolint:depguard,nolintlint
+	"google.golang.org/grpc"                                                                   //nolint:depguard,nolintlint
+	"google.golang.org/grpc/codes"                                                             //nolint:depguard,nolintlint
+	"google.golang.org/grpc/credentials/insecure"                                              //nolint:depguard,nolintlint
+	"google.golang.org/grpc/status"                                                            //nolint:depguard,nolintlint
+	"google.golang.org/grpc/test/bufconn"                                                      //nolint:depguard,nolintlint
+	"google.golang.org/protobuf/types/known/durationpb"                                        //nolint:depguard,nolintlint
+	"google.golang.org/protobuf/types/known/timestamppb"                                       //nolint:depguard,nolintlint
 )
 
 const basicUserID = "user1"

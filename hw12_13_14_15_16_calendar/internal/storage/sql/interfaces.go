@@ -8,8 +8,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                                         //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                                              //nolint:depguard,nolintlint
 )
 
 // DB defines the methods of sqlx.DB used in storage/sql.

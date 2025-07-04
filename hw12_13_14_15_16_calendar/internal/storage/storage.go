@@ -4,7 +4,7 @@ package storage
 import (
 	"fmt"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
 )
 
 // NewStorage creates a new storage instance based on the provided configuration.

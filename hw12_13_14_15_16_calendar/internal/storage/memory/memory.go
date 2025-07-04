@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync"
 
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                               //nolint:depguard,nolintlint
 )
 
 const defaultStorageSize = 10000 // Default maximum number of events in memory storage.

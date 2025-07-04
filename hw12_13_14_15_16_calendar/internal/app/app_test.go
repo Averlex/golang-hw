@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar/mocks" //nolint:depguard,nolintlint
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"    //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types"                   //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                             //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/mock"                                                   //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/require"                                                //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/mocks"            //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                               //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/mock"                                                     //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/require"                                                  //nolint:depguard,nolintlint
 )
 
 func TestNewApp(t *testing.T) {

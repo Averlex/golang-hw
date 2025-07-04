@@ -3,13 +3,12 @@
 package logger
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
-
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
 )
 
 // Option defines a function that allows to configure underlying logger on construction.
@@ -43,6 +42,14 @@ func (c *Config) checkDefaults() {
 }
 
 // WithConfig allows to apply custom configuration.
+// Expected following config structure:
+//
+//	{
+//			format        string, // "text" or "json"
+//			level         string, // "debug", "info", "warn", "error"
+//			time_template string, // any valid time format
+//			log_stream:   string, // "stdout", "stderr"
+//	}
 func WithConfig(cfg map[string]any) Option {
 	return func(c *Config) error {
 		optionalFields := map[string]any{
@@ -61,7 +68,7 @@ func WithConfig(cfg map[string]any) Option {
 		validateLogType(cfg, ve)
 
 		if ve.HasErrors() {
-			return fmt.Errorf("%w: %s", errors.ErrCorruptedConfig, ve.Error())
+			return fmt.Errorf("config data is invalid: %s", ve.Error())
 		}
 
 		if level, ok := cfg["level"]; ok {
@@ -144,12 +151,12 @@ func NewLogger(opts ...Option) (*Logger, error) {
 	cfg := &Config{}
 
 	if err := SetDefaults()(cfg); err != nil {
-		return nil, fmt.Errorf("%w: default logger initialization", errors.ErrLoggerInitFailed)
+		return nil, errors.New("default logger initialization failed")
 	}
 
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
-			return nil, fmt.Errorf("%w: %w", errors.ErrLoggerInitFailed, err)
+			return nil, fmt.Errorf("logger initialization failed: %w", err)
 		}
 	}
 

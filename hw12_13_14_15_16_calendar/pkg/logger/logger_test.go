@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger" //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"      //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/suite"                                      //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/logger" //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/suite"                                 //nolint:depguard,nolintlint
 )
 
 type logEntry struct {
@@ -88,7 +87,6 @@ func (s *LoggerTestSuite) TestDefaults() {
 		s.writer.CleanUp()
 		_, err := logger.NewLogger(logger.WithWriter(nil))
 		s.Require().Error(err, "expected error for nil writer")
-		s.Require().ErrorIs(err, errors.ErrLoggerInitFailed)
 	})
 }
 
@@ -124,7 +122,6 @@ func (s *LoggerTestSuite) TestLogLevel() {
 			l, err := logger.NewLogger(opts...)
 			if tC.expectError {
 				s.Require().Error(err, "got nil, expected error")
-				s.Require().ErrorIs(err, errors.ErrCorruptedConfig)
 				return
 			}
 			s.Require().NoError(err, "got error, expected nil")
@@ -176,7 +173,6 @@ func (s *LoggerTestSuite) TestLogType() {
 			l, err := logger.NewLogger(opts...)
 			if tC.expectConstructorError {
 				s.Require().Error(err, "got nil, expected error")
-				s.Require().ErrorIs(err, errors.ErrCorruptedConfig)
 				return
 			}
 			s.Require().NoError(err, "got error, expected nil")
@@ -241,7 +237,6 @@ func (s *LoggerTestSuite) TestTimeTemplate() {
 			l, err := logger.NewLogger(opts...)
 			if tC.expectError {
 				s.Require().Error(err, "got nil, expected error")
-				s.Require().ErrorIs(err, errors.ErrCorruptedConfig)
 				return
 			}
 			s.Require().NoError(err, "unexpected error received")
@@ -438,9 +433,8 @@ func (s *LoggerTestSuite) TestInvalidConfigTypes() {
 		expectedError error
 	}{
 		{
-			name:          "invalid level type",
-			config:        map[string]any{"level": 123, "time_template": time.UnixDate, "log_stream": "stdout"},
-			expectedError: errors.ErrCorruptedConfig,
+			name:   "invalid level type",
+			config: map[string]any{"level": 123, "time_template": time.UnixDate, "log_stream": "stdout"},
 		},
 		{
 			name: "invalid log type",
@@ -448,12 +442,10 @@ func (s *LoggerTestSuite) TestInvalidConfigTypes() {
 				"format": 123, "level": "info",
 				"time_template": time.UnixDate, "log_stream": "stdout",
 			},
-			expectedError: errors.ErrCorruptedConfig,
 		},
 		{
-			name:          "invalid writer type",
-			config:        map[string]any{"log_stream": 123, "level": "info", "time_template": time.UnixDate},
-			expectedError: errors.ErrCorruptedConfig,
+			name:   "invalid writer type",
+			config: map[string]any{"log_stream": 123, "level": "info", "time_template": time.UnixDate},
 		},
 	}
 
@@ -465,7 +457,6 @@ func (s *LoggerTestSuite) TestInvalidConfigTypes() {
 				logger.WithWriter(s.writer),
 			)
 			s.Require().Error(err, "got nil, expected error")
-			s.Require().ErrorIs(err, tC.expectedError)
 		})
 	}
 }

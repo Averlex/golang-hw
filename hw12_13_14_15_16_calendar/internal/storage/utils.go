@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors"                       //nolint:depguard,nolintlint
 	memorystorage "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/memory" //nolint:depguard,nolintlint
 	sqlstorage "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage/sql"       //nolint:depguard,nolintlint
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"                            //nolint:depguard,nolintlint
 )
 
 // newMemoryStorage creates a new memory storage instance.

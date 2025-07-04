@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                          //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                               //nolint:depguard,nolintlint
 )
 
 // EventData contains the data of the event whithout its ID.

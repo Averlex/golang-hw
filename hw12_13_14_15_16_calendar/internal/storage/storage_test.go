@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"         //nolint:depguard,nolintlint
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
-	"github.com/stretchr/testify/require"                                             //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"              //nolint:depguard,nolintlint
+	"github.com/stretchr/testify/require"                                                  //nolint:depguard,nolintlint
 )
 
 func copyMap(m map[string]any) map[string]any {

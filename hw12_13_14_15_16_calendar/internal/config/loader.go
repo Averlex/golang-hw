@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
 )
 
 // Loader is a viper config loader.
