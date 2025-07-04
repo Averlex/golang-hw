@@ -16,9 +16,11 @@ import (
 //
 // The result of the execution - is a built up command, ready to execute.
 // All reading/setting is perfromed on the pre-run stage.
-func (l *Loader) buildRootCommand(name, short, long string,
+func (l *Loader) buildRootCommand(
+	name, short, long string,
 	cfg ServiceConfig,
-	printVersion func(io.Writer) error, writer io.Writer,
+	printVersion func(io.Writer) error,
+	writer io.Writer,
 ) (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   name,

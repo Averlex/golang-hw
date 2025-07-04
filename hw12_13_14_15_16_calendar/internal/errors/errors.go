@@ -21,14 +21,6 @@ var (
 	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
 )
 
-// Additional errors to control the execution flow.
-// CMD level.
-// Not logged, used to prevent the execution, following by the helper flags.
-var (
-	// ErrShouldStop is returned when the execution should be stopped. E.g. on -v and -h flags.
-	ErrShouldStop = errors.New("execution should be stopped")
-)
-
 // Storage operational errors - critical.
 // Server level.
 // ERROR.

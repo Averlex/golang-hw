@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"io"
-
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
 )
 
 // Loader is a viper config loader.
@@ -39,12 +37,7 @@ func NewLoader(name, short, long, configPath, envPrefix string) *Loader {
 //
 // If -h (--help) or -v (--version) flags are set, it will return nil, ErrShouldStop
 // as a signal to stop the execution.
-func (l *Loader) Load(printVersion func(io.Writer) error, writer io.Writer) (ServiceConfig, error) {
-	cfg, err := NewServiceConfig(l.name)
-	if err != nil {
-		return nil, fmt.Errorf("declare config: %w", err)
-	}
-
+func (l *Loader) Load(cfg ServiceConfig, printVersion func(io.Writer) error, writer io.Writer) (ServiceConfig, error) {
 	cmd, err := l.buildRootCommand(l.name, l.short, l.long, cfg, printVersion, writer)
 	if err != nil {
 		return nil, fmt.Errorf("build root command: %w", err)
@@ -56,7 +49,7 @@ func (l *Loader) Load(printVersion func(io.Writer) error, writer io.Writer) (Ser
 
 	// Check if the help or version flag is set. If so, stop execution.
 	if cmd.Flags().Changed("help") || cmd.Flags().Changed("version") {
-		return nil, errors.ErrShouldStop
+		return nil, ErrShouldStop
 	}
 
 	return cfg, nil
