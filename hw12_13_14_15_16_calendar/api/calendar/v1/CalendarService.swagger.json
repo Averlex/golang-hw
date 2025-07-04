@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "title": "api/calendar/v1/CalendarService.proto",
-    "version": "version not set"
+    "version": "v1"
   },
   "tags": [
     {
