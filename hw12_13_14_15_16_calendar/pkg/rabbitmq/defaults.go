@@ -20,4 +20,5 @@ var expectedFields = map[string]any{
 	"routing_key": "",
 
 	"auto_ack": false,
+	"requeue":  false,
 }

@@ -29,7 +29,9 @@ type RabbitMQ struct {
 
 	routingKey string
 
-	autoAck bool
+	consumerDone chan struct{}
+	autoAck      bool
+	requeue      bool
 
 	l Logger
 }
@@ -69,6 +71,7 @@ func NewRabbitMQ(logger Logger, config map[string]any) (*RabbitMQ, error) {
 		contentType:  config["content_type"].(string),
 		routingKey:   config["routing_key"].(string),
 		autoAck:      config["auto_ack"].(bool),
+		requeue:      config["requeue"].(bool),
 	}, nil
 }
 
