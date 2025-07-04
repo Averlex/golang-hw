@@ -20,7 +20,10 @@ services:
     ports:
       - "9092:5672"
       - "9093:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  rabbitmq_data:
