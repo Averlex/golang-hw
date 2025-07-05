@@ -160,6 +160,16 @@ func DeepCopyEvent(event *Event) *Event {
 	}
 }
 
+// ToNotification converts the Event to Notification.
+func (e *Event) ToNotification() *Notification {
+	return &Notification{
+		ID:       e.ID.String(),
+		Title:    e.Title,
+		UserID:   e.UserID,
+		Datetime: e.Datetime.Format(timeFormat),
+	}
+}
+
 // ToDBEvent converts the Event to DBEvent for duration types compatibility.
 func (e *Event) ToDBEvent() *DBEvent {
 	return &DBEvent{
