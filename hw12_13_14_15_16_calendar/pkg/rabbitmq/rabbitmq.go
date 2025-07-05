@@ -11,12 +11,25 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go" //nolint:depguard,nolintlint
 )
 
+// ClientType represents a RabbitMQ client type.
+type ClientType int
+
+const (
+	// FullClient matches a full client configuration.
+	FullClient ClientType = iota
+	// ProducerOnly matches a client configuration with producer-only fields.
+	ProducerOnly
+	// ConsumerOnly matches a client configuration with consumer-only fields.
+	ConsumerOnly
+)
+
 // RabbitMQ represents a RabbitMQ client.
 type RabbitMQ struct {
 	mu sync.RWMutex
 
-	conn *amqp.Connection
-	ch   *amqp.Channel
+	conn       *amqp.Connection
+	ch         *amqp.Channel
+	clientType ClientType
 
 	url          string
 	timeout      time.Duration
@@ -37,25 +50,46 @@ type RabbitMQ struct {
 }
 
 // NewRabbitMQ creates a new RabbitMQ client.
-func NewRabbitMQ(logger Logger, config map[string]any) (*RabbitMQ, error) {
+// Supports partial configuration for different client types: consumer, producer or full client.
+// Unknown client type defaults to FullClient.
+func NewRabbitMQ(logger Logger, cfg map[string]any, typ ClientType) (*RabbitMQ, error) {
 	// Args validation.
-	missing := make([]string, 0)
+	if cfg == nil {
+		return nil, fmt.Errorf("no configuration passed to RabbitMQ constructor")
+	}
+	missing, wrongType := make([]string, 0), make([]string, 0)
 	if logger == nil {
 		missing = append(missing, "logger")
 	}
-	if len(missing) > 0 {
-		return nil, fmt.Errorf("RabbitMQ sender: some of the required parameters are missing: args=%v", missing)
-	}
 
 	// Field types validation.
-	missing, wrongType := validateFields(config, expectedFields)
+	var reqFields map[string]any
+	switch typ {
+	case FullClient:
+		reqFields = expectedFieldsFull
+	case ProducerOnly:
+		reqFields = expectedFieldsProducer
+	case ConsumerOnly:
+		reqFields = expectedFieldsConsumer
+	default:
+		typ = FullClient
+		reqFields = expectedFieldsFull
+	}
+
+	m, w := validateFields(cfg, reqFields)
+	missing, wrongType = append(missing, m...), append(wrongType, w...)
 	if len(missing) > 0 || len(wrongType) > 0 {
 		return nil, fmt.Errorf("invalid RabbitMQ config: missing=%v invalid_type=%v",
 			missing, wrongType)
 	}
 
+	// Extract from config an normalize the value.
+	config := mapToFullClient(cfg)
+
+	// Init the full version regardless of the client type.
 	return &RabbitMQ{
-		l: logger,
+		l:          logger,
+		clientType: typ,
 		url: fmt.Sprintf(
 			"amqp://%s:%s@%s:%s/",
 			config["user"].(string),
@@ -86,46 +120,28 @@ func (r *RabbitMQ) Connect(_ context.Context) error {
 	}
 	r.conn = conn
 
-	ch, err := r.conn.Channel()
+	ch, err := conn.Channel()
 	if err != nil {
 		return fmt.Errorf("message queue channel creation: %w", err)
 	}
 	r.ch = ch
 
-	err = r.ch.ExchangeDeclare(
-		r.topic,
-		"direct",
-		r.durable,
-		false, // autoDelete
-		false, // internal
-		false, // noWait
-		nil,   // args
-	)
-	if err != nil {
-		return fmt.Errorf("message queue exchange declaration: %w", err)
+	// Consumer-only logic shortcut.
+	if r.clientType == ConsumerOnly {
+		ok, err := r.isQueueExists()
+		if err != nil {
+			return fmt.Errorf("unexpected error on consumer message queue check: %w", err)
+		}
+		if ok {
+			return nil
+		}
+		return fmt.Errorf("consumer message queue does not exist")
 	}
 
-	q, err := r.ch.QueueDeclare(
-		r.topic,
-		r.durable,
-		false, // autoDelete
-		false, // exclusive
-		false, // noWait
-		nil,   // args
-	)
+	// Producer-only logic follows the full client scenario.
+	err = r.initQueueExchange()
 	if err != nil {
-		return fmt.Errorf("message queue declaration: %w", err)
-	}
-
-	err = r.ch.QueueBind(
-		q.Name,
-		r.topic,
-		r.topic,
-		false, // noWait
-		nil,   // args
-	)
-	if err != nil {
-		return fmt.Errorf("message queue binding: %w", err)
+		return fmt.Errorf("producer message queue init: %w", err)
 	}
 
 	return nil
