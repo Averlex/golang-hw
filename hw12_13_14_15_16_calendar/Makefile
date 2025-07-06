@@ -6,7 +6,7 @@ DOCKER_IMG="calendar:develop"
 JQ_MARKER_FILE := .jq_installed
 
 HOST := "localhost"
-DBPORT := "5432"
+DBPORT := "9091"
 DBNAME := "calendar"
 CALENDAR_STORAGE_SQL_USER := "calendar_user"
 CALENDAR_STORAGE_SQL_PASSWORD := "calendar_pass"
