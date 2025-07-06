@@ -19,6 +19,7 @@ type EventData struct {
 	Description string
 	UserID      string        `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
 	RemindIn    time.Duration `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
+	IsNotified  bool          `db:"is_notified" json:"is_notified"`       //nolint:tagliatelle
 }
 
 // DBEvent contains the data of the event with its ID.
@@ -37,6 +38,7 @@ type DBEventData struct {
 	Description string
 	UserID      string   `db:"user_id" json:"user_id,omitempty"`     //nolint:tagliatelle
 	RemindIn    Duration `db:"remind_in" json:"remind_in,omitempty"` //nolint:tagliatelle
+	IsNotified  bool     `db:"is_notified" json:"is_notified"`       //nolint:tagliatelle
 }
 
 // Event contains the data of the event with its ID.
@@ -187,6 +189,7 @@ func (ed *EventData) ToDBEventData() *DBEventData {
 		Description: ed.Description,
 		UserID:      ed.UserID,
 		RemindIn:    NewDuration(ed.RemindIn),
+		IsNotified:  ed.IsNotified,
 	}
 }
 
@@ -201,6 +204,7 @@ func (de *DBEvent) ToEvent() *Event {
 			Description: de.Description,
 			UserID:      de.UserID,
 			RemindIn:    de.RemindIn.ToDuration(),
+			IsNotified:  de.IsNotified,
 		},
 	}
 }
@@ -214,5 +218,6 @@ func (de *DBEventData) ToEventData() *EventData {
 		Description: de.Description,
 		UserID:      de.UserID,
 		RemindIn:    de.RemindIn.ToDuration(),
+		IsNotified:  de.IsNotified,
 	}
 }
