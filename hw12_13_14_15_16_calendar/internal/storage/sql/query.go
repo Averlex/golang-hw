@@ -20,7 +20,15 @@ const (
 	%s
 	ORDER BY datetime ASC
 	`
-	queryGetAllUserEvents = "SELECT * FROM events WHERE user_id = :user_id"
+	queryGetAllUserEvents         = "SELECT * FROM events WHERE user_id = :user_id"
+	queryGetEventsForNotification = `
+	SELECT *
+	FROM events
+	WHERE remind_in > :remind_threshold
+		AND is_notified = :is_notified
+		AND datetime - remind_in <= :current_date
+	ORDER BY datetime ASC
+	`
 )
 
 // GetEventsForDay retrieves all events occurring on the specified date from the database.
@@ -204,6 +212,48 @@ func (s *Storage) GetAllUserEvents(ctx context.Context, userID string) ([]*types
 	// If no events found, set the error to ErrEventNotFound.
 	if len(dbEvents) == 0 {
 		return nil, fmt.Errorf("get all user events: %w", projectErrors.ErrEventNotFound)
+	}
+
+	events := make([]*types.Event, len(dbEvents))
+	for i := 0; i < len(dbEvents); i++ {
+		events[i] = dbEvents[i].ToEvent()
+	}
+
+	return events, nil
+}
+
+// GetEventsForNotification retrieves all events, which require notification.
+// The method uses a transaction with a context and timeouts as configured in Storage.
+//
+// Returns a slice of Event pointers and nil on success, or nil and any error encountered during the transaction.
+// If no events for the given user ID are found, it returns (nil, ErrEventNotFound).
+func (s *Storage) GetEventsForNotification(ctx context.Context) ([]*types.Event, error) {
+	var dbEvents []*types.DBEvent
+	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
+		args := struct {
+			RimindThreshold types.Duration `db:"remind_threshold"`
+			IsNotified      bool           `db:"is_notified"`
+			CurrentDate     time.Time      `db:"current_date"`
+		}{types.NewDuration(time.Duration(0)), false, time.Now()}
+		query, qArgs, err := s.rebindQuery(queryGetAllUserEvents, args)
+		if err != nil {
+			return err
+		}
+		err = tx.SelectContext(localCtx, &dbEvents, query, qArgs...)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get events for notification: %w", err)
+	}
+	// If no events found, set the error to ErrEventNotFound.
+	if len(dbEvents) == 0 {
+		return nil, fmt.Errorf("get events for notification: %w", projectErrors.ErrEventNotFound)
 	}
 
 	events := make([]*types.Event, len(dbEvents))
