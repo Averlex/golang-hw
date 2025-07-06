@@ -40,7 +40,7 @@ type SQLConf struct {
 	Driver   string        `mapstructure:"driver"`
 }
 
-//nolint:revive,nolintlint
+// MemoryConf is a config for memory storage.
 type MemoryConf struct {
 	Size int `mapstructure:"size"`
 }
