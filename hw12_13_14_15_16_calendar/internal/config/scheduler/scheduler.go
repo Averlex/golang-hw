@@ -23,13 +23,6 @@ type LoggerConf struct {
 
 // StorageConf is a config for storage containing storage type.
 type StorageConf struct {
-	Type   string     `mapstructure:"type"`
-	SQL    SQLConf    `mapstructure:"sql"`
-	Memory MemoryConf `mapstructure:"memory"`
-}
-
-// SQLConf represents a database configuration used to build DSN string.
-type SQLConf struct {
 	Host     string        `mapstructure:"host"`
 	Port     string        `mapstructure:"port"`
 	User     string        `mapstructure:"user"`
@@ -37,11 +30,6 @@ type SQLConf struct {
 	DBname   string        `mapstructure:"dbname"`
 	Timeout  time.Duration `mapstructure:"timeout"` // 0 means timeout will be disabled.
 	Driver   string        `mapstructure:"driver"`
-}
-
-// MemoryConf is a config for memory storage.
-type MemoryConf struct {
-	Size int `mapstructure:"size"`
 }
 
 // RMQConf is a config for Rabbit MQ client.

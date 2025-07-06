@@ -18,7 +18,7 @@ func TestGetSubConfig_Success(t *testing.T) {
 		Expected map[string]any
 	}{
 		{
-			Name: "simple section",
+			Name: "simple section/logger",
 			Config: Config{
 				Logger: LoggerConf{
 					Level:        "info",
@@ -36,36 +36,27 @@ func TestGetSubConfig_Success(t *testing.T) {
 			},
 		},
 		{
-			Name: "nested sections",
+			Name: "simple section/storage",
 			Config: Config{
 				Storage: StorageConf{
-					Type: "sql",
-					SQL: SQLConf{
-						Driver:   "postgres",
-						Host:     "localhost",
-						Port:     "5432",
-						User:     "user",
-						Password: "pass",
-						DBname:   "calendar",
-						Timeout:  defaultTimeout,
-					},
+					Driver:   "postgres",
+					Host:     "localhost",
+					Port:     "5432",
+					User:     "user",
+					Password: "pass",
+					DBname:   "calendar",
+					Timeout:  defaultTimeout,
 				},
 			},
 			Key: "storage",
 			Expected: map[string]any{
-				"type": "sql",
-				"sql": map[string]any{
-					"driver":   "postgres",
-					"host":     "localhost",
-					"port":     "5432",
-					"user":     "user",
-					"password": "pass",
-					"dbname":   "calendar",
-					"timeout":  defaultTimeout,
-				},
-				"memory": map[string]any{
-					"size": 0,
-				},
+				"driver":   "postgres",
+				"host":     "localhost",
+				"port":     "5432",
+				"user":     "user",
+				"password": "pass",
+				"dbname":   "calendar",
+				"timeout":  defaultTimeout,
 			},
 		},
 	}
