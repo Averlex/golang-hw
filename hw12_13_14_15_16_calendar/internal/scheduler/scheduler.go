@@ -4,6 +4,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -90,4 +91,9 @@ func NewScheduler(
 		queueInterval:   queueInterval,
 		cleanupInterval: cleanupInterval,
 	}, nil
+}
+
+// Wait waits for the scheduler goroutines to finish.
+func (sch *Scheduler) Wait(_ context.Context) {
+	sch.wg.Wait()
 }
