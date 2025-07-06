@@ -87,6 +87,7 @@ func (sch *Scheduler) runNotificationQueue(ctx context.Context) <-chan *queueTra
 	return ch
 }
 
+// handleNotificationsGet gets events from the storage for notification queue.
 func (sch *Scheduler) handleNotificationsGet(ctx context.Context) []*types.Event {
 	var events []*types.Event
 	err := sch.withRetries(ctx, "GetEventsForNotification", func() error {
@@ -104,6 +105,9 @@ func (sch *Scheduler) handleNotificationsGet(ctx context.Context) []*types.Event
 	return events
 }
 
+// handleNotificationsSending gets the events from the internal queue,
+// marshals them and sends notifications to the broker.
+// Returns a slice of IDs that were successfully sent to the broker.
 func (sch *Scheduler) handleNotificationsSending(ctx context.Context, data *queueTransport) []uuid.UUID {
 	successIDs := make([]uuid.UUID, 0, len(data.Notifications))
 	for i, notification := range data.Notifications {
@@ -127,6 +131,8 @@ func (sch *Scheduler) handleNotificationsSending(ctx context.Context, data *queu
 	return successIDs
 }
 
+// handleStorageUpdate updates the events with the IDs that were successfully sent to the broker.
+// Method logs the actual and expected numbers of updated events.
 func (sch *Scheduler) handleStorageUpdate(ctx context.Context, successIDs []uuid.UUID, data *queueTransport) {
 	var updatedCount int64
 	err := sch.withRetries(ctx, "UpdateNotifiedEvents", func() error {
@@ -141,7 +147,7 @@ func (sch *Scheduler) handleStorageUpdate(ctx context.Context, successIDs []uuid
 		sch.l.Error(ctx, "update events for notification queue", slog.Any("error", err))
 		return
 	}
-	sch.l.Info(
+	sch.l.Debug(
 		ctx,
 		"updated notified events",
 		slog.Int64("count", updatedCount),
