@@ -165,3 +165,36 @@ func (s *Storage) GetEventsForMonth(ctx context.Context, date time.Time, userID 
 
 	return res, nil
 }
+
+// GetEventsForNotification retrieves events that need to be notified from the in-memory storage.
+// Method imitates transactional behavior, checking the context before returning the result.
+//
+// Returns a slice of events sorted by Datetime.
+func (s *Storage) GetEventsForNotification(ctx context.Context) ([]*types.Event, error) {
+	method := "get events for notification: %w"
+
+	var events []*types.Event
+
+	err := s.withLockAndChecks(ctx, func() error {
+		currentTime := time.Now()
+
+		// WHERE remind_in > 0
+		// 	AND is_notified = false
+		// 	AND datetime - remind_in <= :current_date
+		for i := range len(s.events) {
+			remindAt := s.events[i].Datetime.Add(-s.events[i].RemindIn)
+			if s.events[i].RemindIn > 0 &&
+				!s.events[i].IsNotified &&
+				!remindAt.After(currentTime) {
+				events = append(events, types.DeepCopyEvent(s.events[i]))
+			}
+		}
+
+		return nil
+	}, nil, nil, readLock)
+	if err != nil {
+		return nil, fmt.Errorf(method, err)
+	}
+
+	return events, nil
+}
