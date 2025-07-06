@@ -86,6 +86,11 @@ func NewRabbitMQ(logger Logger, cfg map[string]any, typ ClientType) (*RabbitMQ, 
 	// Extract from config an normalize the value.
 	config := mapToFullClient(cfg)
 
+	retryTimeout, _ := config["retry_timeout"].(time.Duration)
+	if retryTimeout <= 0 {
+		return nil, fmt.Errorf("invalid config data: retry timeout must be positive, got %v", retryTimeout)
+	}
+
 	// Init the full version regardless of the client type.
 	return &RabbitMQ{
 		l:          logger,
@@ -98,8 +103,8 @@ func NewRabbitMQ(logger Logger, cfg map[string]any, typ ClientType) (*RabbitMQ, 
 			config["port"].(string),
 		),
 		timeout:      config["timeout"].(time.Duration),
-		retryTimeout: config["retry_timeout"].(time.Duration),
-		retries:      config["retries"].(int),
+		retryTimeout: retryTimeout,
+		retries:      max(config["retries"].(int), 0),
 		topic:        config["topic"].(string),
 		durable:      config["durable"].(bool),
 		contentType:  config["content_type"].(string),
