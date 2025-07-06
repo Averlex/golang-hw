@@ -18,7 +18,7 @@ const (
 	queryUpdateEvent = `
 	UPDATE events
 	SET title = :title, datetime = :datetime, duration = :duration, 
-	description = :description, user_id = :user_id, remind_in = :remind_in
+	description = :description, user_id = :user_id, remind_in = :remind_in, is_notified = :is_notified
 	WHERE id = :id
 	`
 	queryDeleteEvent = "DELETE FROM events WHERE id = :id"
