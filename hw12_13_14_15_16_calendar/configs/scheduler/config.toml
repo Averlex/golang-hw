@@ -1,0 +1,27 @@
+[app]
+retries = 5                               # Any int. Values <= 0 are treated as no retries
+retry_timeout = "100ms"                   # Any duration. Values <= 0 are treated as no retries
+queue_inteval = "1m"                      # Any duration. Values <= 0 are not accepted
+cleanup_interval = "1m"                   # Any duration. Values <= 0 are not accepted
+
+[logger]
+level = "debug"                           # debug, info, warn, error
+format = "json"                           # json, text
+time_template = "02.01.2006 15:04:05.000" # Any valid time template. Default is "02.01.2006 15:04:05.000"
+log_stream = "stdout"                     # stdout, stderr
+
+[storage]
+type = "sql"                              # memory, sql
+
+[storage.sql]
+host = "localhost"
+port = "9091"
+# user = ""                               # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_USER
+# password = ""                           # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_PASSWORD
+dbname = "calendar"                       # Depends on the database. docker-compose uses "calendar" by default
+timeout = "500ms"                         # 0s means timeout will be disabled. Values lesser than seconds are also suppoted
+driver = "postgres"                       # Currently suppoted drivers: postgres, postgresql
+
+[storage.memory]
+size = 10000                              # 0 corresponds to the default value, which is currently 10_000
+
