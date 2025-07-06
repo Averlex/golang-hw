@@ -184,7 +184,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 // Returns the number of updated events and nil on success, 0 and any error otherwise.
 func (s *Storage) UpdateNotifiedEvents(ctx context.Context, notifiedEvents []uuid.UUID) (int64, error) {
 	var updatedCount int64
-	if notifiedEvents == nil {
+	if len(notifiedEvents) == 0 {
 		return 0, fmt.Errorf("update notified events: %w", projectErrors.ErrNoData)
 	}
 
