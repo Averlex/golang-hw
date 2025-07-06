@@ -178,7 +178,6 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 
 // UpdateNotifiedEvents updates the events with the given IDs in the database as notified ones.
 //
-// Method does not return any data - error on failure, nil on success.
 // If some of the IDs are not found in the DB, they will be ignored.
 //
 // Returns the number of updated events and nil on success, 0 and any error otherwise.
