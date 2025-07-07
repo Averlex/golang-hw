@@ -42,6 +42,7 @@ func WithDB(db DB) StorageOption {
 func NewStorage(timeout time.Duration, driver, host, port, user, password, dbname string,
 	opts ...StorageOption,
 ) (*Storage, error) {
+	//nolint:goconst,nolintlint
 	if driver != "postgres" && driver != "postgresql" {
 		return nil, projectErrors.ErrUnsupportedDriver
 	}

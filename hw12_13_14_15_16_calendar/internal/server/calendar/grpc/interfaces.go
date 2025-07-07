@@ -1,4 +1,7 @@
-package http
+//go:generate mockery --name=Logger --dir=. --output=mocks --filename=mock_log.go --with-expecter
+//go:generate mockery --name=Application --dir=. --output=mocks --filename=mock_app.go --with-expecter
+
+package grpc
 
 import (
 	"context"

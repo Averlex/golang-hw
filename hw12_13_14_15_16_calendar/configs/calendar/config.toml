@@ -8,7 +8,7 @@ format = "json"                           # json, text
 time_template = "02.01.2006 15:04:05.000" # Any valid time template. Default is "02.01.2006 15:04:05.000"
 log_stream = "stdout"                     # stdout, stderr
 
-[server]
+[http]
 host = "localhost"
 port = "8080"
 shutdown_timeout = "3s"                   # Time to gracefully shutdown. Values <= 0 are treated as no shutdown
@@ -16,12 +16,17 @@ read_timeout = "2s"                       # Any duration. Values <= 0 are treate
 write_timeout = "5s"                      # Any duration. Values <= 0 are treated as no timeout
 idle_timeout = "30s"                      # Any duration. Values <= 0 are treated as no timeout
 
+[grpc]
+host = "localhost"
+port = "9090"
+shutdown_timeout = "3s"                   # Time to gracefully shutdown. Values <= 0 are treated as no shutdown
+
 [storage]
-type = "sql" # memory, sql
+type = "sql"                              # memory, sql
 
 [storage.sql]
 host = "localhost"
-port = "5432"
+port = "9091"
 # user = ""                               # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_USER
 # password = ""                           # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_PASSWORD
 dbname = "calendar"                       # Depends on the database. docker-compose uses "calendar" by default

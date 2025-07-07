@@ -15,6 +15,10 @@ var (
 	ErrLoggerInitFailed = errors.New("logger initialization failed")
 	// ErrAppInitFailed is returned when the app initialization fails.
 	ErrAppInitFailed = errors.New("app initialization failed")
+	// ErrServerInitFailed is returned when the server initialization fails.
+	ErrServerInitFailed = errors.New("server initialization failed")
+	// ErrUnsupportedDriver is returned when the DB driver is not supported.
+	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
 )
 
 // Additional errors to control the execution flow.
@@ -29,8 +33,6 @@ var (
 // Server level.
 // ERROR.
 var (
-	// ErrUnsupportedDriver is returned when the DB driver is not supported.
-	ErrUnsupportedDriver = errors.New("unsupported driver, only 'postgres' and 'postgresql' are supported")
 	// ErrStorageFull is returned when the storage is full and cannot accept new events.
 	ErrStorageFull = errors.New("storage is full")
 )

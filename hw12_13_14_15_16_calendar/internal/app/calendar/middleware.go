@@ -38,12 +38,16 @@ func (a *App) withRetries(ctx context.Context, method string, fn func() error) e
 
 		if !a.isRetryable(err) {
 			// The error here is not really expected, therefore no special processing implemented.
-			if !a.isUninitialized(err) {
+			if !a.isUninitialized(err) && !a.isBusiness(err) {
+				// Logging only really unexpected errors.
 				a.l.Error(ctx,
 					"unexpected error occurred on method call",
 					slog.String("method", method),
 					slog.Any("error", err),
 				)
+			}
+			// Both business and unexpected errors are not retryable.
+			if !a.isUninitialized(err) {
 				return fmt.Errorf(msg+": %w", err)
 			}
 			// ErrStorageUninitialized is really retryable but with extra logic and another logging level.

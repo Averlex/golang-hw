@@ -25,7 +25,6 @@ func (p Period) String() string {
 
 // MarshalJSON impelements custom JSON marshaling for Period type.
 func (p Period) MarshalJSON() ([]byte, error) {
-	// Сериализуем как строку, используя String().
 	return json.Marshal(p.String())
 }
 

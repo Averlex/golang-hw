@@ -10,7 +10,7 @@ import (
 )
 
 // requestDataKey is a key for storing request data in the context.
-var requestDataKey = "request_id"
+var requestDataKey = "http_request_id"
 
 // RequestData represents a data structure for storing request data.
 type RequestData struct {
@@ -45,7 +45,7 @@ func (s *Server) loggingMiddleware() gin.HandlerFunc {
 
 		c.Next()
 
-		s.l.Info(ctx, "request processed",
+		s.l.Info(ctx, "HTTP request",
 			slog.String("client_ip", c.ClientIP()),
 			slog.Time("start_time", time.Now()),
 			slog.String("method", c.Request.Method),

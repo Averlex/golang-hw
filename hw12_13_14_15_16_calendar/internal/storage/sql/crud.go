@@ -49,14 +49,14 @@ func (s *Storage) CreateEvent(ctx context.Context, event *types.Event) (*types.E
 
 		isOverlaps, err := s.isOverlaps(localCtx, tx, event)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 		if isOverlaps {
 			return projectErrors.ErrDateBusy
 		}
 
 		query := queryCreateEvent
-		res, err := tx.NamedExecContext(localCtx, query, *event)
+		res, err := tx.NamedExecContext(localCtx, query, *event.ToDBEvent())
 		if err != nil {
 			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
@@ -105,14 +105,14 @@ func (s *Storage) UpdateEvent(ctx context.Context, id uuid.UUID, data *types.Eve
 		// Ensuring the event doesn't overlap with another one.
 		isOverlaps, err := s.isOverlaps(localCtx, tx, event)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
 		if isOverlaps {
 			return projectErrors.ErrDateBusy
 		}
 
 		query := queryUpdateEvent
-		res, err := tx.NamedExecContext(localCtx, query, *data)
+		res, err := tx.NamedExecContext(localCtx, query, event.ToDBEvent())
 		if err != nil {
 			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
@@ -145,8 +145,13 @@ func (s *Storage) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 			return projectErrors.ErrEventNotFound
 		}
 
+		queryArgs := struct {
+			ID uuid.UUID `db:"id"`
+		}{
+			ID: id,
+		}
 		query := queryDeleteEvent
-		res, err := tx.NamedExecContext(localCtx, query, id)
+		res, err := tx.NamedExecContext(localCtx, query, &queryArgs)
 		if err != nil {
 			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}
