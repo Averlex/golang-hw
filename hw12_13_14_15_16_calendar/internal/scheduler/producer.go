@@ -3,11 +3,13 @@ package scheduler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                                //nolint:depguard,nolintlint
+	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/errors" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types"                //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                               //nolint:depguard,nolintlint
 )
 
 type queueTransport struct {
@@ -93,7 +95,9 @@ func (sch *Scheduler) handleNotificationsGet(ctx context.Context) []*types.Event
 	err := sch.withRetries(ctx, "GetEventsForNotification", func() error {
 		localEvents, localErr := sch.s.GetEventsForNotification(ctx)
 		if localErr != nil {
-			return localErr
+			if !errors.Is(localErr, projectErrors.ErrEventNotFound) {
+				return localErr
+			}
 		}
 		events = localEvents
 		return nil
