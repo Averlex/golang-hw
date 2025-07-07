@@ -117,7 +117,7 @@ func (sch *Scheduler) handleNotificationsSending(ctx context.Context, data *queu
 	for i, notification := range data.Notifications {
 		messageData, err := json.Marshal(notification)
 		if err != nil {
-			sch.l.Warn(ctx, "marshal notification", slog.String("error", err.Error()))
+			sch.l.Warn(ctx, "marshal notification", slog.Any("error", err))
 			continue
 		}
 		err = sch.broker.Produce(ctx, messageData)
