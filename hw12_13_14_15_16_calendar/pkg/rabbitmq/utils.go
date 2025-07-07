@@ -83,7 +83,7 @@ func (r *RabbitMQ) initQueueExchange() error {
 
 	if err = r.ch.QueueBind(
 		q.Name,
-		r.topic,
+		r.routingKey,
 		r.topic,
 		false, // noWait
 		nil,   // args
