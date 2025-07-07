@@ -99,8 +99,8 @@ func run() error {
 	scheduler.StartCleanup(ctx)
 	logg.Info(ctx, "scheduler started successfully")
 
-	scheduler.Wait(ctx)
 	<-ctx.Done()
+	scheduler.Wait(ctx)
 
 	return nil
 }

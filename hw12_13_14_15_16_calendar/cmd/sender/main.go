@@ -81,7 +81,9 @@ func run() error {
 		return err
 	}
 	logg.Info(ctx, "sender started successfully")
+	
 	<-ctx.Done()
+	sender.Wait(ctx)
 
 	return nil
 }
