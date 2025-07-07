@@ -53,9 +53,9 @@ func (s *Sender) handleEventSending(ctx context.Context, data []byte) {
 		slog.Group(
 			"notification",
 			slog.String("id", message.ID),
-			slog.String("event_id", message.Title),
+			slog.String("title", message.Title),
 			slog.String("user_id", message.UserID),
-			slog.Time("notification_type", datetime),
+			slog.Time("datetime", datetime),
 		),
 	)
 }
