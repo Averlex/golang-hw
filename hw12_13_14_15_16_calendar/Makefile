@@ -1,5 +1,6 @@
 CALENDAR_BIN := "./bin/calendar"
 SCHEDULER_BIN := "./bin/scheduler"
+SENDER_BIN := "./bin/sender"
 TOOLS_DIR := $(PWD)/tools/bin
 
 DOCKER_IMG="calendar:develop"
@@ -49,6 +50,19 @@ run-scheduler-json: build-scheduler
 	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
 	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
 	$(SCHEDULER_BIN) --config ./configs/scheduler/config.toml | jq -R 'fromjson?' 2>/dev/null
+
+build-sender:
+	go build -tags=viper_bind_struct -v -o $(SENDER_BIN) -ldflags "$(LDFLAGS)" ./cmd/sender
+
+run-sender: build-sender
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SENDER_BIN) --config ./configs/sender/config.toml
+
+run-sender-json: build-sender
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SENDER_BIN) --config ./configs/sender/config.toml | jq -R 'fromjson?' 2>/dev/null
 
 
 # --- Database ---
