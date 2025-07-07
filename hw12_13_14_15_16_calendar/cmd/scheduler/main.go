@@ -40,7 +40,7 @@ func run() error {
 		fmt.Printf("create temporary logger: %s\n", err.Error())
 		return err
 	}
-	logg = logg.With(slog.String("service", "calendar"))
+	logg = logg.With(slog.String("service", "scheduler"))
 
 	// Loading configuration from file and env.
 	cfg, err := loadConfig(ctx, logg)
@@ -93,9 +93,11 @@ func run() error {
 
 	// Starting sending notifications.
 	scheduler.StartProducer(ctx)
+	logg.Info(ctx, "scheduler started successfully")
 
 	// Starting periodic storage clean up.
 	scheduler.StartCleanup(ctx)
+	logg.Info(ctx, "scheduler started successfully")
 
 	scheduler.Wait(ctx)
 	<-ctx.Done()
@@ -104,8 +106,13 @@ func run() error {
 }
 
 func loadConfig(ctx context.Context, logg *logger.Logger) (config.ServiceConfig, error) {
-	loader := config.NewLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
-		defaultConfigFile, "CALENDAR")
+	loader := config.NewLoader(
+		"scheduler",
+		"Calendar scheduler service",
+		"Scheduler service for managing notifications and periodic cleanup",
+		defaultConfigFile,
+		"CALENDAR",
+	)
 	cfg, err := loader.Load(&schedulerConfig.Config{}, printVersion, os.Stdout)
 	if err != nil {
 		if errors.Is(err, config.ErrShouldStop) {
@@ -129,7 +136,7 @@ func initializeLogger(ctx context.Context, logg *logger.Logger, cfg config.Servi
 		logg.Error(ctx, "create logger", slog.Any("err", err))
 		return nil, err
 	}
-	newLogg = newLogg.With(slog.String("service", "calendar"))
+	newLogg = newLogg.With(slog.String("service", "scheduler"))
 	newLogg.Info(ctx, "logger created successfully")
 	return newLogg, nil
 }

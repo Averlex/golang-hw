@@ -1,4 +1,5 @@
-BIN := "./bin/calendar"
+CALENDAR_BIN := "./bin/calendar"
+SCHEDULER_BIN := "./bin/scheduler"
 TOOLS_DIR := $(PWD)/tools/bin
 
 DOCKER_IMG="calendar:develop"
@@ -10,6 +11,8 @@ DBPORT := "9091"
 DBNAME := "calendar"
 CALENDAR_STORAGE_SQL_USER := "calendar_user"
 CALENDAR_STORAGE_SQL_PASSWORD := "calendar_pass"
+CALENDAR_RMQ_USER := "calendar_user"
+CALENDAR_RMQ_PASSWORD := "calendar_pass"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
@@ -17,17 +20,36 @@ LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%d
 # --- Build and run ---
 
 build:
-	go build -tags=viper_bind_struct -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
+	go build -tags=viper_bind_struct -v -o $(CALENDAR_BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
 
 run: build
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
-	$(BIN) --config ./configs/calendar/config.toml
+	$(CALENDAR_BIN) --config ./configs/calendar/config.toml
 
 run-json: build
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
-	$(BIN) --config ./configs/calendar/config.toml | jq -R 'fromjson?' 2>/dev/null
+	$(CALENDAR_BIN) --config ./configs/calendar/config.toml | jq -R 'fromjson?' 2>/dev/null
+
+	
+build-scheduler:
+	go build -tags=viper_bind_struct -v -o $(SCHEDULER_BIN) -ldflags "$(LDFLAGS)" ./cmd/scheduler
+
+run-scheduler: build-scheduler
+	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
+	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SCHEDULER_BIN) --config ./configs/scheduler/config.toml
+
+run-scheduler-json: build-scheduler
+	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
+	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SCHEDULER_BIN) --config ./configs/scheduler/config.toml | jq -R 'fromjson?' 2>/dev/null
+
 
 # --- Database ---
 
@@ -41,10 +63,10 @@ stop-db:
 # --- App CLI flags ---
 
 version: build
-	$(BIN) --version
+	$(CALENDAR_BIN) --version
 
 help: build
-	$(BIN) --help
+	$(CALENDAR_BIN) --help
 
 # --- Testing ---
 
