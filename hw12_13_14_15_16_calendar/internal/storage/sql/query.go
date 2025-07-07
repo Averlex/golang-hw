@@ -235,7 +235,7 @@ func (s *Storage) GetEventsForNotification(ctx context.Context) ([]*types.Event,
 			IsNotified      bool           `db:"is_notified"`
 			CurrentDate     time.Time      `db:"current_date"`
 		}{types.NewDuration(time.Duration(0)), false, time.Now()}
-		query, qArgs, err := s.rebindQuery(queryGetAllUserEvents, args)
+		query, qArgs, err := s.rebindQuery(queryGetEventsForNotification, args)
 		if err != nil {
 			return err
 		}
