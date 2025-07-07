@@ -189,11 +189,25 @@ func (s *Storage) UpdateNotifiedEvents(ctx context.Context, notifiedEvents []uui
 
 	err := s.execInTransaction(ctx, func(localCtx context.Context, tx Tx) error {
 		args := struct {
-			IsNotified bool        `db:"is_notified"`
-			IDList     []uuid.UUID `db:"id_list"`
-		}{true, notifiedEvents}
-		query := queryUpdateNotifiedEvents
-		res, err := tx.NamedExecContext(localCtx, query, &args)
+			IsNotified bool `db:"is_notified"`
+		}{true}
+		// The following beauty is a workaround for the named placeholders and list arg.
+		// sqlx doesn't support arguments of slice type. Therefore we:
+		// 	- replace the named placeholder with the list of ? placeholders;
+		// 	- rebind the query for the named placeholders;
+		// 	- transform the slice to []any and append it to the rebinded query arguments.
+		// UUID method parameter guarantees that no injections are possible for unnamed placeholders.
+		query := s.replacePlaceholder(queryUpdateNotifiedEvents, ":id_list", len(notifiedEvents))
+		query, queryArgs, err := s.rebindQuery(query, args)
+		if err != nil {
+			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
+		}
+		anyEvents := make([]any, len(notifiedEvents))
+		for i, id := range notifiedEvents {
+			anyEvents[i] = id
+		}
+		// Default method flow.
+		res, err := tx.ExecContext(localCtx, query, append(queryArgs, anyEvents...)...)
 		if err != nil {
 			return fmt.Errorf("%w: %w", projectErrors.ErrQeuryError, err)
 		}

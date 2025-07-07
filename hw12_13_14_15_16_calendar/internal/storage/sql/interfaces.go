@@ -24,6 +24,7 @@ type Tx interface {
 	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 	NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error)
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	Commit() error
 	Rollback() error
 }
