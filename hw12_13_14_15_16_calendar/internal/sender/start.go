@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"time"
 
 	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types" //nolint:depguard,nolintlint
 )
@@ -17,10 +16,6 @@ func (s *Sender) Start(ctx context.Context) error {
 		return err
 	}
 
-	s.mu.RLock()
-	queueInterval := s.queueInterval
-	s.mu.RUnlock()
-
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -28,14 +23,11 @@ func (s *Sender) Start(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case data := <-ch:
-				s.handleEventSending(ctx, data)
-				select {
-				case <-ctx.Done():
+			case data, ok := <-ch:
+				if !ok {
 					return
-				case <-time.After(queueInterval):
-					continue
 				}
+				s.handleEventSending(ctx, data)
 			}
 		}
 	}()

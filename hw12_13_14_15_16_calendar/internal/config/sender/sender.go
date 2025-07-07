@@ -9,7 +9,6 @@ import (
 type Config struct {
 	Logger LoggerConf `mapstructure:"logger"`
 	RMQ    RMQConf    `mapstructure:"rmq"`
-	App    AppConf    `mapstructure:"app"`
 }
 
 // LoggerConf is a config for logger.
@@ -33,10 +32,4 @@ type RMQConf struct {
 	Durable      bool          `mapstructure:"durable"`
 	AutoAck      bool          `mapstructure:"auto_ack"`
 	Requeue      bool          `mapstructure:"requeue"`
-}
-
-// AppConf is a config for the global app settings, like retry timeout and number of retries,
-// as well as queue intervals.
-type AppConf struct {
-	QueueInterval time.Duration `mapstructure:"queue_interval"`
 }

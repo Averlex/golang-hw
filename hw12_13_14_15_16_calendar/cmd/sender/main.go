@@ -71,7 +71,7 @@ func run() error {
 	logg.Info(ctx, "message queue connection established")
 
 	// Initializing the app.
-	sender, err := initializeSender(ctx, logg, cfg, brocker)
+	sender, err := initializeSender(ctx, logg, brocker)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func run() error {
 		return err
 	}
 	logg.Info(ctx, "sender started successfully")
-	
+
 	<-ctx.Done()
 	sender.Wait(ctx)
 
@@ -127,15 +127,9 @@ func initializeLogger(ctx context.Context, logg *logger.Logger, cfg config.Servi
 func initializeSender(
 	ctx context.Context,
 	logg *logger.Logger,
-	cfg config.ServiceConfig,
 	brocker *mq.RabbitMQ,
 ) (*senderPkg.Sender, error) {
-	senderCfg, err := cfg.GetSubConfig("app")
-	if err != nil {
-		logg.Error(ctx, "get sender app config", slog.Any("err", err))
-		return nil, err
-	}
-	sch, err := senderPkg.NewSender(logg.With(slog.String("layer", "SENDER")), brocker, senderCfg)
+	sch, err := senderPkg.NewSender(logg.With(slog.String("layer", "SENDER")), brocker)
 	if err != nil {
 		logg.Error(ctx, "create sender", slog.Any("err", err))
 		return nil, err
