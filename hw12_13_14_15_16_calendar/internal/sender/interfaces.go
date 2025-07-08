@@ -19,6 +19,6 @@ type Logger interface {
 // MessageBroker represents a universal message broker interface.
 type MessageBroker interface {
 	// Consume opens a channel to receive messages from the message broker.
-	// Returns an error and nil channel if the operation fails.
-	Consume(context.Context) (<-chan []byte, error)
+	// Returns data and error channels.
+	Consume(context.Context) (<-chan []byte, <-chan error)
 }

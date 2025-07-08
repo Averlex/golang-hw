@@ -10,11 +10,7 @@ import (
 
 // Start starts a goroutine which listens to the message queue and logs notifications.
 func (s *Sender) Start(ctx context.Context) error {
-	ch, err := s.broker.Consume(ctx)
-	if err != nil {
-		s.l.Error(ctx, "unexpected error on broker consume", slog.Any("error", err))
-		return err
-	}
+	ch, errCh := s.broker.Consume(ctx)
 
 	s.wg.Add(1)
 	go func() {
@@ -23,6 +19,13 @@ func (s *Sender) Start(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
+			case err, ok := <-errCh:
+				// Actual error occurred on consuming attempt.
+				if ok {
+					s.l.Error(ctx, "unexpected error on broker consume", slog.Any("error", err))
+					return
+				}
+
 			case data, ok := <-ch:
 				if !ok {
 					return

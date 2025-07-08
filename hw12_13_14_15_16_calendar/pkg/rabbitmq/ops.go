@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	amqp "github.com/rabbitmq/amqp091-go" //nolint:depguard,nolintlint
@@ -36,44 +37,44 @@ func (r *RabbitMQ) Produce(ctx context.Context, payload []byte) error {
 
 // Consume consumes messages from the message queue using retry logic and operation timeout.
 // The methods abstracts the logic of consuming messages from the message queue.
-func (r *RabbitMQ) Consume(ctx context.Context) (<-chan []byte, error) {
-	var err error
-	var ch <-chan amqp.Delivery
-	var autoAck, requeue bool
-
-	err = r.withRetries(ctx, "consume", func() error {
-		return r.withTimeout(ctx, func(localCtx context.Context) error {
-			r.mu.Lock()
-			// Stopping the active consumer if it exists.
-			if r.consumerDone != nil {
-				close(r.consumerDone)
-				r.consumerDone = nil
-			}
-
-			autoAck = r.autoAck
-			requeue = r.requeue
-			ch, err = r.ch.ConsumeWithContext(
-				localCtx,
-				r.topic,
-				"",
-				autoAck,
-				false, // exclusive
-				false, // noLocal
-				false, // noWait
-				nil,   // args
-			)
-			r.mu.Unlock()
-			return err
-		})
-	})
-	if err != nil {
-		return nil, err
-	}
-
+func (r *RabbitMQ) Consume(ctx context.Context) (<-chan []byte, <-chan error) {
 	resQueue := make(chan []byte)
-	go r.populateConsumer(ctx, ch, resQueue, autoAck, requeue)
+	errors := make(chan error)
 
-	return resQueue, nil
+	r.mu.RLock()
+	requeue := r.requeue
+	autoAck := r.autoAck
+	r.mu.RUnlock()
+
+	// Looping until the context is cancelled.
+	// The loop updates the subscription and populates the consumer with data until the subscription ends.
+	go func() {
+		defer close(errors)
+		defer close(resQueue)
+
+		for {
+			// Updating the subscription.
+			ch, err := r.startConsumer(ctx)
+			if err != nil {
+				select {
+				case errors <- err:
+				case <-ctx.Done():
+				}
+				return
+			}
+			// Populating the consumer until the subscription ends or context cancellation.
+			r.populateConsumer(ctx, ch, resQueue, autoAck, requeue)
+
+			select {
+			case <-ctx.Done():
+				r.l.Warn(ctx, "context done before during consuming process")
+				return
+			default:
+			}
+		}
+	}()
+
+	return resQueue, errors
 }
 
 // populateConsumer reads messages from the AMPQ channel and sends raw data to the result channel.
@@ -84,16 +85,15 @@ func (r *RabbitMQ) populateConsumer(
 	autoAck,
 	requeue bool,
 ) {
-	defer close(resQueue)
 	for {
 		select {
 		case <-ctx.Done():
-			r.l.Warn(ctx, "context done before the message extracted")
 			return
-		case <-r.consumerDone:
-			r.l.Info(ctx, "consumer stopped")
-			return
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok {
+				r.l.Debug(ctx, "consumer stopped")
+				return
+			}
 			if !autoAck {
 				if err := msg.Ack(false); err != nil {
 					r.l.Warn(
@@ -122,4 +122,36 @@ func (r *RabbitMQ) populateConsumer(
 			}
 		}
 	}
+}
+
+// startConsumer starts a new consumer using retry logic and operation timeout.
+func (r *RabbitMQ) startConsumer(ctx context.Context) (<-chan amqp.Delivery, error) {
+	var err error
+	var ch <-chan amqp.Delivery
+	var autoAck bool
+
+	err = r.withRetries(ctx, "consume", func() error {
+		return r.withTimeout(ctx, func(localCtx context.Context) error {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+
+			autoAck = r.autoAck
+			ch, err = r.ch.ConsumeWithContext(
+				localCtx,
+				r.topic,
+				"",
+				autoAck,
+				false, // exclusive
+				false, // noLocal
+				false, // noWait
+				nil,   // args
+			)
+			return err
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("subscribe consumer: %w", err)
+	}
+
+	return ch, nil
 }

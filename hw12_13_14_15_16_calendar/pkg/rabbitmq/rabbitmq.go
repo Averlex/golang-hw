@@ -42,9 +42,8 @@ type RabbitMQ struct {
 
 	routingKey string
 
-	consumerDone chan struct{}
-	autoAck      bool
-	requeue      bool
+	autoAck bool
+	requeue bool
 
 	l Logger
 }
