@@ -30,6 +30,7 @@ type RMQConf struct {
 	Retries      int           `mapstructure:"retries"`
 	Topic        string        `mapstructure:"topic"`
 	Durable      bool          `mapstructure:"durable"`
+	ResubTimeout time.Duration `mapstructure:"resub_timeout"`
 	AutoAck      bool          `mapstructure:"auto_ack"`
 	Requeue      bool          `mapstructure:"requeue"`
 }

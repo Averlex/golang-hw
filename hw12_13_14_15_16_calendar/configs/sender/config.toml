@@ -16,3 +16,4 @@ topic = "calendar_scheduler"              # Any string, viable as a queue/exchan
 durable = true                            # Any bool
 auto_ack = true                           # Any bool
 requeue = true                            # Any bool
+resub_timeout = "5s"                      # Any duration. Values <= 0 are not supported

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go" //nolint:depguard,nolintlint
 )
@@ -44,6 +45,7 @@ func (r *RabbitMQ) Consume(ctx context.Context) (<-chan []byte, <-chan error) {
 	r.mu.RLock()
 	requeue := r.requeue
 	autoAck := r.autoAck
+	resubTimeout := r.resubTimeout
 	r.mu.RUnlock()
 
 	// Looping until the context is cancelled.
@@ -69,7 +71,8 @@ func (r *RabbitMQ) Consume(ctx context.Context) (<-chan []byte, <-chan error) {
 			case <-ctx.Done():
 				r.l.Warn(ctx, "context done before during consuming process")
 				return
-			default:
+			case <-time.After(resubTimeout):
+				continue
 			}
 		}
 	}()
@@ -91,7 +94,7 @@ func (r *RabbitMQ) populateConsumer(
 			return
 		case msg, ok := <-ch:
 			if !ok {
-				r.l.Debug(ctx, "consumer stopped")
+				// Consumer needs to be resubscribed.
 				return
 			}
 			if !autoAck {
@@ -118,7 +121,7 @@ func (r *RabbitMQ) populateConsumer(
 			case <-ctx.Done():
 				r.l.Warn(ctx, "context done before the message extracted")
 			case resQueue <- msg.Body:
-				r.l.Info(ctx, "message successfully received", slog.String("message_id", msg.MessageId))
+				r.l.Debug(ctx, "message successfully received", slog.String("message_id", msg.MessageId))
 			}
 		}
 	}

@@ -42,8 +42,9 @@ type RabbitMQ struct {
 
 	routingKey string
 
-	autoAck bool
-	requeue bool
+	resubTimeout time.Duration // Resubscription timeout for the consumer.
+	autoAck      bool
+	requeue      bool
 
 	l Logger
 }
@@ -89,6 +90,10 @@ func NewRabbitMQ(logger Logger, cfg map[string]any, typ ClientType) (*RabbitMQ, 
 	if retryTimeout <= 0 {
 		return nil, fmt.Errorf("invalid config data: retry timeout must be positive, got %v", retryTimeout)
 	}
+	resubTimeout, _ := config["resub_timeout"].(time.Duration)
+	if resubTimeout <= 0 && typ != ProducerOnly {
+		return nil, fmt.Errorf("invalid config data: resubscription timeout must be positive, got %v", resubTimeout)
+	}
 
 	// Init the full version regardless of the client type.
 	return &RabbitMQ{
@@ -110,6 +115,7 @@ func NewRabbitMQ(logger Logger, cfg map[string]any, typ ClientType) (*RabbitMQ, 
 		routingKey:   config["routing_key"].(string),
 		autoAck:      config["auto_ack"].(bool),
 		requeue:      config["requeue"].(bool),
+		resubTimeout: config["resub_timeout"].(time.Duration),
 	}, nil
 }
 

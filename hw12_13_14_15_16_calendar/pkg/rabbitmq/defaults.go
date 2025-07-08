@@ -21,8 +21,9 @@ var expectedFieldsFull = map[string]any{
 
 	"routing_key": "",
 
-	"auto_ack": false,
-	"requeue":  false,
+	"resub_timeout": time.Duration(0), // Resubscription timeout for the consumer.
+	"auto_ack":      false,
+	"requeue":       false,
 }
 
 var expectedFieldsConsumer = map[string]any{
@@ -38,8 +39,9 @@ var expectedFieldsConsumer = map[string]any{
 	"topic":   "",
 	"durable": false,
 
-	"auto_ack": false,
-	"requeue":  false,
+	"resub_timeout": time.Duration(0), // Resubscription timeout for the consumer.
+	"auto_ack":      false,
+	"requeue":       false,
 }
 
 var expectedFieldsProducer = map[string]any{
