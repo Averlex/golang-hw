@@ -134,7 +134,7 @@ func initializeSender(
 		logg.Error(ctx, "create sender", slog.Any("err", err))
 		return nil, err
 	}
-	logg.Info(ctx, "schedusenderler created successfully")
+	logg.Info(ctx, "sender created successfully")
 	return sch, nil
 }
 
