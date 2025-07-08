@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"              //nolint:depguard,nolintlint
 	amqp "github.com/rabbitmq/amqp091-go" //nolint:depguard,nolintlint
 )
 
@@ -23,6 +24,7 @@ func (r *RabbitMQ) Produce(ctx context.Context, payload []byte) error {
 				amqp.Publishing{
 					ContentType: r.contentType,
 					Body:        payload,
+					MessageId:   uuid.New().String(),
 				},
 			)
 			r.mu.Unlock()
