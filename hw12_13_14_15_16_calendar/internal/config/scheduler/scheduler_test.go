@@ -53,13 +53,19 @@ func TestGetSubConfig_Success(t *testing.T) {
 			},
 			Key: "storage",
 			Expected: map[string]any{
-				"driver":   "postgres",
-				"host":     "localhost",
-				"port":     "5432",
-				"user":     "user",
-				"password": "pass",
-				"dbname":   "calendar",
-				"timeout":  defaultTimeout,
+				"type": "sql",
+				"sql": map[string]any{
+					"driver":   "postgres",
+					"host":     "localhost",
+					"port":     "5432",
+					"user":     "user",
+					"password": "pass",
+					"dbname":   "calendar",
+					"timeout":  defaultTimeout,
+				},
+				"memory": map[string]any{
+					"size": 0,
+				},
 			},
 		},
 	}
