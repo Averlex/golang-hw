@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                           //nolint:depguard,nolintlint
-	"github.com/jmoiron/sqlx"                                          //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                //nolint:depguard,nolintlint
+	"github.com/jmoiron/sqlx"                                               //nolint:depguard,nolintlint
 )
 
 const (
@@ -99,4 +100,12 @@ func (s *Storage) rebindQuery(q string, args any) (string, []any, error) {
 	}
 	query = sqlx.Rebind(s.getBindvar(), query)
 	return query, qArgs, nil
+}
+
+func (s *Storage) replacePlaceholder(query string, placeholder string, count int) string {
+	placeholders := make([]string, 0, count)
+	for range count {
+		placeholders = append(placeholders, "?")
+	}
+	return strings.Replace(query, placeholder, strings.Join(placeholders, ", "), 1)
 }

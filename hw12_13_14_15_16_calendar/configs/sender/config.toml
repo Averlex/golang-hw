@@ -1,0 +1,19 @@
+[logger]
+level = "debug"                           # debug, info, warn, error
+format = "json"                           # json, text
+time_template = "02.01.2006 15:04:05.000" # Any valid time template. Default is "02.01.2006 15:04:05.000"
+log_stream = "stdout"                     # stdout, stderr
+
+[rmq]
+host = "localhost"                        
+port = "9092"                            
+# user = ""                               # Better set with env. For the current structure use CALENDAR_RMQ_USER
+# password = ""                           # Better set with env. For the current structure use CALENDAR_RMQ_PASSWORD
+timeout = "500ms"                         # 0s means timeout will be disabled. Values lesser than seconds are also supported
+retry_timeout = "100ms"                   # Any duration. Values <= 0 are not supported
+retries = 5                               # Any int. Values <= 0 are treated as no retries
+topic = "calendar_scheduler"              # Any string, viable as a queue/exchange name for RabbitMQ
+durable = true                            # Any bool
+auto_ack = true                           # Any bool
+requeue = true                            # Any bool
+resub_timeout = "5s"                      # Any duration. Values <= 0 are not supported

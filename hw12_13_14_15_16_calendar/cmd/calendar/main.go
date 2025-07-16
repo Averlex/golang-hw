@@ -11,13 +11,13 @@ import (
 	"sync"
 	"syscall"
 
-	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app/calendar"                  //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config"                            //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/logger"                            //nolint:depguard
-	internalgrpc "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/grpc" //nolint:depguard
-	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/calendar/http" //nolint:depguard
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                           //nolint:depguard
-	projectErrors "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/errors"                   //nolint:depguard
+	app "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/app"                        //nolint:depguard
+	calendarConfig "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/config/calendar" //nolint:depguard
+	internalgrpc "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/grpc"       //nolint:depguard
+	internalhttp "github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/server/http"       //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/storage"                        //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/config"                              //nolint:depguard
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/logger"                              //nolint:depguard
 )
 
 const (
@@ -87,9 +87,9 @@ func run() error {
 func loadConfig(ctx context.Context, logg *logger.Logger) (config.ServiceConfig, error) {
 	loader := config.NewLoader("calendar", "Calendar service", "Calendar service for managing events and reminders",
 		defaultConfigFile, "CALENDAR")
-	cfg, err := loader.Load(printVersion, os.Stdout)
+	cfg, err := loader.Load(&calendarConfig.Config{}, printVersion, os.Stdout)
 	if err != nil {
-		if errors.Is(err, projectErrors.ErrShouldStop) {
+		if errors.Is(err, config.ErrShouldStop) {
 			return nil, nil
 		}
 		logg.Error(ctx, "load config", slog.Any("err", err))

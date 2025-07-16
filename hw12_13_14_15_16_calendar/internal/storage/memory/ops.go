@@ -3,7 +3,7 @@ package memory
 import (
 	"sort"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types" //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types" //nolint:depguard,nolintlint
 )
 
 // findInsertPosition finds the index in the events slice where a new event should be inserted

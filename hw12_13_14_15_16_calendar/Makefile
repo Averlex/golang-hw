@@ -1,4 +1,6 @@
-BIN := "./bin/calendar"
+CALENDAR_BIN := "./bin/calendar"
+SCHEDULER_BIN := "./bin/scheduler"
+SENDER_BIN := "./bin/sender"
 TOOLS_DIR := $(PWD)/tools/bin
 
 DOCKER_IMG="calendar:develop"
@@ -6,45 +8,84 @@ DOCKER_IMG="calendar:develop"
 JQ_MARKER_FILE := .jq_installed
 
 HOST := "localhost"
-DBPORT := "5432"
+DBPORT := "9091"
 DBNAME := "calendar"
 CALENDAR_STORAGE_SQL_USER := "calendar_user"
 CALENDAR_STORAGE_SQL_PASSWORD := "calendar_pass"
+CALENDAR_RMQ_USER := "calendar_user"
+CALENDAR_RMQ_PASSWORD := "calendar_pass"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 # --- Build and run ---
 
-build:
-	go build -tags=viper_bind_struct -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
+build: build-calendar build-scheduler build-sender
+	@echo "Build completed successfully."
 
-run: build
+# --- Calendar service ---
+build-calendar:
+	go build -tags=viper_bind_struct -v -o $(CALENDAR_BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
+
+run-calendar: build-calendar
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
-	$(BIN) --config ./configs/calendar/config.toml
+	$(CALENDAR_BIN) --config ./configs/calendar/config.toml
 
-run-json: build
+run-calendar-json: build-calendar
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
-	$(BIN) --config ./configs/calendar/config.toml | jq -R 'fromjson?' 2>/dev/null
+	$(CALENDAR_BIN) --config ./configs/calendar/config.toml | jq -R 'fromjson?' 2>/dev/null
 
-# --- Database ---
+# --- Scheduler service ---
+build-scheduler:
+	go build -tags=viper_bind_struct -v -o $(SCHEDULER_BIN) -ldflags "$(LDFLAGS)" ./cmd/scheduler
+
+run-scheduler: build-scheduler
+	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
+	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SCHEDULER_BIN) --config ./configs/scheduler/config.toml
+
+run-scheduler-json: build-scheduler
+	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
+	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SCHEDULER_BIN) --config ./configs/scheduler/config.toml | jq -R 'fromjson?' 2>/dev/null
+
+# --- Sender service ---
+build-sender:
+	go build -tags=viper_bind_struct -v -o $(SENDER_BIN) -ldflags "$(LDFLAGS)" ./cmd/sender
+
+run-sender: build-sender
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SENDER_BIN) --config ./configs/sender/config.toml
+
+run-sender-json: build-sender
+	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
+	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
+	$(SENDER_BIN) --config ./configs/sender/config.toml | jq -R 'fromjson?' 2>/dev/null
+
+
+# --- Database & RabbitMQ services ---
 
 # WARNING: docker-compose.yaml must be in sync with this Makefile
-run-db:
+run-third-party:
 	docker compose -f ./deployments/docker-compose.yaml up -d
 
-stop-db:
+stop-third-party:
 	docker compose -f ./deployments/docker-compose.yaml down
 
 # --- App CLI flags ---
 
 version: build
-	$(BIN) --version
+	$(CALENDAR_BIN) --version
 
 help: build
-	$(BIN) --help
+	$(CALENDAR_BIN) --help
 
 # --- Testing ---
 
@@ -163,5 +204,14 @@ clean-jq:
 		echo "jq was not installed via Makefile."; \
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
-
-.PHONY: build run run-json version help test test-fast test-cover lint install-lint-deps migrate-up migrate-up-1 migrate-down-1 generate generate-mocks generate-grpc build-img run-img run-db stop-db clean-tools clean-grpc clean-mockery clean-goose clean-jq setup-tools setup-grpc setup-mockery setup-goose setup-jq
+.PHONY: build build-calendar build-scheduler build-sender \
+        run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
+        run-third-party stop-third-party \
+        version help \
+        test test-fast test-cover \
+        install-lint-deps lint \
+        migrate migrate-up migrate-up-1 migrate-down-1 \
+        generate generate-mocks generate-grpc \
+        build-img run-img \
+        setup-tools setup-grpc setup-mockery setup-goose setup-jq \
+        clean-tools clean-grpc clean-mockery clean-goose clean-jq

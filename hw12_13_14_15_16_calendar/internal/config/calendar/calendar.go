@@ -40,12 +40,12 @@ type SQLConf struct {
 	Driver   string        `mapstructure:"driver"`
 }
 
-//nolint:revive,nolintlint
+// MemoryConf is a config for memory storage.
 type MemoryConf struct {
 	Size int `mapstructure:"size"`
 }
 
-// AppConf is a config for the global app settings, like environment (dev/prod) and log stream.
+// AppConf is a config for the global app settings, like retry timeout and number of retries.
 type AppConf struct {
 	RetryTimeout time.Duration `mapstructure:"retry_timeout"`
 	Retries      int           `mapstructure:"retries"`

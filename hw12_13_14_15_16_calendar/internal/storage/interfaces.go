@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/pkg/types" //nolint:depguard,nolintlint
-	"github.com/google/uuid"                                           //nolint:depguard,nolintlint
+	"github.com/Averlex/golang-hw/hw12_13_14_15_16_calendar/internal/types" //nolint:depguard,nolintlint
+	"github.com/google/uuid"                                                //nolint:depguard,nolintlint
 )
 
 // Storage represents a universal storage interface.
@@ -51,4 +51,16 @@ type Storage interface {
 	// GetEventsForPeriod retrieves events for a given period, optionally filtered by user ID.
 	// Returns a slice of events or an error if not found or the operation fails.
 	GetEventsForPeriod(ctx context.Context, dateStart, dateEnd time.Time, userID *string) ([]*types.Event, error)
+
+	// GetEventsForNotification retrieves events for notification, optionally filtered by user ID.
+	// Returns a slice of events or an error if not found or the operation fails.
+	GetEventsForNotification(ctx context.Context) ([]*types.Event, error)
+
+	// UpdateNotifiedEvents updates notified events in the storage.
+	// Returns the number of updated events or an error if the operation fails.
+	UpdateNotifiedEvents(ctx context.Context, notifiedEvents []uuid.UUID) (int64, error)
+
+	// DeleteOldEvents deletes old events from the storage.
+	// Returns the number of deleted events or an error if the operation fails.
+	DeleteOldEvents(ctx context.Context, date time.Time) (int64, error)
 }
