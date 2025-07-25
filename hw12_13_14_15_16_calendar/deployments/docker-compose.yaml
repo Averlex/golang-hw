@@ -1,29 +1,77 @@
 services:
-  calendar:
+  database:
     image: postgres:17
     container_name: database
     environment:
-      POSTGRES_USER: "calendar_user"
-      POSTGRES_PASSWORD: "calendar_pass"
-      POSTGRES_DB: "calendar"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "9091:5432"
+      - "${POSTGRES_HOST_PORT}:${POSTGRES_SERVICE_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:4.1.2-management-alpine
     container_name: message-queue
     environment:
-      RABBITMQ_DEFAULT_USER: "calendar_user"
-      RABBITMQ_DEFAULT_PASS: "calendar_pass"
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
-      - "9092:5672"
-      - "9093:15672"
+      - "${RABBITMQ_HOST_PORT}:${RABBITMQ_SERVICE_PORT}"
+      - "${RABBITMQ_UI_HOST_PORT}:${RABBITMQ_UI_SERVICE_PORT}"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     restart: unless-stopped
 
+  calendar:
+    image: calendar
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile.calendar
+    container_name: calendar
+    environment:
+      CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
+      CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
+      CALENDAR_HTTP_PORT: ${CALENDAR_HTTP_SERVICE_PORT}
+    ports:
+      - "${CALENDAR_HTTP_HOST_PORT}:${CALENDAR_HTTP_SERVICE_PORT}"
+    depends_on:
+      - database
+    restart: unless-stopped
+
+  scheduler:
+    image: scheduler
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile.scheduler
+    container_name: scheduler
+    environment:
+      CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
+      CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
+      CALENDAR_RMQ_USER: ${RABBITMQ_USER}
+      CALENDAR_RMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      - database
+      - rabbitmq
+    restart: unless-stopped
+
+  sender:
+    image: sender
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile.sender
+    container_name: sender
+    environment:
+      CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
+      CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
+      CALENDAR_RMQ_USER: ${RABBITMQ_USER}
+      CALENDAR_RMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on: 
+      - rabbitmq
+    restart: unless-stopped
+      
 volumes:
   postgres_data:
   rabbitmq_data:
