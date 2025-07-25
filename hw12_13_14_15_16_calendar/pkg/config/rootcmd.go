@@ -45,7 +45,6 @@ func (l *Loader) buildRootCommand(
 	if err := viper.BindPFlag("version", rootCmd.Flags().Lookup("version")); err != nil {
 		return nil, fmt.Errorf("bind version flag: %w", err)
 	}
-	// viper.Debug()
 
 	rootCmd.PreRunE = func(_ *cobra.Command, _ []string) error {
 		// Processing -v flag preemptively.
@@ -59,8 +58,6 @@ func (l *Loader) buildRootCommand(
 		// Setting the config.
 		configPath := viper.GetString("config")
 		viper.SetConfigFile(configPath)
-		viper.ReadInConfig()
-
 		if err := viper.ReadInConfig(); err != nil {
 			return fmt.Errorf("read main config at %s: %w", configPath, err)
 		}
@@ -68,7 +65,6 @@ func (l *Loader) buildRootCommand(
 			return fmt.Errorf("unmarshal main config: %w", err)
 		}
 
-		// viper.Debug()
 		return nil
 	}
 
