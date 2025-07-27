@@ -16,7 +16,20 @@ CALENDAR_RMQ_USER := "calendar_user"
 CALENDAR_RMQ_PASSWORD := "calendar_pass"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
-LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
+LDFLAGS := -X main.release=\"v1.0.0\" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
+
+# --- Docker compose ---
+up:
+	LDFLAGS="$(LDFLAGS)" docker compose -f ./deployments/docker-compose.yaml up -d
+
+up-rebuild:
+	LDFLAGS="$(LDFLAGS)" docker compose -f ./deployments/docker-compose.yaml up -d --build --force-recreate
+
+down:
+	docker compose -f ./deployments/docker-compose.yaml down
+
+down-clean:
+	docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
 # --- Build and run ---
 
@@ -74,10 +87,10 @@ run-sender-json: build-sender
 
 # WARNING: docker-compose.yaml must be in sync with this Makefile
 run-third-party:
-	docker compose -f ./deployments/docker-compose.yaml up -d
+	docker compose -f ./deployments/docker-compose.yaml up database rabbitmq -d
 
 stop-third-party:
-	docker compose -f ./deployments/docker-compose.yaml down
+	docker compose -f ./deployments/docker-compose.yaml stop database rabbitmq
 
 # --- App CLI flags ---
 
@@ -144,17 +157,6 @@ generate-grpc: setup-grpc
 		--openapiv2_out . \
 		api/calendar/v1/CalendarService.proto
 
-# --- Docker ---
-
-build-img:
-	docker build \
-		--build-arg=LDFLAGS="$(LDFLAGS)" \
-		-t $(DOCKER_IMG) \
-		-f build/Dockerfile .
-
-run-img: build-img
-	docker run $(DOCKER_IMG)
-
 # --- Setup additional tools: mocks, migration and pretty shell json logs ---
 
 setup-tools: setup-grpc setup-mockery setup-goose setup-jq
@@ -204,7 +206,8 @@ clean-jq:
 		echo "jq was not installed via Makefile."; \
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
-.PHONY: build build-calendar build-scheduler build-sender \
+.PHONY: up up-rebuild down down-clean \
+		build build-calendar build-scheduler build-sender \
         run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
         run-third-party stop-third-party \
         version help \

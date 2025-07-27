@@ -14,7 +14,7 @@ RUN go mod download
 COPY . ${CODE_DIR}
 
 # Building a satic Go binary without C API dependencies.
-ARG LDFLAGS
+ARG LDFLAGS=${LDFLAGS:-}
 RUN CGO_ENABLED=0 go build \
         -ldflags "$LDFLAGS" \
         -o ${BIN_FILE} cmd/calendar/*

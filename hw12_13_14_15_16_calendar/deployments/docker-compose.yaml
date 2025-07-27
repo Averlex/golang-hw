@@ -66,7 +66,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.1.2-management-alpine
-    container_name: message-queue
+    container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -93,6 +93,7 @@ services:
       CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
       CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
       CALENDAR_HTTP_PORT: ${CALENDAR_HTTP_SERVICE_PORT}
+      LDFLAGS: ${LDFLAGS:-}
     ports:
       - "${CALENDAR_HTTP_HOST_PORT}:${CALENDAR_HTTP_SERVICE_PORT}"
     depends_on:
@@ -111,6 +112,7 @@ services:
       CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
       CALENDAR_RMQ_USER: ${RABBITMQ_USER}
       CALENDAR_RMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      LDFLAGS: ${LDFLAGS:-}
     depends_on:
       migration-wait:
         condition: service_completed_successfully
@@ -129,6 +131,7 @@ services:
       CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
       CALENDAR_RMQ_USER: ${RABBITMQ_USER}
       CALENDAR_RMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      LDFLAGS: ${LDFLAGS:-}
     depends_on: 
       rabbitmq:
         condition: service_healthy
