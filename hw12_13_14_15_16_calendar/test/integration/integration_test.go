@@ -1,4 +1,7 @@
-// Package integration implements integration tests for the project services.
+//go:build integration
+// +build integration
+
+// // Package integration implements integration tests for the project services.
 //
 //nolint:all
 package integration
