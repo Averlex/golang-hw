@@ -29,7 +29,7 @@ ENV BIN_FILE "/opt/calendar/calendar-app"
 COPY --from=build ${BIN_FILE} ${BIN_FILE}
 RUN chmod +x ${BIN_FILE}
 
-ENV BIN_DIR "/opt/calendar/"
+ENV BIN_DIR "/opt/calendar"
 WORKDIR ${BIN_DIR}
 COPY "./api/calendar/v1/CalendarService.swagger.json" "${BIN_DIR}/api/calendar/v1/CalendarService.swagger.json"
 
