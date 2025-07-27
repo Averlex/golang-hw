@@ -84,7 +84,6 @@ services:
     restart: unless-stopped
 
   calendar:
-    image: calendar
     build:
       context: ../
       dockerfile: ./build/Dockerfile.calendar
@@ -102,7 +101,6 @@ services:
     restart: unless-stopped
 
   scheduler:
-    image: scheduler
     build:
       context: ../
       dockerfile: ./build/Dockerfile.scheduler
@@ -121,7 +119,6 @@ services:
     restart: unless-stopped
 
   sender:
-    image: sender
     build:
       context: ../
       dockerfile: ./build/Dockerfile.sender
