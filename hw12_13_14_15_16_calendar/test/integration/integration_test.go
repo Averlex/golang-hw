@@ -30,6 +30,7 @@ const (
 	defaultDuration    = "3600s"
 	defaultDescription = "Test description"
 	defaultUserID      = "user123"
+	alternativeUserID  = "user456"
 	defaultRemindIn    = "1800s"
 )
 
@@ -40,7 +41,7 @@ type EventData struct {
 	Duration    string `json:"duration"` // Duration string, e.g., "1h30m".
 	Description string `json:"description"`
 	UserID      string `json:"user_id"`
-	RemindIn    string `json:"remind_in"` // Duration string
+	RemindIn    string `json:"remind_in"` // Duration string.
 }
 
 // ResponseEventData represents the data for a calendar event considering client side format.
@@ -50,7 +51,7 @@ type ResponseEventData struct {
 	Duration    string `json:"duration"` // Duration string, e.g., "1h30m".
 	Description string `json:"description"`
 	UserID      string `json:"userId"`
-	RemindIn    string `json:"remindIn"` // Duration string
+	RemindIn    string `json:"remindIn"` // Duration string.
 }
 
 type testCase struct {
@@ -116,6 +117,19 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 				Description: defaultDescription,
 				UserID:      defaultUserID,
 				RemindIn:    "0s",
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name: "valid_create/datetime_overlaps_but_another_user",
+			eventData: EventData{
+				Title:       defaultTitle,
+				Datetime:    validFutureTime.Format(defaultTimeFormat),
+				Duration:    defaultDuration,
+				Description: defaultDescription,
+				UserID:      alternativeUserID,
+				RemindIn:    defaultRemindIn,
 			},
 			expectedStatus: http.StatusOK,
 			expectError:    false,
