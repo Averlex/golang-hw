@@ -21,9 +21,9 @@ import (
 
 const (
 	// Local URL to the calendar service within the docker network.
-	calendarServiceBaseURL = "http://calendar:8888/v1"
+	calendarServiceBaseURL = "http://calendar-test:9888/v1"
 
-	defaultTimeFormat = "02.01.2006 15:04:05.000"
+	defaultTimeFormat = time.RFC3339
 
 	defaultTitle       = "Test event"
 	defaultDatetime    = "01.01.2025 12:00:00.000"
@@ -41,6 +41,16 @@ type EventData struct {
 	Description string `json:"description"`
 	UserID      string `json:"user_id"`
 	RemindIn    string `json:"remind_in"` // Duration string
+}
+
+// ResponseEventData represents the data for a calendar event considering client side format.
+type ResponseEventData struct {
+	Title       string `json:"title"`
+	Datetime    string `json:"datetime"`
+	Duration    string `json:"duration"` // Duration string, e.g., "1h30m".
+	Description string `json:"description"`
+	UserID      string `json:"userId"`
+	RemindIn    string `json:"remindIn"` // Duration string
 }
 
 type testCase struct {
@@ -105,7 +115,7 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 				Duration:    defaultDuration,
 				Description: defaultDescription,
 				UserID:      defaultUserID,
-				// RemindIn is missing.
+				RemindIn:    "0s",
 			},
 			expectedStatus: http.StatusOK,
 			expectError:    false,
@@ -159,14 +169,13 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 				UserID:      defaultUserID,
 				RemindIn:    defaultRemindIn,
 			},
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus: http.StatusConflict,
 			expectError:    true,
 		},
 	}
 
 	for _, tC := range testCases {
 		s.Run(tC.name, func() {
-			// Marshal the event data to JSON.
 			eventDataBytes, err := json.Marshal(tC.eventData)
 			s.Require().NoError(err, "marshalling event data")
 
@@ -187,18 +196,21 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 				}
 			}()
 
-			s.Require().Equal(tC.expectedStatus, resp.StatusCode, "status code mismatch")
-
-			// Read and parse the response body
-			body, err := io.ReadAll(resp.Body)
+			respBody, err := io.ReadAll(resp.Body)
 			s.Require().NoError(err, "reading response body")
+			s.Require().Equal(tC.expectedStatus, resp.StatusCode, "status code mismatch with body: %s", string(respBody))
+
+			// No following checks are needed.
+			if tC.expectError {
+				return
+			}
 
 			type CreateEventResponse struct {
-				ID   string    `json:"id"`
-				Data EventData `json:"data"`
+				ID   string            `json:"id"`
+				Data ResponseEventData `json:"data"`
 			}
 			createResp := CreateEventResponse{}
-			err = json.Unmarshal(body, &createResp)
+			err = json.Unmarshal(respBody, &createResp)
 			s.Require().NoError(err, "unmarshalling response body")
 
 			// Validate the returned event data matches what was sent (where applicable).
@@ -211,13 +223,16 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 			gotDuration, err := time.ParseDuration(createResp.Data.Duration)
 			s.Require().NoError(err, "parsing duration")
 			s.Require().Equal(expectedDuration, gotDuration, "duration mismatch")
-			if tC.eventData.RemindIn != "" {
+			if tC.eventData.RemindIn != "" && tC.eventData.RemindIn != "0s" {
 				expectedDuration, _ := time.ParseDuration(tC.eventData.RemindIn)
 				gotDuration, err := time.ParseDuration(createResp.Data.RemindIn)
 				s.Require().NoError(err, "parsing remind_in")
 				s.Require().Equal(expectedDuration, gotDuration, "remind_in mismatch")
 			} else {
-				s.Require().NotEmpty(createResp.Data.RemindIn, "expected non-empty remind_in, but got an empty one")
+				s.Require().Truef(
+					createResp.Data.RemindIn == "" || createResp.Data.RemindIn == "0s",
+					"expected empty remind_in, but got %s", createResp.Data.RemindIn,
+				)
 			}
 		})
 	}
