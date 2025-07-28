@@ -1,0 +1,187 @@
+services:
+  database-test:
+    image: postgres:17
+    container_name: database-test
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_HOST_PORT}:${POSTGRES_SERVICE_PORT}"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/test_data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+    - test-network
+    restart: unless-stopped
+  
+  migrations-test:
+    image: golang:1.24-alpine
+    container_name: migrations-test
+    environment:
+      HOST: database-test
+      PORT: ${POSTGRES_SERVICE_PORT}
+      USER: ${POSTGRES_USER}
+      PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE: ${POSTGRES_DB}
+    volumes:
+      - ../../../migrations:/migrations-test
+      - migration_status_test:/status-test
+    command: [
+      "sh", "-c",
+      "echo 'Installing goose...' && \
+      go install github.com/pressly/goose/v3/cmd/goose@v3.24.3 && \
+      echo 'Applying migrations...' && \
+      if goose -dir /migrations-test postgres \"host=$$HOST port=$$PORT user=$$USER password=$$PASSWORD dbname=$$DATABASE sslmode=disable\" up-to 0004; then \
+        echo 'Migrations completed successfully' && \
+        touch /status-test/complete && \
+        echo 'Migration flag created'; \
+      else \
+        echo 'Migrations failed!' && \
+        exit 1; \
+      fi"
+    ]
+    depends_on:
+      database-test:
+        condition: service_healthy
+    networks:
+    - test-network
+    restart: no
+
+  migration-wait-test:
+    image: alpine:latest
+    container_name: migration-wait-test
+    volumes:
+      - migration_status_test:/status-test
+    command: [
+      "sh", "-c",
+      "while [ ! -f /status-test/complete ];
+        do
+          echo 'Waiting for migrations to complete...';
+          sleep 1;
+        done;
+        echo 'Migrations ready!'"
+      ]
+    networks:
+    - test-network
+    restart: no
+
+  rabbitmq-test:
+    image: rabbitmq:4.1.2-management-alpine
+    container_name: rabbitmq-test
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${RABBITMQ_HOST_PORT}:${RABBITMQ_SERVICE_PORT}"
+      - "${RABBITMQ_UI_HOST_PORT}:${RABBITMQ_UI_SERVICE_PORT}"
+    volumes:
+      - rabbitmq_test_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+    - test-network
+    restart: unless-stopped
+
+  calendar-test:
+    build:
+      context: ../../../
+      dockerfile: ./test/integration/build/Dockerfile.calendar
+    container_name: calendar-test
+    environment:
+      CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
+      CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
+      CALENDAR_HTTP_PORT: ${CALENDAR_HTTP_SERVICE_PORT}
+      LDFLAGS: ${LDFLAGS:-}
+    ports:
+      - "${CALENDAR_HTTP_HOST_PORT}:${CALENDAR_HTTP_SERVICE_PORT}"
+    depends_on:
+      database-test:
+        condition: service_healthy
+      migration-wait-test:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://0.0.0.0:${CALENDAR_HTTP_SERVICE_PORT}/hello"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+    - test-network
+    restart: unless-stopped
+
+  scheduler-test:
+    build:
+      context: ../../../
+      dockerfile: ./test/integration/build/Dockerfile.scheduler
+    container_name: scheduler-test
+    environment:
+      CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
+      CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
+      CALENDAR_RMQ_USER: ${RABBITMQ_USER}
+      CALENDAR_RMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      LDFLAGS: ${LDFLAGS:-}
+    depends_on:
+      database-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+      migration-wait-test:
+        condition: service_completed_successfully
+    networks:
+    - test-network
+    restart: unless-stopped
+
+  sender-test:
+    build:
+      context: ../../../
+      dockerfile: ./test/integration/build/Dockerfile.sender
+    container_name: sender-test
+    environment:
+      CALENDAR_STORAGE_SQL_USER: ${POSTGRES_USER}
+      CALENDAR_STORAGE_SQL_PASSWORD: ${POSTGRES_PASSWORD}
+      CALENDAR_RMQ_USER: ${RABBITMQ_USER}
+      CALENDAR_RMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      LDFLAGS: ${LDFLAGS:-}
+    depends_on: 
+      rabbitmq-test:
+        condition: service_healthy
+      migration-wait-test:
+        condition: service_completed_successfully
+    networks:
+    - test-network
+    restart: unless-stopped
+
+  integration-test:
+    build:
+      context: ../../../
+      dockerfile: ./test/integration/build/Dockerfile.integration
+    container_name: integration-test
+    depends_on:
+      calendar-test:
+        condition: service_healthy
+      scheduler-test:
+        condition: service_started
+      sender-test:
+        condition: service_started
+      migration-wait-test:
+        condition: service_completed_successfully
+    networks:
+    - test-network
+      
+volumes:
+  postgres_test_data:
+  rabbitmq_test_data:
+  migration_status_test:
+
+networks:
+  test-network:
+    driver: bridge

@@ -1,0 +1,36 @@
+# Building the scheduler binary.
+FROM golang:1.24-alpine AS build
+
+ENV BIN_FILE /opt/scheduler/scheduler-test
+ENV CODE_DIR /go/src/
+
+WORKDIR ${CODE_DIR}
+
+# Caching the modules layers.
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . ${CODE_DIR}
+
+# Building a satic Go binary without C API dependencies.
+ARG LDFLAGS=${LDFLAGS:-}
+RUN CGO_ENABLED=0 go build \
+        -ldflags "$LDFLAGS" \
+        -o ${BIN_FILE} cmd/scheduler/*
+
+# Building a thin Docker image.
+FROM alpine:3.21
+
+LABEL SERVICE="scheduler-test"
+LABEL MAINTAINER="Alexey Chukhutin <aschukhutin@gmail.com>"
+
+ENV BIN_FILE "/opt/scheduler/scheduler-test"
+COPY --from=build ${BIN_FILE} ${BIN_FILE}
+RUN chmod +x ${BIN_FILE}
+
+ENV BIN_DIR "/opt/scheduler"
+ENV CONFIG_FILE "${BIN_DIR}/config.toml"
+COPY "./test/integration/configs/scheduler/config.toml" ${CONFIG_FILE}
+
+CMD ${BIN_FILE} --config ${CONFIG_FILE}
