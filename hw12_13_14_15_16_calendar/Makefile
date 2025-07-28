@@ -15,24 +15,38 @@ CALENDAR_STORAGE_SQL_PASSWORD := "calendar_pass"
 CALENDAR_RMQ_USER := "calendar_user"
 CALENDAR_RMQ_PASSWORD := "calendar_pass"
 
+PROD_PROJECT_NAME := calendar-prod
+TEST_PROJECT_NAME := calendar-test
+
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release=\"v1.0.0\" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 # --- Docker compose ---
 up:
-	LDFLAGS="$(LDFLAGS)" docker compose -f ./deployments/docker-compose.yaml up -d
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml up -d
 
 up-rebuild:
-	LDFLAGS="$(LDFLAGS)" docker compose -f ./deployments/docker-compose.yaml up -d --build --force-recreate
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml up -d --build --force-recreate
 
 down:
-	docker compose -f ./deployments/docker-compose.yaml down
+	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml down
 
 down-clean:
-	docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
+	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
+
+integration-tests-up:
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d
+
+integration-tests-rebuild:
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d --build --force-recreate
+
+integration-tests-down:
+	COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml down
+
+integration-tests-down-clean:
+	COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
 # --- Build and run ---
-
 build: build-calendar build-scheduler build-sender
 	@echo "Build completed successfully."
 
@@ -45,7 +59,7 @@ run-calendar: build-calendar
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
 	$(CALENDAR_BIN) --config ./configs/calendar/config.toml
 
-run-calendar-json: build-calendar
+run-calendar-json: build-calendar setup-jq
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
 	$(CALENDAR_BIN) --config ./configs/calendar/config.toml | jq -R 'fromjson?' 2>/dev/null
@@ -61,7 +75,7 @@ run-scheduler: build-scheduler
 	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
 	$(SCHEDULER_BIN) --config ./configs/scheduler/config.toml
 
-run-scheduler-json: build-scheduler
+run-scheduler-json: build-scheduler setup-jq
 	CALENDAR_STORAGE_SQL_USER=$(CALENDAR_STORAGE_SQL_USER) \
 	CALENDAR_STORAGE_SQL_PASSWORD=$(CALENDAR_STORAGE_SQL_PASSWORD) \
 	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
@@ -77,7 +91,7 @@ run-sender: build-sender
 	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
 	$(SENDER_BIN) --config ./configs/sender/config.toml
 
-run-sender-json: build-sender
+run-sender-json: build-sender setup-jq
 	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
 	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
 	$(SENDER_BIN) --config ./configs/sender/config.toml | jq -R 'fromjson?' 2>/dev/null
@@ -207,6 +221,7 @@ clean-jq:
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
 .PHONY: up up-rebuild down down-clean \
+		integration-tests-up integration-tests-rebuild integration-tests-down integration-tests-down-clean \
 		build build-calendar build-scheduler build-sender \
         run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
         run-third-party stop-third-party \
