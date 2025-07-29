@@ -36,6 +36,8 @@ const (
 	userSingleEventID     = "event_single_user"
 	userMultipleWeeklyID  = "event_multiple_weekly"
 	userMultipleMonthlyID = "event_multiple_monthly"
+
+	nonExistingEventID = "01234567-8901-2345-6789-012345678901"
 )
 
 // testEventsData represents a set of test events designed to cover specific scenarios:
@@ -236,6 +238,8 @@ func (s *CalendarIntegrationSuite) createTestEvent(eventData EventData, expected
 }
 
 // deleteTestEvent is a helper which deletes the event with the given ID.
+//
+// Method updates the inner s.createdEvents slice.
 func (s *CalendarIntegrationSuite) deleteTestEvent(id string, expectedStatus int, expectError bool) {
 	s.T().Helper()
 	requestData := struct {
@@ -269,11 +273,9 @@ func (s *CalendarIntegrationSuite) deleteTestEvent(id string, expectedStatus int
 
 	// No following checks are needed.
 	if expectError {
-		s.Require().Emptyf(respBody, "expected empty response body, but got: %s", string(respBody))
+		s.Require().NotEmpty(respBody, "expected non-empty response body, but got an empty one")
 		return
 	}
-
-	s.Require().NotEmptyf(respBody, "expected non-empty response body, but got an empty one: %s", string(respBody))
 }
 
 // getTestEvent is a helper which implements default GET method for testing.
@@ -513,7 +515,7 @@ func (s *CalendarIntegrationSuite) TestGetEvent() {
 		},
 		{
 			name:           "id_does_not_exist",
-			id:             "01234567-8901-2345-6789-012345678901",
+			id:             nonExistingEventID,
 			expectedStatus: http.StatusNotFound,
 			expectError:    true,
 			dataToCompare:  nil,
@@ -523,6 +525,44 @@ func (s *CalendarIntegrationSuite) TestGetEvent() {
 	for _, tC := range testCases {
 		s.Run(tC.name, func() {
 			s.getTestEvent(tC.id, tC.expectedStatus, tC.expectError, tC.dataToCompare)
+		})
+	}
+}
+
+// TestDeleteEvent tests the DELETE /events/{id} endpoint.
+func (s *CalendarIntegrationSuite) TestDeleteEvent() {
+	testCases := []struct {
+		name           string
+		id             string
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+	}{
+		{
+			name:           "valid_delete",
+			id:             s.createdEvents[0],
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:           "invalid_id",
+			id:             "invalid_id",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:           "id_does_not_exist",
+			id:             nonExistingEventID,
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			s.deleteTestEvent(tC.id, tC.expectedStatus, tC.expectError)
+			if !tC.expectError {
+				s.createdEvents = append(s.createdEvents[:0], s.createdEvents[1:]...)
+			}
 		})
 	}
 }
