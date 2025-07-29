@@ -526,6 +526,101 @@ func (s *CalendarIntegrationSuite) TestDeleteEvent() {
 	}
 }
 
+func (s *CalendarIntegrationSuite) TestUpdateEvent() {
+	testCases := []struct {
+		name           string
+		id             string
+		data           EventData
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+	}{
+		{
+			name: "valid_update/no_overlaps",
+			id:   s.createdEvents[0],
+			data: func() EventData {
+				event := testEventsData[0]
+				event.Datetime = "2045-08-15T10:00:00Z"
+				event.Title = "Updated title"
+				event.Description = ""
+				event.RemindIn = "0s"
+				return event
+			}(),
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:           "valid_update/datetime_overlaps_with_itself",
+			id:             s.createdEvents[1],
+			data:           testEventsData[1],
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:           "invalid_update/invalid_request",
+			id:             "invalid_id",
+			data:           testEventsData[1],
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:           "invalid_update/invalid_data",
+			id:             s.createdEvents[1],
+			data:           EventData{},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:           "invalid_update/not_found",
+			id:             nonExistingEventID,
+			data:           testEventsData[1],
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+		},
+		{
+			name: "invalid_update/date_busy",
+			id:   s.createdEvents[1],
+			data: func() EventData {
+				event := testEventsData[1]
+				event.Datetime = testEventsData[2].Datetime
+				return event
+			}(),
+			expectedStatus: http.StatusConflict,
+			expectError:    true,
+		},
+		{
+			name: "invalid_update/modifying_another_user_event",
+			id:   s.createdEvents[0],
+			data: func() EventData {
+				event := testEventsData[1]
+				return event
+			}(),
+			expectedStatus: http.StatusForbidden,
+			expectError:    true,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			requestDataBytes, err := json.Marshal(tC.data)
+			s.Require().NoError(err, "marshalling event data")
+
+			// Send the HTTP request.
+			url := fmt.Sprintf("%s/events/%s", calendarServiceBaseURL, tC.id)
+			respBody := s.sendRequest(http.MethodPut, url, requestDataBytes, tC.expectedStatus)
+
+			// No following checks are needed.
+			if tC.expectError {
+				return
+			}
+
+			s.validateResponseEvent(respBody, tC.data, &tC.id, false)
+
+			// Check that the event was really updated.
+			s.getTestEvent(tC.id, http.StatusOK, tC.expectError, &tC.data)
+		})
+	}
+}
+
 // TestCalendarIntegrationSuite runs the suite.
 func TestCalendarIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(CalendarIntegrationSuite))
