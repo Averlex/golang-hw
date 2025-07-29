@@ -40,6 +40,9 @@ const (
 	userMultipleMonthlyID        = "event_multiple_monthly"
 
 	nonExistingEventID = "01234567-8901-2345-6789-012345678901"
+
+	schedulerUserID       = "scheduler_user"
+	schedulerWaitInterval = time.Second * 2 // Verify this value with the following scheduler config value.
 )
 
 // testEventsData represents a set of test events designed to cover specific scenarios:
@@ -381,7 +384,7 @@ func (s *CalendarIntegrationSuite) getTestEvent(id string, expectedStatus int, e
 // TestCreateEvent tests the POST /events endpoint.
 //
 // Response data is not checked for datetime equality to avoid time format dependencies.
-func (s *CalendarIntegrationSuite) TestCreateEvent() {
+func (s *CalendarIntegrationSuite) TestCalendar_CreateEvent() {
 	validFutureTime := time.Now().Add(24 * time.Hour)
 	invalidTime := "not-a-valid-date-time"
 
@@ -512,7 +515,7 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 }
 
 // TestGetEvent tests the GET /events/{id} endpoint.
-func (s *CalendarIntegrationSuite) TestGetEvent() {
+func (s *CalendarIntegrationSuite) TestCalendar_GetEvent() {
 	testCases := []struct {
 		name           string
 		id             string
@@ -558,7 +561,7 @@ func (s *CalendarIntegrationSuite) TestGetEvent() {
 }
 
 // TestDeleteEvent tests the DELETE /events/{id} endpoint.
-func (s *CalendarIntegrationSuite) TestDeleteEvent() {
+func (s *CalendarIntegrationSuite) TestCalendar_DeleteEvent() {
 	testCases := []struct {
 		name           string
 		id             string
@@ -596,7 +599,7 @@ func (s *CalendarIntegrationSuite) TestDeleteEvent() {
 }
 
 // TestUpdateEvent tests the PUT /events/{id} endpoint.
-func (s *CalendarIntegrationSuite) TestUpdateEvent() {
+func (s *CalendarIntegrationSuite) TestCalendar_UpdateEvent() {
 	testCases := []struct {
 		name           string
 		id             string
@@ -692,7 +695,7 @@ func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 }
 
 // TestGetEventsForDay tests the GET /events/day?date={date}&userId={user_id} endpoint.
-func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
+func (s *CalendarIntegrationSuite) TestCalendar_GetEventsForDay() {
 	testCases := []struct {
 		name           string
 		ids            []*string
@@ -777,7 +780,7 @@ func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
 }
 
 // TestGetEventsForWeek tests the GET /events/week?date={date}&userId={user_id} endpoint.
-func (s *CalendarIntegrationSuite) TestGetEventsForWeek() {
+func (s *CalendarIntegrationSuite) TestCalendar_GetEventsForWeek() {
 	testCases := []struct {
 		name           string
 		ids            []*string
@@ -864,7 +867,7 @@ func (s *CalendarIntegrationSuite) TestGetEventsForWeek() {
 }
 
 // TestGetEventsForMonth tests the GET /events/month?date={date}&userId={user_id} endpoint.
-func (s *CalendarIntegrationSuite) TestGetEventsForMonth() {
+func (s *CalendarIntegrationSuite) TestCalendar_GetEventsForMonth() {
 	testCases := []struct {
 		name           string
 		ids            []*string
@@ -952,6 +955,64 @@ func (s *CalendarIntegrationSuite) TestGetEventsForMonth() {
 			}
 
 			s.validateResponseEvents(respBody, tC.dataToCompare, tC.ids)
+		})
+	}
+}
+
+func (s *CalendarIntegrationSuite) TestScheduler_DatabaseCleanup() {
+	testCases := []struct {
+		name           string
+		eventData      EventData
+		expectedStatus int
+		expectError    bool
+	}{
+		{
+			name: "old_event",
+			eventData: EventData{
+				Title:       defaultTitle,
+				Datetime:    "2005-08-17T10:00:00Z",
+				Duration:    defaultDuration,
+				Description: defaultDescription,
+				UserID:      schedulerUserID,
+				RemindIn:    defaultRemindIn,
+			},
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+		},
+		{
+			name: "live_event",
+			eventData: EventData{
+				Title:       defaultTitle,
+				Datetime:    time.Now().Format(defaultTimeFormat),
+				Duration:    defaultDuration,
+				Description: defaultDescription,
+				UserID:      schedulerUserID,
+				RemindIn:    defaultRemindIn,
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name: "future_event",
+			eventData: EventData{
+				Title:       defaultTitle,
+				Datetime:    "2055-08-17T10:00:00Z",
+				Duration:    defaultDuration,
+				Description: defaultDescription,
+				UserID:      schedulerUserID,
+				RemindIn:    defaultRemindIn,
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			s.createTestEvent(tC.eventData, http.StatusOK, false)
+			id := s.createdEvents[len(s.createdEvents)-1]
+			time.Sleep(3 * schedulerWaitInterval)
+			s.getTestEvent(id, tC.expectedStatus, tC.expectError, &tC.eventData)
 		})
 	}
 }
