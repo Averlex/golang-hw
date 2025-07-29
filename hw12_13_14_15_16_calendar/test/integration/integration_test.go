@@ -863,6 +863,99 @@ func (s *CalendarIntegrationSuite) TestGetEventsForWeek() {
 	}
 }
 
+// TestGetEventsForMonth tests the GET /events/month?date={date}&userId={user_id} endpoint.
+func (s *CalendarIntegrationSuite) TestGetEventsForMonth() {
+	testCases := []struct {
+		name           string
+		ids            []*string
+		datetime       string
+		userID         string
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+		dataToCompare  []EventData
+	}{
+		{
+			name:           "valid_get/one_event_one_user",
+			ids:            []*string{&s.createdEvents[0]},
+			datetime:       "2035-08-17T01:00:00Z", // Shifted testEventsData[0].Datetime value
+			userID:         testEventsData[0].UserID,
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare: func() []EventData {
+				event := testEventsData[0]
+				return []EventData{event}
+			}(),
+		},
+		{
+			name: "valid_get/several_events_no_user",
+			ids: func() []*string {
+				res := make([]*string, len(s.createdEvents))
+				for i := range s.createdEvents {
+					res[i] = &s.createdEvents[i]
+				}
+				return res
+			}(),
+			datetime:       "2035-08-31T23:59:59Z", // End of the month
+			userID:         "",
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare:  testEventsData,
+		},
+		{
+			name:           "valid_get/several_events_one_user",
+			ids:            []*string{&s.createdEvents[5], &s.createdEvents[6], &s.createdEvents[8], &s.createdEvents[8]},
+			datetime:       "2035-08-01T00:00:00Z", // Beginning of the month
+			userID:         testEventsData[5].UserID,
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare:  []EventData{testEventsData[5], testEventsData[6], testEventsData[7], testEventsData[8]},
+		},
+		{
+			name:           "invalid_get/invalid_request",
+			datetime:       "",
+			userID:         "",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "invalid_get/events_not_found",
+			datetime:       "2055-08-17T04:00:00Z",
+			userID:         "",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "invalid_get/user_not_found",
+			datetime:       "2035-08-17T04:00:00Z", // Shifted testEventsData[0].Datetime value
+			userID:         "fictional_user_id",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			// Send the HTTP request.
+			var userQueryParam string
+			if tC.userID != "" {
+				userQueryParam = fmt.Sprintf("&userId=%s", tC.userID)
+			}
+			url := fmt.Sprintf("%s/events/month?date=%s%s", calendarServiceBaseURL, tC.datetime, userQueryParam)
+			respBody := s.sendRequest(http.MethodGet, url, nil, tC.expectedStatus)
+
+			// No following checks are needed.
+			if tC.expectError || len(tC.dataToCompare) == 0 {
+				return
+			}
+
+			s.validateResponseEvents(respBody, tC.dataToCompare, tC.ids)
+		})
+	}
+}
+
 // TestCalendarIntegrationSuite runs the suite.
 func TestCalendarIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(CalendarIntegrationSuite))
