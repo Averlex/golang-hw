@@ -33,9 +33,10 @@ const (
 	alternativeUserID  = "user456"
 	defaultRemindIn    = "1800s"
 
-	userSingleEventID     = "event_single_user"
-	userMultipleWeeklyID  = "event_multiple_weekly"
-	userMultipleMonthlyID = "event_multiple_monthly"
+	userSingleEventID            = "event_single_user"
+	alternativeUserSingleEventID = "event_single_user_alternative"
+	userMultipleWeeklyID         = "event_multiple_weekly"
+	userMultipleMonthlyID        = "event_multiple_monthly"
 
 	nonExistingEventID = "01234567-8901-2345-6789-012345678901"
 )
@@ -54,6 +55,15 @@ var testEventsData []EventData = []EventData{
 		Duration:    defaultDuration,        // "3600s"
 		Description: "This user has only one event.",
 		UserID:      userSingleEventID, // "event_single_user"
+		RemindIn:    defaultRemindIn,   // "1800s"
+	},
+	// Scenario: Another user, one event, same day.
+	{
+		Title:       "Alternative User Event",
+		Datetime:    "2035-08-15T12:00:00Z", // Friday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "This user has only one event too.",
+		UserID:      alternativeUserID, // "event_single_user"
 		RemindIn:    defaultRemindIn,   // "1800s"
 	},
 	// Scenario: One user, multiple events in a week (week of 2035-08-16).
@@ -238,6 +248,48 @@ func (s *CalendarIntegrationSuite) validateResponseEvent(respBody []byte, eventD
 			resp.Data.RemindIn == "" || resp.Data.RemindIn == "0s",
 			"expected empty remind_in, but got %s", resp.Data.RemindIn,
 		)
+	}
+}
+
+// validateResponseEvents is a helper which validates the response event data for batch get methods.
+func (s *CalendarIntegrationSuite) validateResponseEvents(respBody []byte, eventsData []EventData, ids []*string) {
+	s.T().Helper()
+	type EventResponse struct {
+		ID   string            `json:"id"`
+		Data ResponseEventData `json:"data"`
+	}
+	resp := []EventResponse{}
+	err := json.Unmarshal(respBody, &resp)
+	s.Require().NoError(err, "unmarshalling response body")
+	s.Require().NotEmpty(resp, "expected non-empty response body, but got an empty one")
+
+	for i, eventData := range eventsData {
+		// Validate the returned event data matches what was sent (where applicable).
+		if ids[i] != nil {
+			s.Require().Equal(*ids[i], resp[i].ID, "event ID mismatch")
+		} else {
+			s.Require().NotEmpty(resp[i].ID, "expected non-empty event ID, but got an empty one")
+		}
+
+		s.Require().Equal(eventData.Title, resp[i].Data.Title, "title mismatch")
+		s.Require().Equal(eventData.Description, resp[i].Data.Description, "description mismatch")
+		s.Require().Equal(eventData.UserID, resp[i].Data.UserID, "user ID mismatch")
+		s.Require().NotEmpty(resp[i].Data.Datetime, "expected non-empty datetime, but got an empty one")
+		expectedDuration, _ := time.ParseDuration(eventData.Duration)
+		gotDuration, err := time.ParseDuration(resp[i].Data.Duration)
+		s.Require().NoError(err, "parsing duration")
+		s.Require().Equal(expectedDuration, gotDuration, "duration mismatch")
+		if eventData.RemindIn != "" && eventData.RemindIn != "0s" {
+			expectedDuration, _ := time.ParseDuration(eventData.RemindIn)
+			gotDuration, err := time.ParseDuration(resp[i].Data.RemindIn)
+			s.Require().NoError(err, "parsing remind_in")
+			s.Require().Equal(expectedDuration, gotDuration, "remind_in mismatch")
+		} else {
+			s.Require().Truef(
+				resp[i].Data.RemindIn == "" || resp[i].Data.RemindIn == "0s",
+				"expected empty remind_in, but got %s", resp[i].Data.RemindIn,
+			)
+		}
 	}
 }
 
@@ -550,21 +602,21 @@ func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 		},
 		{
 			name:           "valid_update/datetime_overlaps_with_itself",
-			id:             s.createdEvents[1],
-			data:           testEventsData[1],
+			id:             s.createdEvents[2],
+			data:           testEventsData[2],
 			expectedStatus: http.StatusOK,
 			expectError:    false,
 		},
 		{
 			name:           "invalid_update/invalid_request",
 			id:             "invalid_id",
-			data:           testEventsData[1],
+			data:           testEventsData[2],
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 		},
 		{
 			name:           "invalid_update/invalid_data",
-			id:             s.createdEvents[1],
+			id:             s.createdEvents[2],
 			data:           EventData{},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
@@ -572,16 +624,16 @@ func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 		{
 			name:           "invalid_update/not_found",
 			id:             nonExistingEventID,
-			data:           testEventsData[1],
+			data:           testEventsData[2],
 			expectedStatus: http.StatusNotFound,
 			expectError:    true,
 		},
 		{
 			name: "invalid_update/date_busy",
-			id:   s.createdEvents[1],
+			id:   s.createdEvents[2],
 			data: func() EventData {
-				event := testEventsData[1]
-				event.Datetime = testEventsData[2].Datetime
+				event := testEventsData[2]
+				event.Datetime = testEventsData[3].Datetime
 				return event
 			}(),
 			expectedStatus: http.StatusConflict,
@@ -591,7 +643,7 @@ func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 			name: "invalid_update/modifying_another_user_event",
 			id:   s.createdEvents[0],
 			data: func() EventData {
-				event := testEventsData[1]
+				event := testEventsData[2]
 				return event
 			}(),
 			expectedStatus: http.StatusForbidden,
@@ -617,6 +669,90 @@ func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 
 			// Check that the event was really updated.
 			s.getTestEvent(tC.id, http.StatusOK, tC.expectError, &tC.data)
+		})
+	}
+}
+
+func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
+	testCases := []struct {
+		name           string
+		ids            []*string
+		datetime       string
+		userID         string
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+		dataToCompare  []EventData
+	}{
+		{
+			name:           "valid_get/one_event_one_user",
+			ids:            []*string{&s.createdEvents[0]},
+			datetime:       "2035-08-15T01:00:00Z", // Shifted testEventsData[0].Datetime value
+			userID:         testEventsData[0].UserID,
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare: func() []EventData {
+				event := testEventsData[0]
+				return []EventData{event}
+			}(),
+		},
+		{
+			name:           "valid_get/several_events_no_user",
+			ids:            []*string{&s.createdEvents[0], &s.createdEvents[1]},
+			datetime:       testEventsData[0].Datetime,
+			userID:         "",
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare: func() []EventData {
+				res := make([]EventData, 0)
+				event1 := testEventsData[0]
+				event2 := testEventsData[1]
+				res = append(res, event1)
+				res = append(res, event2)
+				return res
+			}(),
+		},
+		{
+			name:           "invalid_get/invalid_request",
+			datetime:       "",
+			userID:         "",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "invalid_get/events_not_found",
+			datetime:       "2055-08-15T04:00:00Z",
+			userID:         "",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "invalid_get/user_not_found",
+			datetime:       "2035-08-15T04:00:00Z", // Shifted testEventsData[0].Datetime value
+			userID:         "fictional_user_id",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			// Send the HTTP request.
+			var userQueryParam string
+			if tC.userID != "" {
+				userQueryParam = fmt.Sprintf("&userId=%s", tC.userID)
+			}
+			url := fmt.Sprintf("%s/events/day?date=%s%s", calendarServiceBaseURL, tC.datetime, userQueryParam)
+			respBody := s.sendRequest(http.MethodGet, url, nil, tC.expectedStatus)
+
+			// No following checks are needed.
+			if tC.expectError || len(tC.dataToCompare) == 0 {
+				return
+			}
+
+			s.validateResponseEvents(respBody, tC.dataToCompare, tC.ids)
 		})
 	}
 }
