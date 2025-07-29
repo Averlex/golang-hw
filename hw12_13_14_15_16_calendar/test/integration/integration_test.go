@@ -168,17 +168,13 @@ func (s *CalendarIntegrationSuite) TearDownTest() {
 	s.createdEvents = nil
 }
 
-// createTestEvent is a helpler that creates a new event with the given data.
-//
-// Method fills the inner s.createdEvents slice if the event was created successfully.
-func (s *CalendarIntegrationSuite) createTestEvent(eventData EventData, expectedStatus int, expectError bool) {
+// sendRequest is a helper for HTTP requests sending.
+func (s *CalendarIntegrationSuite) sendRequest(method, url string, byteData []byte, expectedStatus int) []byte {
 	s.T().Helper()
-	eventDataBytes, err := json.Marshal(eventData)
-	s.Require().NoError(err, "marshalling event data")
+	var respBody []byte
 
 	// Create the HTTP request.
-	url := fmt.Sprintf("%s/events", calendarServiceBaseURL)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewBuffer(eventDataBytes))
+	req, err := http.NewRequestWithContext(context.Background(), method, url, bytes.NewBuffer(byteData))
 	s.Require().NoError(err, "creating create request")
 	req.Header.Set("Content-Type", "application/json")
 
@@ -193,48 +189,76 @@ func (s *CalendarIntegrationSuite) createTestEvent(eventData EventData, expected
 		}
 	}()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err = io.ReadAll(resp.Body)
 	s.Require().NoError(err, "reading response body")
 	s.Require().Equal(expectedStatus, resp.StatusCode, "status code mismatch with body: %s", string(respBody))
+
+	return respBody
+}
+
+// validateResponseEvent is a helper which validates the response event data.
+func (s *CalendarIntegrationSuite) validateResponseEvent(respBody []byte, eventData EventData, id *string, isCreated bool) {
+	s.T().Helper()
+	type EventResponse struct {
+		ID   string            `json:"id"`
+		Data ResponseEventData `json:"data"`
+	}
+	resp := EventResponse{}
+	err := json.Unmarshal(respBody, &resp)
+	s.Require().NoError(err, "unmarshalling response body")
+
+	// Validate the returned event data matches what was sent (where applicable).
+	if id != nil {
+		s.Require().Equal(*id, resp.ID, "event ID mismatch")
+	} else {
+		s.Require().NotEmpty(resp.ID, "expected non-empty event ID, but got an empty one")
+	}
+
+	// Filling the slice for further clean up. Using only for created objects to prevent
+	// triggering on get/update methods.
+	if isCreated {
+		s.createdEvents = append(s.createdEvents, resp.ID)
+	}
+
+	s.Require().Equal(eventData.Title, resp.Data.Title, "title mismatch")
+	s.Require().Equal(eventData.Description, resp.Data.Description, "description mismatch")
+	s.Require().Equal(eventData.UserID, resp.Data.UserID, "user ID mismatch")
+	s.Require().NotEmpty(resp.Data.Datetime, "expected non-empty datetime, but got an empty one")
+	expectedDuration, _ := time.ParseDuration(eventData.Duration)
+	gotDuration, err := time.ParseDuration(resp.Data.Duration)
+	s.Require().NoError(err, "parsing duration")
+	s.Require().Equal(expectedDuration, gotDuration, "duration mismatch")
+	if eventData.RemindIn != "" && eventData.RemindIn != "0s" {
+		expectedDuration, _ := time.ParseDuration(eventData.RemindIn)
+		gotDuration, err := time.ParseDuration(resp.Data.RemindIn)
+		s.Require().NoError(err, "parsing remind_in")
+		s.Require().Equal(expectedDuration, gotDuration, "remind_in mismatch")
+	} else {
+		s.Require().Truef(
+			resp.Data.RemindIn == "" || resp.Data.RemindIn == "0s",
+			"expected empty remind_in, but got %s", resp.Data.RemindIn,
+		)
+	}
+}
+
+// createTestEvent is a helpler that creates a new event with the given data.
+//
+// Method fills the inner s.createdEvents slice if the event was created successfully.
+func (s *CalendarIntegrationSuite) createTestEvent(eventData EventData, expectedStatus int, expectError bool) {
+	s.T().Helper()
+	eventDataBytes, err := json.Marshal(eventData)
+	s.Require().NoError(err, "marshalling event data")
+
+	// Send the HTTP request.
+	url := fmt.Sprintf("%s/events", calendarServiceBaseURL)
+	respBody := s.sendRequest(http.MethodPost, url, eventDataBytes, expectedStatus)
 
 	// No following checks are needed.
 	if expectError {
 		return
 	}
 
-	type CreateEventResponse struct {
-		ID   string            `json:"id"`
-		Data ResponseEventData `json:"data"`
-	}
-	createResp := CreateEventResponse{}
-	err = json.Unmarshal(respBody, &createResp)
-	s.Require().NoError(err, "unmarshalling response body")
-
-	// Validate the returned event data matches what was sent (where applicable).
-	s.Require().NotEmpty(createResp.ID, "expected non-empty event ID, but got an empty one")
-
-	// Filling the slice for further clean up.
-	s.createdEvents = append(s.createdEvents, createResp.ID)
-
-	s.Require().Equal(eventData.Title, createResp.Data.Title, "title mismatch")
-	s.Require().Equal(eventData.Description, createResp.Data.Description, "description mismatch")
-	s.Require().Equal(eventData.UserID, createResp.Data.UserID, "user ID mismatch")
-	s.Require().NotEmpty(createResp.Data.Datetime, "expected non-empty datetime, but got an empty one")
-	expectedDuration, _ := time.ParseDuration(eventData.Duration)
-	gotDuration, err := time.ParseDuration(createResp.Data.Duration)
-	s.Require().NoError(err, "parsing duration")
-	s.Require().Equal(expectedDuration, gotDuration, "duration mismatch")
-	if eventData.RemindIn != "" && eventData.RemindIn != "0s" {
-		expectedDuration, _ := time.ParseDuration(eventData.RemindIn)
-		gotDuration, err := time.ParseDuration(createResp.Data.RemindIn)
-		s.Require().NoError(err, "parsing remind_in")
-		s.Require().Equal(expectedDuration, gotDuration, "remind_in mismatch")
-	} else {
-		s.Require().Truef(
-			createResp.Data.RemindIn == "" || createResp.Data.RemindIn == "0s",
-			"expected empty remind_in, but got %s", createResp.Data.RemindIn,
-		)
-	}
+	s.validateResponseEvent(respBody, eventData, nil, true)
 }
 
 // deleteTestEvent is a helper which deletes the event with the given ID.
@@ -252,24 +276,7 @@ func (s *CalendarIntegrationSuite) deleteTestEvent(id string, expectedStatus int
 
 	// Create the HTTP request.
 	url := fmt.Sprintf("%s/events/%s", calendarServiceBaseURL, id)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, url, bytes.NewBuffer(requestDataBytes))
-	s.Require().NoError(err, "creating delete request")
-	req.Header.Set("Content-Type", "application/json")
-
-	// Perform the request.
-	resp, err := s.client.Do(req)
-	s.Require().NoError(err, "HTTP request failed")
-	defer func() {
-		// Ensure the response body is closed to prevent resource leaks.
-		if resp != nil && resp.Body != nil {
-			_, _ = io.Copy(io.Discard, resp.Body) // Discard any remaining response body.
-			resp.Body.Close()
-		}
-	}()
-
-	respBody, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err, "reading response body")
-	s.Require().Equal(expectedStatus, resp.StatusCode, "status code mismatch with body: %s", string(respBody))
+	respBody := s.sendRequest(http.MethodDelete, url, requestDataBytes, expectedStatus)
 
 	// No following checks are needed.
 	if expectError {
@@ -291,63 +298,15 @@ func (s *CalendarIntegrationSuite) getTestEvent(id string, expectedStatus int, e
 
 	// Create the HTTP request.
 	url := fmt.Sprintf("%s/events/%s", calendarServiceBaseURL, id)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, bytes.NewBuffer(requestDataBytes))
-	s.Require().NoError(err, "creating get request")
-	req.Header.Set("Content-Type", "application/json")
-
-	// Perform the request.
-	resp, err := s.client.Do(req)
-	s.Require().NoError(err, "HTTP request failed")
-	defer func() {
-		// Ensure the response body is closed to prevent resource leaks.
-		if resp != nil && resp.Body != nil {
-			_, _ = io.Copy(io.Discard, resp.Body) // Discard any remaining response body.
-			resp.Body.Close()
-		}
-	}()
-
-	respBody, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err, "reading response body")
-	s.Require().Equal(expectedStatus, resp.StatusCode, "status code mismatch with body: %s", string(respBody))
+	respBody := s.sendRequest(http.MethodGet, url, requestDataBytes, expectedStatus)
 
 	// No following checks are needed.
 	if expectError || dataToCompare == nil {
 		return
 	}
 
-	type CreateEventResponse struct {
-		ID   string            `json:"id"`
-		Data ResponseEventData `json:"data"`
-	}
-	createResp := CreateEventResponse{}
-	err = json.Unmarshal(respBody, &createResp)
-	s.Require().NoError(err, "unmarshalling response body")
-
-	// Validate the returned event data matches what was sent (where applicable).
-	s.Require().NotEmpty(createResp.ID, "expected non-empty event ID, but got an empty one")
-
 	eventData := *dataToCompare
-	s.Require().Equal(eventData.Title, createResp.Data.Title, "title mismatch")
-	s.Require().Equal(eventData.Description, createResp.Data.Description, "description mismatch")
-	s.Require().Equal(eventData.UserID, createResp.Data.UserID, "user ID mismatch")
-	s.Require().NotEmpty(createResp.Data.Datetime, "expected non-empty datetime, but got an empty one")
-	expectedDuration, _ := time.ParseDuration(eventData.Duration)
-	gotDuration, err := time.ParseDuration(createResp.Data.Duration)
-	s.Require().NoError(err, "parsing duration")
-	s.Require().Equal(expectedDuration, gotDuration, "duration mismatch")
-	if eventData.RemindIn != "" && eventData.RemindIn != "0s" {
-		expectedDuration, _ := time.ParseDuration(eventData.RemindIn)
-		gotDuration, err := time.ParseDuration(createResp.Data.RemindIn)
-		s.Require().NoError(err, "parsing remind_in")
-		s.Require().Equal(expectedDuration, gotDuration, "remind_in mismatch")
-	} else {
-		s.Require().Truef(
-			createResp.Data.RemindIn == "" || createResp.Data.RemindIn == "0s",
-			"expected empty remind_in, but got %s", createResp.Data.RemindIn,
-		)
-	}
-
-	s.Require().NotEmptyf(respBody, "expected non-empty response body, but got an empty one: %s", string(respBody))
+	s.validateResponseEvent(respBody, eventData, &id, false)
 }
 
 // TestCreateEvent tests the POST /events endpoint.
