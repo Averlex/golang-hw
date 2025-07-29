@@ -481,6 +481,52 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 	}
 }
 
+// TestGetEvent tests the GET /events/{id} endpoint.
+func (s *CalendarIntegrationSuite) TestGetEvent() {
+	testCases := []struct {
+		name           string
+		id             string
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+		dataToCompare  *EventData
+	}{
+		{
+			name:           "valid_get",
+			id:             s.createdEvents[0],
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare: &EventData{
+				Title:       testEventsData[0].Title,
+				Datetime:    testEventsData[0].Datetime,
+				Duration:    testEventsData[0].Duration,
+				Description: testEventsData[0].Description,
+				UserID:      testEventsData[0].UserID,
+				RemindIn:    testEventsData[0].RemindIn,
+			},
+		},
+		{
+			name:           "invalid_id",
+			id:             "invalid_id",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "id_does_not_exist",
+			id:             "01234567-8901-2345-6789-012345678901",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			s.getTestEvent(tC.id, tC.expectedStatus, tC.expectError, tC.dataToCompare)
+		})
+	}
+}
+
 // TestCalendarIntegrationSuite runs the suite.
 func TestCalendarIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(CalendarIntegrationSuite))
