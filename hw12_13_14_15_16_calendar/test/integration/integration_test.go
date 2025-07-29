@@ -32,7 +32,91 @@ const (
 	defaultUserID      = "user123"
 	alternativeUserID  = "user456"
 	defaultRemindIn    = "1800s"
+
+	userSingleEventID     = "event_single_user"
+	userMultipleWeeklyID  = "event_multiple_weekly"
+	userMultipleMonthlyID = "event_multiple_monthly"
 )
+
+// testEventsData represents a set of test events designed to cover specific scenarios:
+// 1. A single event for one user.
+// 2. Multiple events for one user within a week.
+// 3. Multiple events for one user within a month, spanning different weeks.
+// All dates are hardcoded for reproducibility.
+// The datetime format conforms to RFC3339 as indicated in the swagger spec (format: date-time).
+var testEventsData []EventData = []EventData{
+	// Scenario: One user, one event.
+	{
+		Title:       "Single User Event",
+		Datetime:    "2025-08-15T10:00:00Z", // Friday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "This user has only one event.",
+		UserID:      userSingleEventID, // "event_single_user"
+		RemindIn:    defaultRemindIn,   // "1800s"
+	},
+	// Scenario: One user, multiple events in a week (week of 2025-08-16).
+	{
+		Title:       "User Weekly Event 1",
+		Datetime:    "2025-08-16T09:00:00Z", // Saturday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "First event of the week for this user.",
+		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
+		RemindIn:    defaultRemindIn,      // "1800s"
+	},
+	{
+		Title:       "User Weekly Event 2",
+		Datetime:    "2025-08-18T14:30:00Z", // Monday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "Second event of the week for this user.",
+		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
+		RemindIn:    defaultRemindIn,      // "1800s"
+	},
+	{
+		Title:       "User Weekly Event 3",
+		Datetime:    "2025-08-20T11:00:00Z", // Wednesday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "Third event of the week for this user.",
+		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
+		RemindIn:    defaultRemindIn,      // "1800s"
+	},
+	// Scenario: One user, multiple events in a month, different weeks (August 2025).
+	// Week 1: August 1 - August 7, 2025.
+	{
+		Title:       "User Monthly Event Week 1",
+		Datetime:    "2025-08-03T15:00:00Z", // Sunday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "Event in the first week of the month.",
+		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
+		RemindIn:    defaultRemindIn,       // "1800s"
+	},
+	// Week 2: August 8 - August 14, 2025.
+	{
+		Title:       "User Monthly Event Week 2",
+		Datetime:    "2025-08-11T10:30:00Z", // Monday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "Event in the second week of the month.",
+		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
+		RemindIn:    defaultRemindIn,       // "1800s"
+	},
+	// Week 3: August 15 - August 21, 2025.
+	{
+		Title:       "User Monthly Event Week 3",
+		Datetime:    "2025-08-19T13:45:00Z", // Tuesday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "Event in the third week of the month.",
+		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
+		RemindIn:    defaultRemindIn,       // "1800s"
+	},
+	// Week 4: August 22 - August 28, 2025.
+	{
+		Title:       "User Monthly Event Week 4",
+		Datetime:    "2025-08-25T16:00:00Z", // Monday
+		Duration:    defaultDuration,        // "3600s"
+		Description: "Event in the fourth week of the month.",
+		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
+		RemindIn:    defaultRemindIn,       // "1800s"
+	},
+}
 
 // EventData represents the data for a calendar event considering client side format.
 type EventData struct {
@@ -77,6 +161,9 @@ func (s *CalendarIntegrationSuite) TearDownSuite() {
 
 func (s *CalendarIntegrationSuite) SetupTest() {
 	s.createdEvents = make([]string, 0)
+	for _, event := range testEventsData {
+		s.createTestEvent(event, http.StatusOK, false)
+	}
 }
 
 func (s *CalendarIntegrationSuite) TearDownTest() {
@@ -87,6 +174,8 @@ func (s *CalendarIntegrationSuite) TearDownTest() {
 }
 
 // createTestEvent is a helpler that creates a new event with the given data.
+//
+// Method fills the inner s.createdEvents slice if the event was created successfully.
 func (s *CalendarIntegrationSuite) createTestEvent(eventData EventData, expectedStatus int, expectError bool) {
 	s.T().Helper()
 	eventDataBytes, err := json.Marshal(eventData)
