@@ -1011,6 +1011,10 @@ func (s *CalendarIntegrationSuite) TestScheduler_DatabaseCleanup() {
 		s.Run(tC.name, func() {
 			s.createTestEvent(tC.eventData, http.StatusOK, false)
 			id := s.createdEvents[len(s.createdEvents)-1]
+			// Expecting the process will handle deletion itself.
+			if tC.name == "old_event" {
+				s.createdEvents = s.createdEvents[:len(s.createdEvents)-1]
+			}
 			time.Sleep(3 * schedulerWaitInterval)
 			s.getTestEvent(id, tC.expectedStatus, tC.expectError, &tC.eventData)
 		})
