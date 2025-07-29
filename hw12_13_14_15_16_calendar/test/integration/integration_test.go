@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ var testEventsData []EventData = []EventData{
 	// Scenario: One user, one event.
 	{
 		Title:       "Single User Event",
-		Datetime:    "2035-08-15T10:00:00Z", // Friday
+		Datetime:    "2035-08-17T10:00:00Z", // Friday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "This user has only one event.",
 		UserID:      userSingleEventID, // "event_single_user"
@@ -60,16 +61,16 @@ var testEventsData []EventData = []EventData{
 	// Scenario: Another user, one event, same day.
 	{
 		Title:       "Alternative User Event",
-		Datetime:    "2035-08-15T12:00:00Z", // Friday
+		Datetime:    "2035-08-17T12:00:00Z", // Friday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "This user has only one event too.",
 		UserID:      alternativeUserID, // "event_single_user"
 		RemindIn:    defaultRemindIn,   // "1800s"
 	},
-	// Scenario: One user, multiple events in a week (week of 2035-08-16).
+	// Scenario: One user, multiple events in a week (week of 2035-08-18).
 	{
 		Title:       "User Weekly Event 1",
-		Datetime:    "2035-08-16T09:00:00Z", // Saturday
+		Datetime:    "2035-08-18T09:00:00Z", // Saturday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "First event of the week for this user.",
 		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
@@ -77,7 +78,7 @@ var testEventsData []EventData = []EventData{
 	},
 	{
 		Title:       "User Weekly Event 2",
-		Datetime:    "2035-08-18T14:30:00Z", // Monday
+		Datetime:    "2035-08-20T14:30:00Z", // Monday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Second event of the week for this user.",
 		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
@@ -85,44 +86,44 @@ var testEventsData []EventData = []EventData{
 	},
 	{
 		Title:       "User Weekly Event 3",
-		Datetime:    "2035-08-20T11:00:00Z", // Wednesday
+		Datetime:    "2035-08-22T11:00:00Z", // Wednesday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Third event of the week for this user.",
 		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
 		RemindIn:    defaultRemindIn,      // "1800s"
 	},
 	// Scenario: One user, multiple events in a month, different weeks (August 2035).
-	// Week 1: August 1 - August 7, 2035.
+	// Week 1: July 30 - August 5, 2035.
 	{
 		Title:       "User Monthly Event Week 1",
-		Datetime:    "2035-08-03T15:00:00Z", // Sunday
+		Datetime:    "2035-08-05T15:00:00Z", // Sunday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the first week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
 		RemindIn:    defaultRemindIn,       // "1800s"
 	},
-	// Week 2: August 8 - August 14, 2035.
+	// Week 3: August 13 - August 19, 2035.
 	{
 		Title:       "User Monthly Event Week 2",
-		Datetime:    "2035-08-11T10:30:00Z", // Monday
+		Datetime:    "2035-08-13T10:30:00Z", // Monday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the second week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
 		RemindIn:    defaultRemindIn,       // "1800s"
 	},
-	// Week 3: August 15 - August 21, 2035.
+	// Week 4: August 20 - August 26, 2035.
 	{
 		Title:       "User Monthly Event Week 3",
-		Datetime:    "2035-08-19T13:45:00Z", // Tuesday
+		Datetime:    "2035-08-21T13:45:00Z", // Tuesday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the third week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
 		RemindIn:    defaultRemindIn,       // "1800s"
 	},
-	// Week 4: August 22 - August 28, 2035.
+	// Week 5: August 27 - September 02, 2035.
 	{
 		Title:       "User Monthly Event Week 4",
-		Datetime:    "2035-08-25T16:00:00Z", // Monday
+		Datetime:    "2035-08-27T16:00:00Z", // Monday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the fourth week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
@@ -263,31 +264,47 @@ func (s *CalendarIntegrationSuite) validateResponseEvents(respBody []byte, event
 	s.Require().NoError(err, "unmarshalling response body")
 	s.Require().NotEmpty(resp, "expected non-empty response body, but got an empty one")
 
+	s.Require().Lenf(resp, len(eventsData), "number of events mismatch: expected %v, got %v", len(eventsData), len(resp))
+
 	for i, eventData := range eventsData {
 		// Validate the returned event data matches what was sent (where applicable).
 		if ids[i] != nil {
-			s.Require().Equal(*ids[i], resp[i].ID, "event ID mismatch")
+			// No guarantee that the returned order will be preserved as the source's one.
+			hasMatch := slices.Contains[[]string, string](s.createdEvents, *ids[i])
+			s.Require().Truef(hasMatch, "no match found for event ID: %s", *ids[i])
 		} else {
 			s.Require().NotEmpty(resp[i].ID, "expected non-empty event ID, but got an empty one")
 		}
 
-		s.Require().Equal(eventData.Title, resp[i].Data.Title, "title mismatch")
-		s.Require().Equal(eventData.Description, resp[i].Data.Description, "description mismatch")
-		s.Require().Equal(eventData.UserID, resp[i].Data.UserID, "user ID mismatch")
-		s.Require().NotEmpty(resp[i].Data.Datetime, "expected non-empty datetime, but got an empty one")
+		// Initial events order may also be different.
+		pos := -1
+		for j, event := range resp {
+			if event.Data.Title == eventData.Title {
+				pos = j
+				break
+			}
+		}
+		if pos < 0 {
+			s.Require().FailNow("unexpected event received")
+		}
+
+		s.Require().Equal(eventData.Title, resp[pos].Data.Title, "title mismatch")
+		s.Require().Equal(eventData.Description, resp[pos].Data.Description, "description mismatch")
+		s.Require().Equal(eventData.UserID, resp[pos].Data.UserID, "user ID mismatch")
+		s.Require().NotEmpty(resp[pos].Data.Datetime, "expected non-empty datetime, but got an empty one")
 		expectedDuration, _ := time.ParseDuration(eventData.Duration)
-		gotDuration, err := time.ParseDuration(resp[i].Data.Duration)
+		gotDuration, err := time.ParseDuration(resp[pos].Data.Duration)
 		s.Require().NoError(err, "parsing duration")
 		s.Require().Equal(expectedDuration, gotDuration, "duration mismatch")
 		if eventData.RemindIn != "" && eventData.RemindIn != "0s" {
 			expectedDuration, _ := time.ParseDuration(eventData.RemindIn)
-			gotDuration, err := time.ParseDuration(resp[i].Data.RemindIn)
+			gotDuration, err := time.ParseDuration(resp[pos].Data.RemindIn)
 			s.Require().NoError(err, "parsing remind_in")
 			s.Require().Equal(expectedDuration, gotDuration, "remind_in mismatch")
 		} else {
 			s.Require().Truef(
-				resp[i].Data.RemindIn == "" || resp[i].Data.RemindIn == "0s",
-				"expected empty remind_in, but got %s", resp[i].Data.RemindIn,
+				resp[pos].Data.RemindIn == "" || resp[pos].Data.RemindIn == "0s",
+				"expected empty remind_in, but got %s", resp[pos].Data.RemindIn,
 			)
 		}
 	}
@@ -578,6 +595,7 @@ func (s *CalendarIntegrationSuite) TestDeleteEvent() {
 	}
 }
 
+// TestUpdateEvent tests the PUT /events/{id} endpoint.
 func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 	testCases := []struct {
 		name           string
@@ -673,6 +691,7 @@ func (s *CalendarIntegrationSuite) TestUpdateEvent() {
 	}
 }
 
+// TestGetEventsForDay tests the GET /events/day?date={date}&userId={user_id} endpoint.
 func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
 	testCases := []struct {
 		name           string
@@ -686,7 +705,7 @@ func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
 		{
 			name:           "valid_get/one_event_one_user",
 			ids:            []*string{&s.createdEvents[0]},
-			datetime:       "2035-08-15T01:00:00Z", // Shifted testEventsData[0].Datetime value
+			datetime:       "2035-08-17T01:00:00Z", // Shifted testEventsData[0].Datetime value
 			userID:         testEventsData[0].UserID,
 			expectedStatus: http.StatusOK,
 			expectError:    false,
@@ -721,7 +740,7 @@ func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
 		},
 		{
 			name:           "invalid_get/events_not_found",
-			datetime:       "2055-08-15T04:00:00Z",
+			datetime:       "2055-08-17T04:00:00Z",
 			userID:         "",
 			expectedStatus: http.StatusNotFound,
 			expectError:    true,
@@ -729,7 +748,7 @@ func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
 		},
 		{
 			name:           "invalid_get/user_not_found",
-			datetime:       "2035-08-15T04:00:00Z", // Shifted testEventsData[0].Datetime value
+			datetime:       "2035-08-17T04:00:00Z", // Shifted testEventsData[0].Datetime value
 			userID:         "fictional_user_id",
 			expectedStatus: http.StatusNotFound,
 			expectError:    true,
@@ -745,6 +764,93 @@ func (s *CalendarIntegrationSuite) TestGetEventsForDay() {
 				userQueryParam = fmt.Sprintf("&userId=%s", tC.userID)
 			}
 			url := fmt.Sprintf("%s/events/day?date=%s%s", calendarServiceBaseURL, tC.datetime, userQueryParam)
+			respBody := s.sendRequest(http.MethodGet, url, nil, tC.expectedStatus)
+
+			// No following checks are needed.
+			if tC.expectError || len(tC.dataToCompare) == 0 {
+				return
+			}
+
+			s.validateResponseEvents(respBody, tC.dataToCompare, tC.ids)
+		})
+	}
+}
+
+// TestGetEventsForWeek tests the GET /events/week?date={date}&userId={user_id} endpoint.
+func (s *CalendarIntegrationSuite) TestGetEventsForWeek() {
+	testCases := []struct {
+		name           string
+		ids            []*string
+		datetime       string
+		userID         string
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+		dataToCompare  []EventData
+	}{
+		{
+			name:           "valid_get/one_event_one_user",
+			ids:            []*string{&s.createdEvents[0]},
+			datetime:       "2035-08-17T01:00:00Z", // Shifted testEventsData[0].Datetime value
+			userID:         testEventsData[0].UserID,
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare: func() []EventData {
+				event := testEventsData[0]
+				return []EventData{event}
+			}(),
+		},
+		{
+			name:           "valid_get/several_events_no_user",
+			ids:            []*string{&s.createdEvents[0], &s.createdEvents[1], &s.createdEvents[2], &s.createdEvents[6]},
+			datetime:       "2035-08-14T01:23:45Z", // Shifted testEventsData[0].Datetime value (Friday -> Tuesday)
+			userID:         "",
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare:  []EventData{testEventsData[0], testEventsData[1], testEventsData[2], testEventsData[6]},
+		},
+		{
+			name:           "valid_get/several_events_one_user",
+			ids:            []*string{&s.createdEvents[3], &s.createdEvents[4]},
+			datetime:       "2035-08-26T23:59:59Z", // Shifted testEventsData[3].Datetime value (Monday -> Sunday)
+			userID:         testEventsData[3].UserID,
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+			dataToCompare:  []EventData{testEventsData[3], testEventsData[4]},
+		},
+		{
+			name:           "invalid_get/invalid_request",
+			datetime:       "",
+			userID:         "",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "invalid_get/events_not_found",
+			datetime:       "2055-08-17T04:00:00Z",
+			userID:         "",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+		{
+			name:           "invalid_get/user_not_found",
+			datetime:       "2035-08-17T04:00:00Z", // Shifted testEventsData[0].Datetime value
+			userID:         "fictional_user_id",
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+			dataToCompare:  nil,
+		},
+	}
+
+	for _, tC := range testCases {
+		s.Run(tC.name, func() {
+			// Send the HTTP request.
+			var userQueryParam string
+			if tC.userID != "" {
+				userQueryParam = fmt.Sprintf("&userId=%s", tC.userID)
+			}
+			url := fmt.Sprintf("%s/events/week?date=%s%s", calendarServiceBaseURL, tC.datetime, userQueryParam)
 			respBody := s.sendRequest(http.MethodGet, url, nil, tC.expectedStatus)
 
 			// No following checks are needed.
