@@ -48,16 +48,16 @@ var testEventsData []EventData = []EventData{
 	// Scenario: One user, one event.
 	{
 		Title:       "Single User Event",
-		Datetime:    "2025-08-15T10:00:00Z", // Friday
+		Datetime:    "2035-08-15T10:00:00Z", // Friday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "This user has only one event.",
 		UserID:      userSingleEventID, // "event_single_user"
 		RemindIn:    defaultRemindIn,   // "1800s"
 	},
-	// Scenario: One user, multiple events in a week (week of 2025-08-16).
+	// Scenario: One user, multiple events in a week (week of 2035-08-16).
 	{
 		Title:       "User Weekly Event 1",
-		Datetime:    "2025-08-16T09:00:00Z", // Saturday
+		Datetime:    "2035-08-16T09:00:00Z", // Saturday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "First event of the week for this user.",
 		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
@@ -65,7 +65,7 @@ var testEventsData []EventData = []EventData{
 	},
 	{
 		Title:       "User Weekly Event 2",
-		Datetime:    "2025-08-18T14:30:00Z", // Monday
+		Datetime:    "2035-08-18T14:30:00Z", // Monday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Second event of the week for this user.",
 		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
@@ -73,44 +73,44 @@ var testEventsData []EventData = []EventData{
 	},
 	{
 		Title:       "User Weekly Event 3",
-		Datetime:    "2025-08-20T11:00:00Z", // Wednesday
+		Datetime:    "2035-08-20T11:00:00Z", // Wednesday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Third event of the week for this user.",
 		UserID:      userMultipleWeeklyID, // "event_multiple_weekly"
 		RemindIn:    defaultRemindIn,      // "1800s"
 	},
-	// Scenario: One user, multiple events in a month, different weeks (August 2025).
-	// Week 1: August 1 - August 7, 2025.
+	// Scenario: One user, multiple events in a month, different weeks (August 2035).
+	// Week 1: August 1 - August 7, 2035.
 	{
 		Title:       "User Monthly Event Week 1",
-		Datetime:    "2025-08-03T15:00:00Z", // Sunday
+		Datetime:    "2035-08-03T15:00:00Z", // Sunday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the first week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
 		RemindIn:    defaultRemindIn,       // "1800s"
 	},
-	// Week 2: August 8 - August 14, 2025.
+	// Week 2: August 8 - August 14, 2035.
 	{
 		Title:       "User Monthly Event Week 2",
-		Datetime:    "2025-08-11T10:30:00Z", // Monday
+		Datetime:    "2035-08-11T10:30:00Z", // Monday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the second week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
 		RemindIn:    defaultRemindIn,       // "1800s"
 	},
-	// Week 3: August 15 - August 21, 2025.
+	// Week 3: August 15 - August 21, 2035.
 	{
 		Title:       "User Monthly Event Week 3",
-		Datetime:    "2025-08-19T13:45:00Z", // Tuesday
+		Datetime:    "2035-08-19T13:45:00Z", // Tuesday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the third week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
 		RemindIn:    defaultRemindIn,       // "1800s"
 	},
-	// Week 4: August 22 - August 28, 2025.
+	// Week 4: August 22 - August 28, 2035.
 	{
 		Title:       "User Monthly Event Week 4",
-		Datetime:    "2025-08-25T16:00:00Z", // Monday
+		Datetime:    "2035-08-25T16:00:00Z", // Monday
 		Duration:    defaultDuration,        // "3600s"
 		Description: "Event in the fourth week of the month.",
 		UserID:      userMultipleMonthlyID, // "event_multiple_monthly"
@@ -136,13 +136,6 @@ type ResponseEventData struct {
 	Description string `json:"description"`
 	UserID      string `json:"userId"`
 	RemindIn    string `json:"remindIn"` // Duration string.
-}
-
-type testCase struct {
-	name           string
-	eventData      EventData
-	expectedStatus int
-	expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
 }
 
 type CalendarIntegrationSuite struct {
@@ -362,7 +355,12 @@ func (s *CalendarIntegrationSuite) TestCreateEvent() {
 	validFutureTime := time.Now().Add(24 * time.Hour)
 	invalidTime := "not-a-valid-date-time"
 
-	testCases := []testCase{
+	testCases := []struct {
+		name           string
+		eventData      EventData
+		expectedStatus int
+		expectError    bool // If true, we only check for non-2xx status or an error condition, not specific content.
+	}{
 		{
 			name: "valid_create/all_data",
 			eventData: EventData{
