@@ -37,7 +37,7 @@ down-clean:
 integration-tests-up:
 	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d
 
-integration-tests-rebuild:
+integration-tests-up-rebuild:
 	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d --build --force-recreate
 
 integration-tests-down:
