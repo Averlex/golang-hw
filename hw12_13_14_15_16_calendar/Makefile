@@ -34,6 +34,65 @@ down:
 down-clean:
 	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
+integration-tests:
+	@echo "=== Starting Integration Tests Environment ==="
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d --build --force-recreate
+	
+	@echo "=== Tests started, waiting 60s ==="
+	@sleep 60 # 1 min
+	@if ! docker logs integration-test > /tmp/integration_test_output.log 2>&1; then \
+		echo "Error: Command to start tests failed to execute."; \
+		exit 1; \
+	fi
+	
+	@echo "=== Printing Test Output ==="
+	@cat /tmp/integration_test_output.log || echo "Warning: Could not read test output log."
+	
+	@echo "=== Verifying test results ==="
+	@echo "=== Starting Sender Integration Test Script ==="
+	@cat /tmp/sender_test_output.log || echo "Warning: Could not read sender test output log."
+
+	@echo "=== FINAL INTEGRATION TEST SUMMARY ==="; \
+	TESTS_PASSED=0; \
+	SENDER_TEST_PASSED=0; \
+	if grep -q "^FAIL" /tmp/integration_test_output.log; then \
+		TESTS_PASSED=1; \
+	elif grep -q "^PASS" /tmp/integration_test_output.log; then \
+		TESTS_PASSED=0; \
+	else \
+		TESTS_PASSED=1; \
+	fi; \
+	if ! ./test/integration/sender_test.sh > /tmp/sender_test_output.log 2>&1; then \
+		SENDER_TEST_PASSED=1; \
+	else \
+		SENDER_TEST_PASSED=0; \
+	fi; \
+	if [ "$$TESTS_PASSED" -eq 0 ] && [ "$$SENDER_TEST_PASSED" -eq 0 ]; then \
+		echo "OVERALL RESULT: ALL INTEGRATION TESTS PASSED"; \
+		EXIT_CODE=0; \
+	else \
+		echo "OVERALL RESULT: SOME INTEGRATION TESTS FAILED"; \
+		if [ "$$TESTS_PASSED" -ne 0 ]; then \
+			echo "  - Container-based tests: FAILED"; \
+		else \
+			echo "  - Container-based tests: PASSED"; \
+		fi; \
+		if [ "$$SENDER_TEST_PASSED" -ne 0 ]; then \
+			echo "  - Sender test script: FAILED"; \
+		else \
+			echo "  - Sender test script: PASSED"; \
+		fi; \
+		EXIT_CODE=1; \
+	fi; \
+	echo "=== Integration Tests Finished ==="; \
+	echo "$$EXIT_CODE" > /tmp/integration_test_exit_code; \
+	exit $$EXIT_CODE
+
+	@echo "=== Cleaning Up Integration Tests Environment ==="
+	COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml down -v --remove-orphans --rmi all
+
+	@EXIT_CODE=$$(cat /tmp/integration_test_exit_code); exit $$EXIT_CODE
+
 integration-tests-up:
 	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d
 
@@ -182,17 +241,17 @@ setup-grpc:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
 setup-mockery:
-    GOBIN=$(TOOLS_DIR) go install github.com/vektra/mockery/v2@latest
+	GOBIN=$(TOOLS_DIR) go install github.com/vektra/mockery/v2@latest
 
 setup-goose:
-    GOBIN=$(TOOLS_DIR) go install github.com/pressly/goose/v3@v3.24.3
+	GOBIN=$(TOOLS_DIR) go install github.com/pressly/goose/v3@v3.24.3
 
 setup-jq:
 	@command -v jq >/dev/null 2>&1 || { \
-        echo "Installing jq..."; \
-        sudo apt-get update && sudo apt-get install -y jq; \
-        touch $(JQ_MARKER_FILE); \
-    }
+		echo "Installing jq..."; \
+		sudo apt-get update && sudo apt-get install -y jq; \
+		touch $(JQ_MARKER_FILE); \
+	}
 
 # --- Cleanup additional tools ---
 
@@ -221,15 +280,15 @@ clean-jq:
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
 .PHONY: up up-rebuild down down-clean \
-		integration-tests-up integration-tests-rebuild integration-tests-down integration-tests-down-clean \
+		integration-tests integration-tests-up integration-tests-rebuild integration-tests-down integration-tests-down-clean \
 		build build-calendar build-scheduler build-sender \
-        run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
-        run-third-party stop-third-party \
-        version help \
-        test test-fast test-cover \
-        install-lint-deps lint \
-        migrate migrate-up migrate-up-1 migrate-down-1 \
-        generate generate-mocks generate-grpc \
-        build-img run-img \
-        setup-tools setup-grpc setup-mockery setup-goose setup-jq \
-        clean-tools clean-grpc clean-mockery clean-goose clean-jq
+		run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
+		run-third-party stop-third-party \
+		version help \
+		test test-fast test-cover \
+		install-lint-deps lint \
+		migrate migrate-up migrate-up-1 migrate-down-1 \
+		generate generate-mocks generate-grpc \
+		build-img run-img \
+		setup-tools setup-grpc setup-mockery setup-goose setup-jq \
+		clean-tools clean-grpc clean-mockery clean-goose clean-jq
