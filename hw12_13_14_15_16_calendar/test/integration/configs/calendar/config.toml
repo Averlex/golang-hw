@@ -25,7 +25,7 @@ shutdown_timeout = "3s"                   # Time to gracefully shutdown. Values 
 type = "sql"                              # memory, sql
 
 [storage.sql]
-host = "database"
+host = "database-test"
 port = "5432"
 user = ""                               # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_USER
 password = ""                           # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_PASSWORD

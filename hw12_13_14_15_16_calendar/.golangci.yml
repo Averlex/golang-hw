@@ -1,6 +1,6 @@
 version: "2"
 run:
-  build-tags: []
+  build-tags: ["integration"]
   tests: true
 linters:
   default: none

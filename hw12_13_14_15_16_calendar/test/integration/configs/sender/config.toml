@@ -5,7 +5,7 @@ time_template = "02.01.2006 15:04:05.000" # Any valid time template. Default is 
 log_stream = "stdout"                     # stdout, stderr
 
 [rmq]
-host = "rabbitmq"                        
+host = "rabbitmq-test"                        
 port = "5672"                            
 user = ""                               # Better set with env. For the current structure use CALENDAR_RMQ_USER
 password = ""                           # Better set with env. For the current structure use CALENDAR_RMQ_PASSWORD

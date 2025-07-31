@@ -1,8 +1,8 @@
 [app]
 retries = 5                               # Any int. Values <= 0 are treated as no retries
 retry_timeout = "100ms"                   # Any duration. Values <= 0 are not supported
-queue_interval = "10s"                      # Any duration. Values <= 0 are not accepted
-cleanup_interval = "30s"                   # Any duration. Values <= 0 are not accepted
+queue_interval = "2s"                      # Any duration. Values <= 0 are not accepted
+cleanup_interval = "2s"                   # Any duration. Values <= 0 are not accepted
 
 [logger]
 level = "debug"                           # debug, info, warn, error
@@ -14,7 +14,7 @@ log_stream = "stdout"                     # stdout, stderr
 type = "sql"                              # sql
 
 [storage.sql]
-host = "database"
+host = "database-test"
 port = "5432"
 user = ""                               # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_USER
 password = ""                           # Better set with env. For the current structure use CALENDAR_STORAGE_SQL_PASSWORD
@@ -23,7 +23,7 @@ timeout = "500ms"                         # 0s means timeout will be disabled. V
 driver = "postgres"                       # Currently suppoted drivers: postgres, postgresql
 
 [rmq]
-host = "rabbitmq"                        
+host = "rabbitmq-test"                        
 port = "5672"                            
 user = ""                               # Better set with env. For the current structure use CALENDAR_RMQ_USER
 password = ""                           # Better set with env. For the current structure use CALENDAR_RMQ_PASSWORD
