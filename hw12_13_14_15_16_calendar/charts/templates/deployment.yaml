@@ -1,0 +1,145 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calendar-deployment
+  labels:
+    app: calendar
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: calendar
+  template:
+    metadata:
+      labels:
+        app: calendar
+    spec:
+      containers:
+        - name: calendar
+          image: calendar:latest
+          ports:
+            - containerPort: 8888
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CALENDAR_HTTP_HOST
+              value: "0.0.0.0"
+            - name: CALENDAR_HTTP_PORT
+              value: "8888"
+            - name: CALENDAR_GRPC_HOST
+              value: "localhost"
+            - name: CALENDAR_STORAGE_SQL_USER
+              value: "calendar_user"
+            - name: CALENDAR_STORAGE_SQL_PASSWORD
+              value: "calendar_pass"
+            - name: CALENDAR_STORAGE_SQL_DBNAME
+              value: "calendar"
+            - name: CALENDAR_STORAGE_SQL_HOST
+              value: "host.minikube.internal"
+            - name: CALENDAR_STORAGE_SQL_PORT
+              value: "9091"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /hello
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /hello
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-deployment
+  labels:
+    app: scheduler
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: scheduler
+  template:
+    metadata:
+      labels:
+        app: scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: scheduler:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CALENDAR_STORAGE_SQL_USER
+              value: "calendar_user"
+            - name: CALENDAR_STORAGE_SQL_PASSWORD
+              value: "calendar_pass"
+            - name: CALENDAR_STORAGE_SQL_DBNAME
+              value: "calendar"
+            - name: CALENDAR_STORAGE_SQL_HOST
+              value: "host.minikube.internal"
+            - name: CALENDAR_STORAGE_SQL_PORT
+              value: "9091"
+            - name: CALENDAR_RMQ_HOST
+              value: "host.minikube.internal"
+            - name: CALENDAR_RMQ_PORT
+              value: "9092"
+            - name: CALENDAR_RMQ_USER
+              value: "calendar_user"
+            - name: CALENDAR_RMQ_PASSWORD
+              value: "calendar_pass"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sender-deployment
+  labels:
+    app: sender
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sender
+  template:
+    metadata:
+      labels:
+        app: sender
+    spec:
+      containers:
+        - name: sender
+          image: sender:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CALENDAR_RMQ_HOST
+              value: "host.minikube.internal"
+            - name: CALENDAR_RMQ_PORT
+              value: "9092"
+            - name: CALENDAR_RMQ_USER
+              value: "calendar_user"
+            - name: CALENDAR_RMQ_PASSWORD
+              value: "calendar_pass"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
