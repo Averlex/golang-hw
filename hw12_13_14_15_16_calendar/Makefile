@@ -34,6 +34,15 @@ down:
 down-clean:
 	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
+up-infrastructure:
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml up -d
+
+down-infrastructure:
+	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml down
+
+down-infrastructure-clean:
+	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml down -v --remove-orphans --rmi all
+
 integration-tests:
 	@echo "=== Starting Integration Tests Environment ==="
 	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml up -d --build --force-recreate
@@ -105,6 +114,56 @@ integration-tests-down:
 integration-tests-down-clean:
 	COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
+# --- Kubernetes ---
+
+cluster-run: build-images minikube-start minikube-load kubectl-apply
+	echo "Cluster successfully started"
+
+cluster-stop:
+	minikube stop && \
+	echo "Cluster successfully stopped"
+
+cluster-delete:
+	minikube delete && \
+	echo "Cluster successfully deleted"
+
+build-images: build-calendar-img build-sender-img build-scheduler-img
+
+build-calendar-img:
+	LDFLAGS="$(LDFLAGS)" docker build -t calendar:latest -f ./build/Dockerfile.calendar .
+
+build-sender-img:
+	LDFLAGS="$(LDFLAGS)" docker build -t sender:latest -f ./build/Dockerfile.sender .
+
+build-scheduler-img:
+	LDFLAGS="$(LDFLAGS)" docker build -t scheduler:latest -f ./build/Dockerfile.scheduler .
+
+minikube-start:
+	minikube start --driver=docker && \
+	minikube addons enable ingress
+
+minikube-load: minikube-load-calendar minikube-load-sender minikube-load-scheduler
+
+minikube-load-calendar:
+	minikube image load calendar:latest
+
+minikube-load-sender:
+	minikube image load sender:latest
+
+minikube-load-scheduler:
+	minikube image load scheduler:latest
+
+kubectl-apply: kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress
+
+kubectl-apply-deployment:
+	kubectl apply -f ./charts/templates/deployment.yaml
+
+kubectl-apply-service:
+	kubectl apply -f ./charts/templates/service.yaml
+
+kubectl-apply-ingress:
+	kubectl apply -f ./charts/templates/ingress.yaml
+
 # --- Build and run ---
 build: build-calendar build-scheduler build-sender
 	@echo "Build completed successfully."
@@ -154,16 +213,6 @@ run-sender-json: build-sender setup-jq
 	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
 	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
 	$(SENDER_BIN) --config ./configs/sender/config.toml | jq -R 'fromjson?' 2>/dev/null
-
-
-# --- Database & RabbitMQ services ---
-
-# WARNING: docker-compose.yaml must be in sync with this Makefile
-run-third-party:
-	docker compose -f ./deployments/docker-compose.yaml up database rabbitmq -d
-
-stop-third-party:
-	docker compose -f ./deployments/docker-compose.yaml stop database rabbitmq
 
 # --- App CLI flags ---
 
@@ -280,10 +329,14 @@ clean-jq:
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
 .PHONY: up up-rebuild down down-clean \
+		up-infrastructure up-infrastructure-rebuild down-infrastructure down-infrastructure-clean \
+		cluster-run cluster-stop cluster-delete \
+		build-images build-calendar-img build-sender-img build-scheduler-img \
+		minikube-start minikube-load minikube-load-calendar minikube-load-sender minikube-load-scheduler \
+		kubectl-apply kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress \
 		integration-tests integration-tests-up integration-tests-rebuild integration-tests-down integration-tests-down-clean \
 		build build-calendar build-scheduler build-sender \
 		run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
-		run-third-party stop-third-party \
 		version help \
 		test test-fast test-cover \
 		install-lint-deps lint \
@@ -292,3 +345,4 @@ clean-jq:
 		build-img run-img \
 		setup-tools setup-grpc setup-mockery setup-goose setup-jq \
 		clean-tools clean-grpc clean-mockery clean-goose clean-jq
+		
