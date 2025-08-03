@@ -19,7 +19,8 @@ PROD_PROJECT_NAME := calendar-prod
 TEST_PROJECT_NAME := calendar-test
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
-LDFLAGS := -X main.release=\"v1.0.0\" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
+VERSION := "v1.0.0"
+LDFLAGS := -X main.release=$(VERSION) -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 # --- Docker compose ---
 up:
@@ -130,13 +131,13 @@ cluster-delete:
 build-images: build-calendar-img build-sender-img build-scheduler-img
 
 build-calendar-img:
-	LDFLAGS="$(LDFLAGS)" docker build -t calendar:latest -f ./build/Dockerfile.calendar .
+	LDFLAGS="$(LDFLAGS)" docker build -t calendar:$(VERSION) -f ./build/Dockerfile.calendar .
 
 build-sender-img:
-	LDFLAGS="$(LDFLAGS)" docker build -t sender:latest -f ./build/Dockerfile.sender .
+	LDFLAGS="$(LDFLAGS)" docker build -t sender:$(VERSION) -f ./build/Dockerfile.sender .
 
 build-scheduler-img:
-	LDFLAGS="$(LDFLAGS)" docker build -t scheduler:latest -f ./build/Dockerfile.scheduler .
+	LDFLAGS="$(LDFLAGS)" docker build -t scheduler:$(VERSION) -f ./build/Dockerfile.scheduler .
 
 minikube-start:
 	minikube start --driver=docker && \
@@ -145,24 +146,24 @@ minikube-start:
 minikube-load: minikube-load-calendar minikube-load-sender minikube-load-scheduler
 
 minikube-load-calendar:
-	minikube image load calendar:latest
+	minikube image load calendar:$(VERSION)
 
 minikube-load-sender:
-	minikube image load sender:latest
+	minikube image load sender:$(VERSION)
 
 minikube-load-scheduler:
-	minikube image load scheduler:latest
+	minikube image load scheduler:$(VERSION)
 
 kubectl-apply: kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress
 
 kubectl-apply-deployment:
-	kubectl apply -f ./charts/templates/deployment.yaml
+	kubectl apply -f ./helm_charts/templates/deployment.yaml
 
 kubectl-apply-service:
-	kubectl apply -f ./charts/templates/service.yaml
+	kubectl apply -f ./helm_charts/templates/service.yaml
 
 kubectl-apply-ingress:
-	kubectl apply -f ./charts/templates/ingress.yaml
+	kubectl apply -f ./helm_charts/templates/ingress.yaml
 
 # --- Build and run ---
 build: build-calendar build-scheduler build-sender
