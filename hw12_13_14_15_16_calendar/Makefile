@@ -19,7 +19,7 @@ PROD_PROJECT_NAME := calendar-prod
 TEST_PROJECT_NAME := calendar-test
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
-VERSION := "v1.0.0"
+VERSION := v1.0.0
 LDFLAGS := -X main.release=$(VERSION) -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 # --- Docker compose ---
@@ -35,13 +35,16 @@ down:
 down-clean:
 	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
-up-infrastructure:
+infrastructure-up:
 	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml up -d
 
-down-infrastructure:
+infrastructure-up-rebuild:
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml up -d --build --force-recreate
+
+infrastructure-down:
 	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml down
 
-down-infrastructure-clean:
+infrastructure-down-clean:
 	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml down -v --remove-orphans --rmi all
 
 integration-tests:
@@ -117,14 +120,17 @@ integration-tests-down-clean:
 
 # --- Kubernetes ---
 
-cluster-run: build-images minikube-start minikube-load kubectl-apply
+cluster-run: infrastructure-up build-images minikube-start minikube-load kubectl-apply
 	echo "Cluster successfully started"
 
-cluster-stop:
+chart-run: infrastructure-up build-images minikube-start minikube-load helm-apply
+
+cluster-stop: infrastructure-down
 	minikube stop && \
 	echo "Cluster successfully stopped"
 
-cluster-delete:
+# --- Note: this command will delete only cluster resources, not the infrastructure with its volumes ---
+cluster-delete: infrastructure-down
 	minikube delete && \
 	echo "Cluster successfully deleted"
 
@@ -153,6 +159,9 @@ minikube-load-sender:
 
 minikube-load-scheduler:
 	minikube image load scheduler:$(VERSION)
+
+helm-apply:
+	helm install calendar-$(VERSION) ./helm_charts
 
 kubectl-apply: kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress
 
@@ -330,8 +339,9 @@ clean-jq:
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
 .PHONY: up up-rebuild down down-clean \
-		up-infrastructure up-infrastructure-rebuild down-infrastructure down-infrastructure-clean \
+		infrastructure-up infrastructure-up-rebuild infrastructure-down infrastructure-down-clean \
 		cluster-run cluster-stop cluster-delete \
+		chart-run helm-apply \
 		build-images build-calendar-img build-sender-img build-scheduler-img \
 		minikube-start minikube-load minikube-load-calendar minikube-load-sender minikube-load-scheduler \
 		kubectl-apply kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress \

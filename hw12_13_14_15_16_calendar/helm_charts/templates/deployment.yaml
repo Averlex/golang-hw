@@ -6,7 +6,7 @@ metadata:
   labels:
     app: calendar
 spec:
-  replicas: 5
+  replicas: {{ .Values.replicaCount.calendar }}
   selector:
     matchLabels:
       app: calendar
@@ -17,46 +17,50 @@ spec:
     spec:
       containers:
         - name: calendar
-          image: calendar:latest
+          image: "{{ .Values.image.calendar.repository }}:{{ .Values.image.calendar.tag }}"
           ports:
-            - containerPort: 8888
-          imagePullPolicy: IfNotPresent
+            - containerPort: {{ .Values.service.calendar.port | int }}
+          imagePullPolicy: {{ .Values.image.calendar.pullPolicy }}
           env:
-            - name: CALENDAR_HTTP_HOST
-              value: "0.0.0.0"
-            - name: CALENDAR_HTTP_PORT
-              value: "8888"
-            - name: CALENDAR_GRPC_HOST
-              value: "localhost"
-            - name: CALENDAR_STORAGE_SQL_USER
-              value: "calendar_user"
-            - name: CALENDAR_STORAGE_SQL_PASSWORD
-              value: "calendar_pass"
-            - name: CALENDAR_STORAGE_SQL_DBNAME
-              value: "calendar"
-            - name: CALENDAR_STORAGE_SQL_HOST
-              value: "host.minikube.internal"
-            - name: CALENDAR_STORAGE_SQL_PORT
-              value: "9091"
+            - name: {{ .Values.envNames.calendar.httpHost }}
+              value: "{{ .Values.env.calendar.httpHost }}"
+            - name: {{ .Values.envNames.calendar.httpPort }}
+              value: "{{ .Values.env.calendar.httpPort }}"
+            - name: {{ .Values.envNames.calendar.grpcHost }}
+              value: "{{ .Values.env.calendar.grpcHost }}"
+            - name: {{ .Values.envNames.calendar.storageSqlUser }}
+              value: "{{ .Values.env.calendar.storageSqlUser }}"
+            - name: {{ .Values.envNames.calendar.storageSqlPassword }}
+              value: "{{ .Values.env.calendar.storageSqlPassword }}"
+            - name: {{ .Values.envNames.calendar.storageSqlDbname }}
+              value: "{{ .Values.env.calendar.storageSqlDbname }}"
+            - name: {{ .Values.envNames.calendar.storageSqlHost }}
+              value: "{{ .Values.env.calendar.storageSqlHost }}"
+            - name: {{ .Values.envNames.calendar.storageSqlPort }}
+              value: "{{ .Values.env.calendar.storageSqlPort }}"
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
             limits:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
           livenessProbe:
             httpGet:
-              path: /hello
-              port: 8888
-            initialDelaySeconds: 30
-            periodSeconds: 10
+              path: {{ .Values.probes.calendar.liveness.path }}
+              port: {{ .Values.service.calendar.port | int }}
+            initialDelaySeconds:
+              {{ .Values.probes.calendar.liveness.initialDelaySeconds }}
+            periodSeconds:
+              {{ .Values.probes.calendar.liveness.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: /hello
-              port: 8888
-            initialDelaySeconds: 30
-            periodSeconds: 5
+              path: {{ .Values.probes.calendar.readiness.path }}
+              port: {{ .Values.service.calendar.port | int }}
+            initialDelaySeconds:
+              {{ .Values.probes.calendar.readiness.initialDelaySeconds }}
+            periodSeconds:
+              {{ .Values.probes.calendar.readiness.periodSeconds }}
 
 ---
 apiVersion: apps/v1
@@ -66,7 +70,7 @@ metadata:
   labels:
     app: scheduler
 spec:
-  replicas: 3
+  replicas: {{ .Values.replicaCount.scheduler }}
   selector:
     matchLabels:
       app: scheduler
@@ -77,34 +81,34 @@ spec:
     spec:
       containers:
         - name: scheduler
-          image: scheduler:latest
-          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.image.scheduler.repository }}:{{ .Values.image.scheduler.tag }}"
+          imagePullPolicy: {{ .Values.image.scheduler.pullPolicy }}
           env:
             - name: CALENDAR_STORAGE_SQL_USER
-              value: "calendar_user"
+              value: "{{ .Values.env.scheduler.storageSqlUser }}"
             - name: CALENDAR_STORAGE_SQL_PASSWORD
-              value: "calendar_pass"
+              value: "{{ .Values.env.scheduler.storageSqlPassword }}"
             - name: CALENDAR_STORAGE_SQL_DBNAME
-              value: "calendar"
+              value: "{{ .Values.env.scheduler.storageSqlDbname }}"
             - name: CALENDAR_STORAGE_SQL_HOST
-              value: "host.minikube.internal"
+              value: "{{ .Values.env.scheduler.storageSqlHost }}"
             - name: CALENDAR_STORAGE_SQL_PORT
-              value: "9091"
+              value: "{{ .Values.env.scheduler.storageSqlPort }}"
             - name: CALENDAR_RMQ_HOST
-              value: "host.minikube.internal"
+              value: "{{ .Values.env.scheduler.rmqHost }}"
             - name: CALENDAR_RMQ_PORT
-              value: "9092"
+              value: "{{ .Values.env.scheduler.rmqPort }}"
             - name: CALENDAR_RMQ_USER
-              value: "calendar_user"
+              value: "{{ .Values.env.scheduler.rmqUser }}"
             - name: CALENDAR_RMQ_PASSWORD
-              value: "calendar_pass"
+              value: "{{ .Values.env.scheduler.rmqPassword }}"
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
             limits:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
 
 ---
 apiVersion: apps/v1
@@ -114,7 +118,7 @@ metadata:
   labels:
     app: sender
 spec:
-  replicas: 3
+  replicas: {{ .Values.replicaCount.sender }}
   selector:
     matchLabels:
       app: sender
@@ -125,21 +129,21 @@ spec:
     spec:
       containers:
         - name: sender
-          image: sender:latest
-          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.image.sender.repository }}:{{ .Values.image.sender.tag }}"
+          imagePullPolicy: {{ .Values.image.sender.pullPolicy }}
           env:
             - name: CALENDAR_RMQ_HOST
-              value: "host.minikube.internal"
+              value: "{{ .Values.env.sender.rmqHost }}"
             - name: CALENDAR_RMQ_PORT
-              value: "9092"
+              value: "{{ .Values.env.sender.rmqPort }}"
             - name: CALENDAR_RMQ_USER
-              value: "calendar_user"
+              value: "{{ .Values.env.sender.rmqUser }}"
             - name: CALENDAR_RMQ_PASSWORD
-              value: "calendar_pass"
+              value: "{{ .Values.env.sender.rmqPassword }}"
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
             limits:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
