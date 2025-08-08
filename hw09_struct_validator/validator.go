@@ -1,17 +1,8 @@
+// Package hw09structvalidator implements a struct validator and its error types.
 package hw09structvalidator
 
-type ValidationError struct {
-	Field string
-	Err   error
-}
-
-type ValidationErrors []ValidationError
-
-func (v ValidationErrors) Error() string {
-	panic("implement me")
-}
-
-func Validate(v interface{}) error {
+// Validate validates the given value.
+func Validate(_ interface{}) error {
 	// Place your code here.
 	return nil
 }
