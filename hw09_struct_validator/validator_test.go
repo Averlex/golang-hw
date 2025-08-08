@@ -97,8 +97,8 @@ func TestValidate(t *testing.T) {
 		},
 	}
 
-	for i, tt := range tests {
-		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run("common valid case", func(t *testing.T) {
 			tt := tt
 			t.Parallel()
 
