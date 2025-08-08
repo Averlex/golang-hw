@@ -435,7 +435,9 @@ func TestValidate_ValidationErrors(t *testing.T) {
 			if errors.As(tC.expectedErr, &validationErrs) {
 				var gotErrs ValidationErrors
 				require.ErrorAs(t, err, &gotErrs, "expected ValidationErrors")
-				require.Len(t, gotErrs, len(validationErrs), "unexpected number of validation errors: %d, expected: %d", len(gotErrs), len(validationErrs))
+				require.Len(t, gotErrs, len(validationErrs),
+					"unexpected number of validation errors: %d, expected: %d", len(gotErrs), len(validationErrs),
+				)
 				fieldErrCount := make(map[string]int)
 				for _, err := range validationErrs {
 					fieldErrCount[err.Field]++
