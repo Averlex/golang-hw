@@ -54,7 +54,7 @@ func (v ValidationErrors) Error() string {
 	return strings.Join(messages, "; ")
 }
 
-// Add adds a new ValidationError to the slice.
+// Add adds a new ValidationError to the slice. Returns a new slice instead of modifying the original.
 func (v ValidationErrors) Add(field string, err error) ValidationErrors {
 	if err != nil {
 		v = append(v, ValidationError{Field: field, Err: err})
