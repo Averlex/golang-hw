@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// ErrInvalidData is returned when invalid data is passed to any of the fields or its tags.
+var ErrInvalidData = errors.New("unable to validate data")
+
 // ValidationError is an error type for validation errors.
 type ValidationError struct {
 	Field string

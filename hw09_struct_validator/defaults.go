@@ -4,18 +4,27 @@ const (
 	lookupTag = "validate"
 
 	nestedTag = "nested"
+
+	tagLimit       = 3 // Max number of tags equals to the number of possible different tags.
+	cmdPartsNumber = 2 // Number of parts for each command. For example, "len:5" has 2 parts, same as "in:1,10,20".
+
+	lenCmd    = "len"
+	regexpCmd = "regexp"
+	minCmd    = "min"
+	maxCmd    = "max"
+	inCmd     = "in"
 )
 
 var (
-	stringTags = []string{
-		"len",
-		"regexp",
-		"in",
+	stringCommands = []string{
+		lenCmd,
+		regexpCmd,
+		inCmd,
 	}
 
-	intTags = []string{
-		"min",
-		"max",
-		"in",
+	intCommands = []string{
+		minCmd,
+		maxCmd,
+		inCmd,
 	}
 )
