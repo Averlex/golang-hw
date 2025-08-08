@@ -133,6 +133,10 @@ func TestValidate(t *testing.T) {
 }
 
 func TestValidate_Success(t *testing.T) {
+	type ManyInValues struct {
+		Value int `validate:"in:200,404,500,600"`
+	}
+
 	testCases := []struct {
 		name        string
 		in          interface{}
@@ -213,6 +217,12 @@ func TestValidate_Success(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
+
+		{
+			name:        "big slice for in command",
+			in:          ManyInValues{Value: 200},
+			expectedErr: nil,
+		},
 	}
 
 	for _, tC := range testCases {
@@ -238,7 +248,7 @@ func TestValidate_ProgramErrors(t *testing.T) {
 		Value int `validate:"len:5"`
 	}
 	type TooManyRules struct {
-		Value int `validate:"in:200,404,500,600"`
+		Value int `validate:"len:200,404,500,600"`
 	}
 	type PartiallyValidTags struct {
 		Value string `validate:"len:5|unknown:xyz"`
@@ -280,11 +290,6 @@ func TestValidate_ProgramErrors(t *testing.T) {
 			expectedErr: ErrInvalidData,
 		},
 		{
-			name:        "too many rules",
-			in:          TooManyRules{Value: 200},
-			expectedErr: ErrInvalidData,
-		},
-		{
 			name:        "partially valid tags",
 			in:          PartiallyValidTags{Value: "valid"},
 			expectedErr: ErrInvalidData,
@@ -297,6 +302,11 @@ func TestValidate_ProgramErrors(t *testing.T) {
 		{
 			name:        "duplicate tag",
 			in:          DuplicateTag{Value: 15},
+			expectedErr: ErrInvalidData,
+		},
+		{
+			name:        "too many rules",
+			in:          TooManyRules{Value: 42},
 			expectedErr: ErrInvalidData,
 		},
 	}
