@@ -59,7 +59,8 @@ func Validate(data any) error {
 			count := 0
 			for item := range fieldVal.Seq() {
 				count++
-				switch item.Type().Kind() {
+				tmp := item.Type().Kind()
+				switch tmp {
 				case reflect.Int:
 					intVals = append(intVals, int(item.Int()))
 				case reflect.String:
@@ -125,6 +126,10 @@ func Validate(data any) error {
 //
 // If the error is not critical, returns (nil, errs, false).
 func isCriticalError(err error) (ValidationErrors, bool, error) {
+	if err == nil {
+		return nil, false, nil
+	}
+
 	// Not recoverable program error occurred somewhere during validation.
 	if errors.Is(err, ErrInvalidData) {
 		return nil, true, err
