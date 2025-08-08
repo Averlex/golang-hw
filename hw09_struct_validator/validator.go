@@ -21,6 +21,10 @@ func Validate(data any) error {
 	}
 
 	val := reflect.ValueOf(data)
+	// Extract concrete value if data is an interface.
+	if val.Kind() == reflect.Interface {
+		val = val.Elem()
+	}
 	if val.Kind() != reflect.Struct {
 		return fmt.Errorf("%w: expected struct, got %s", ErrInvalidData, val.Kind().String())
 	}
@@ -45,8 +49,8 @@ func Validate(data any) error {
 
 		// Extracting concrete value and type if the field is an interface.
 		if kind == reflect.Interface {
+			fieldVal = fieldVal.Elem()
 			kind = fieldVal.Type().Kind()
-			fieldVal = reflect.ValueOf(fieldVal.Interface())
 		}
 
 		// If the field is a slice, check if it is a slice full of strings or integers.
@@ -57,17 +61,22 @@ func Validate(data any) error {
 		switch kind {
 		case reflect.Slice:
 			count := 0
-			for item := range fieldVal.Seq() {
+			for i := range fieldVal.Len() {
 				count++
-				tmp := item.Type().Kind()
-				switch tmp {
+				elem := fieldVal.Index(i)
+				elemKind := elem.Type().Kind()
+				if elemKind == reflect.Interface {
+					elem = elem.Elem()
+					elemKind = elem.Type().Kind()
+				}
+				switch elemKind {
 				case reflect.Int:
-					intVals = append(intVals, int(item.Int()))
+					intVals = append(intVals, int(elem.Int()))
 				case reflect.String:
-					stringVals = append(stringVals, item.String())
+					stringVals = append(stringVals, elem.String())
 				}
 			}
-			if count != len(intVals) || count != len(stringVals) {
+			if count != len(intVals) && count != len(stringVals) {
 				isValidSlice = false
 			}
 		// For string and int types: perform the conversion T -> []T for helper compatibility.
@@ -110,6 +119,15 @@ func Validate(data any) error {
 			if len(intErrs) > 0 {
 				errs = append(errs, intErrs...)
 			}
+		// The field is an empty slice, so it should be valid either as []int or []string.
+		// If it is not, then it is an error.
+		case isValidSlice && len(stringVals) == 0 && len(intVals) == 0:
+			intErr := validateInts(intVals, field.Name, tag)
+			stringErr := validateStrings(stringVals, field.Name, tag)
+			if intErr != nil && stringErr != nil {
+				return fmt.Errorf("%w: unable to detect type %s: field=%q", ErrInvalidData, kind.String(), field.Name)
+			}
+			return nil
 		default:
 			return fmt.Errorf("%w: unsupported type %s: field=%q", ErrInvalidData, kind.String(), field.Name)
 		}
