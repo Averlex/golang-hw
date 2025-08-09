@@ -1,6 +1,6 @@
 module github.com/Averlex/golang-hw/hw09_struct_validator
 
-go 1.24.2
+go 1.23
 
 require github.com/stretchr/testify v1.10.0
 
