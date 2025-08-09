@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -28,116 +26,117 @@ func Validate(data any) error {
 	if val.Kind() != reflect.Struct {
 		return fmt.Errorf("%w: expected struct, got %s", ErrInvalidData, val.Kind().String())
 	}
+
+	var errs ValidationErrors
 	typ := val.Type()
-
-	errs := make(ValidationErrors, 0)
-	for i := range typ.NumField() {
-		field := typ.Field(i)
-		fieldVal := val.Field(i)
-
-		tag, ok := field.Tag.Lookup(lookupTag)
-		// Skipping the field if it has no tag.
-		if !ok {
-			continue
-		}
-		// Empty tag is not valid.
-		if tag == "" {
-			return fmt.Errorf("%w: received an empty tag: field=%q", ErrInvalidData, field.Name)
-		}
-
-		kind := field.Type.Kind()
-
-		// Extracting concrete value and type if the field is an interface.
-		if kind == reflect.Interface {
-			fieldVal = fieldVal.Elem()
-			kind = fieldVal.Type().Kind()
-		}
-
-		// If the field is a slice, check if it is a slice full of strings or integers.
-		intVals := make([]int, 0)
-		stringVals := make([]string, 0)
-		isValidSlice := true
-		//nolint:exhaustive
-		switch kind {
-		case reflect.Slice:
-			count := 0
-			for i := range fieldVal.Len() {
-				count++
-				elem := fieldVal.Index(i)
-				elemKind := elem.Type().Kind()
-				if elemKind == reflect.Interface {
-					elem = elem.Elem()
-					elemKind = elem.Type().Kind()
-				}
-				switch elemKind {
-				case reflect.Int:
-					intVals = append(intVals, int(elem.Int()))
-				case reflect.String:
-					stringVals = append(stringVals, elem.String())
-				}
+	for i := 0; i < typ.NumField(); i++ {
+		if err := validateField(typ.Field(i), val.Field(i)); err != nil {
+			if fieldErrs, critical, err := isCriticalError(err); critical {
+				return fmt.Errorf("%w: field=%q", err, typ.Field(i).Name)
+			} else if len(fieldErrs) > 0 {
+				errs = append(errs, fieldErrs...)
 			}
-			if count != len(intVals) && count != len(stringVals) {
-				isValidSlice = false
-			}
-		// For string and int types: perform the conversion T -> []T for helper compatibility.
-		case reflect.String:
-			stringVals = append(stringVals, fieldVal.String())
-		case reflect.Int:
-			intVals = append(intVals, int(fieldVal.Int()))
-		}
-
-		// Perform the final kind check.
-		switch {
-		case kind == reflect.Struct:
-			// We have a nested struct with 'validate' tag, but it's value is not 'nested'.
-			if tag != nestedTag {
-				return fmt.Errorf("%w: expected %q tag, got %q: field=%q", ErrInvalidData, nestedTag, tag, field.Name)
-			}
-			err := Validate(fieldVal.Interface())
-			nestedErrs, isCritical, err := isCriticalError(err)
-			if isCritical {
-				return fmt.Errorf("%w: field=%q", err, field.Name)
-			}
-			if len(nestedErrs) > 0 {
-				errs = append(errs, nestedErrs...)
-			}
-		case isValidSlice && len(stringVals) > 0:
-			err := validateStrings(stringVals, field.Name, tag)
-			stringErrs, isCritical, err := isCriticalError(err)
-			if isCritical {
-				return err
-			}
-			if len(stringErrs) > 0 {
-				errs = append(errs, stringErrs...)
-			}
-		case isValidSlice && len(intVals) > 0:
-			err := validateInts(intVals, field.Name, tag)
-			intErrs, isCritical, err := isCriticalError(err)
-			if isCritical {
-				return fmt.Errorf("%w: field=%q", err, field.Name)
-			}
-			if len(intErrs) > 0 {
-				errs = append(errs, intErrs...)
-			}
-		// The field is an empty slice, so it should be valid either as []int or []string.
-		// If it is not, then it is an error.
-		case isValidSlice && len(stringVals) == 0 && len(intVals) == 0:
-			intErr := validateInts(intVals, field.Name, tag)
-			stringErr := validateStrings(stringVals, field.Name, tag)
-			if intErr != nil && stringErr != nil {
-				return fmt.Errorf("%w: unable to detect type %s: field=%q", ErrInvalidData, kind.String(), field.Name)
-			}
-			return nil
-		default:
-			return fmt.Errorf("%w: unsupported type %s: field=%q", ErrInvalidData, kind.String(), field.Name)
 		}
 	}
 
 	if len(errs) > 0 {
 		return errs
 	}
-
 	return nil
+}
+
+// validateField validates a single struct field based on its tag and type.
+func validateField(field reflect.StructField, fieldVal reflect.Value) error {
+	tag, ok := field.Tag.Lookup(lookupTag)
+	// Skipping the field if it has no tag.
+	if !ok {
+		return nil
+	}
+	// Empty tag is not valid.
+	if tag == "" {
+		return fmt.Errorf("%w: received an empty tag: field=%q", ErrInvalidData, field.Name)
+	}
+
+	kind := field.Type.Kind()
+	// Extracting concrete value and type if the field is an interface.
+	if kind == reflect.Interface {
+		fieldVal = fieldVal.Elem()
+		kind = fieldVal.Type().Kind()
+	}
+
+	//nolint:exhaustive
+	switch kind {
+	case reflect.Struct:
+		return validateNestedStruct(fieldVal, field.Name, tag)
+	case reflect.Slice:
+		return validateSlice(fieldVal, field.Name, tag)
+	case reflect.String:
+		return validateStrings([]string{fieldVal.String()}, field.Name, tag)
+	case reflect.Int:
+		return validateInts([]int{int(fieldVal.Int())}, field.Name, tag)
+	default:
+		return fmt.Errorf("%w: unsupported type %s: field=%q", ErrInvalidData, kind.String(), field.Name)
+	}
+}
+
+// validateNestedStruct validates a nested struct field.
+func validateNestedStruct(fieldVal reflect.Value, fieldName, tag string) error {
+	if tag != nestedTag {
+		return fmt.Errorf("%w: expected %q tag, got %q: field=%q", ErrInvalidData, nestedTag, tag, fieldName)
+	}
+	return Validate(fieldVal.Interface())
+}
+
+// validateSlice validates a slice field of strings or integers.
+func validateSlice(fieldVal reflect.Value, fieldName, tag string) error {
+	intVals, stringVals, err := extractSliceValues(fieldVal)
+	if err != nil {
+		return fmt.Errorf("%w: field=%q", err, fieldName)
+	}
+
+	if len(intVals) > 0 {
+		return validateInts(intVals, fieldName, tag)
+	}
+	if len(stringVals) > 0 {
+		return validateStrings(stringVals, fieldName, tag)
+	}
+	// Empty slice validation: try both int and string validations.
+	intErr := validateInts(intVals, fieldName, tag)
+	stringErr := validateStrings(stringVals, fieldName, tag)
+	if intErr != nil && stringErr != nil {
+		return fmt.Errorf(
+			"%w: unable to detect type %s: field=%q",
+			ErrInvalidData, fieldVal.Type().Kind().String(), fieldName,
+		)
+	}
+	return nil
+}
+
+// extractSliceValues extracts integer or string values from a slice.
+func extractSliceValues(fieldVal reflect.Value) ([]int, []string, error) {
+	intVals := make([]int, 0)
+	stringVals := make([]string, 0)
+	for i := 0; i < fieldVal.Len(); i++ {
+		elem := fieldVal.Index(i)
+		elemKind := elem.Type().Kind()
+		if elemKind == reflect.Interface {
+			elem = elem.Elem()
+			elemKind = elem.Type().Kind()
+		}
+		//nolint:exhaustive
+		switch elemKind {
+		case reflect.Int:
+			intVals = append(intVals, int(elem.Int()))
+		case reflect.String:
+			stringVals = append(stringVals, elem.String())
+		default:
+			return nil, nil, fmt.Errorf("%w: unsupported slice element type %s", ErrInvalidData, elemKind.String())
+		}
+	}
+	if len(intVals) > 0 && len(stringVals) > 0 {
+		return nil, nil, fmt.Errorf("%w: mixed types in slice", ErrInvalidData)
+	}
+	return intVals, stringVals, nil
 }
 
 // isCriticalError checks if the error is critical and returns (err, nil, true) if so.
@@ -161,149 +160,6 @@ func isCriticalError(err error) (ValidationErrors, bool, error) {
 	return errs, false, nil
 }
 
-// validateStrings checks if the commands and instructions for the tag of the field.
-// If any of the commands or instructions is invalid, returns a wrapped ErrInvalidData error.
-//
-// Returns nil if the data is valid or ValidationErrors if not.
-//
-// Empty slice is considered a valid one.
-func validateStrings(vals []string, fieldName, tag string) error {
-	errs := make(ValidationErrors, 0)
-
-	cmd, err := validateCommands(tag, stringCommands)
-	if err != nil {
-		return fmt.Errorf("%w: field=%q", err, fieldName)
-	}
-
-	for k, v := range cmd {
-		switch k {
-		case lenCmd:
-			instructions := strings.Split(v, ",")
-			if len(instructions) != 1 {
-				return fmt.Errorf("%w: expected 1 instruction for tag %q, got %d: field=%q",
-					ErrInvalidData, k, len(instructions), fieldName,
-				)
-			}
-			length, err := strconv.Atoi(instructions[0])
-			if err != nil {
-				return fmt.Errorf("%w: expected integer value for tag %q, got %s: field=%q",
-					ErrInvalidData, k, instructions[0], fieldName,
-				)
-			}
-			for i, s := range vals {
-				if len(s) != length {
-					errs = errs.Add(
-						fieldName,
-						fmt.Errorf("string #%d length doesn't meet the length requirement: expected %d, got %d", i, length, len(s)))
-				}
-			}
-		case regexpCmd:
-			expression, err := regexp.Compile(v)
-			if err != nil {
-				return fmt.Errorf("%w: expected valid regular expression for tag %q, got %s: field=%q",
-					ErrInvalidData, k, v, fieldName,
-				)
-			}
-			for i, s := range vals {
-				if !expression.MatchString(s) {
-					errs = errs.Add(
-						fieldName,
-						fmt.Errorf("string #%d doesn't meet the regexp requirement: expected %s, got %s", i, v, s))
-				}
-			}
-		case inCmd:
-			instructions := strings.Split(v, ",")
-			if len(instructions) < 1 {
-				return fmt.Errorf("%w: expected >=1 instructions for tag %q, got %d: field=%q",
-					ErrInvalidData, k, len(instructions), fieldName,
-				)
-			}
-			for i, s := range vals {
-				if !slices.Contains(instructions, s) {
-					errs = errs.Add(
-						fieldName,
-						fmt.Errorf("string #%d doesn't meet the slice requirement: expected %s, got %s", i, v, s))
-				}
-			}
-		}
-	}
-
-	if len(errs) == 0 {
-		return nil
-	}
-
-	return errs
-}
-
-func validateInts(vals []int, fieldName, tag string) error {
-	errs := make(ValidationErrors, 0)
-
-	cmd, err := validateCommands(tag, intCommands)
-	if err != nil {
-		return fmt.Errorf("%w: field=%q", err, fieldName)
-	}
-
-	for k, v := range cmd {
-		switch k {
-		case minCmd, maxCmd:
-			instructions := strings.Split(v, ",")
-			if len(instructions) != 1 {
-				return fmt.Errorf("%w: expected 1 instruction for tag %q, got %d: field=%q",
-					ErrInvalidData, k, len(instructions), fieldName,
-				)
-			}
-			val, err := strconv.Atoi(instructions[0])
-			if err != nil {
-				return fmt.Errorf("%w: expected integer value for tag %q, got %s: field=%q",
-					ErrInvalidData, k, instructions[0], fieldName,
-				)
-			}
-			for i, d := range vals {
-				var expectedSign string
-				if k == minCmd && d < val {
-					expectedSign = ">="
-				} else if k == maxCmd && d > val {
-					expectedSign = "<="
-				}
-				if expectedSign != "" {
-					errs = errs.Add(
-						fieldName,
-						fmt.Errorf("int #%d value violates the %s requirement: expected %s%d, got %d", i, k, expectedSign, val, d))
-				}
-			}
-		case inCmd:
-			instructions := strings.Split(v, ",")
-			if len(instructions) < 1 {
-				return fmt.Errorf("%w: expected >=1 instructions for tag %q, got %d: field=%q",
-					ErrInvalidData, k, len(instructions), fieldName,
-				)
-			}
-			intInstuctions := make([]int, len(instructions))
-			for i, s := range instructions {
-				intInstuctions[i], err = strconv.Atoi(s)
-				if err != nil {
-					return fmt.Errorf("%w: expected integer value for #%d tag %q, got %s: field=%q",
-						ErrInvalidData, i, k, s, fieldName,
-					)
-				}
-			}
-			for i, d := range vals {
-				if !slices.Contains(intInstuctions, d) {
-					errs = errs.Add(
-						fieldName,
-						fmt.Errorf("int #%d doesn't meet the slice requirement: expected %s, got %d", i, v, d))
-				}
-			}
-		}
-	}
-
-	if len(errs) == 0 {
-		return nil
-	}
-
-	return errs
-}
-
 // validateCommands checks if the commands are valid for a given field.
 // This helper does not checks if the instructions are valid.
 func validateCommands(tag string, expectedCommands []string) (map[string]string, error) {
@@ -311,18 +167,18 @@ func validateCommands(tag string, expectedCommands []string) (map[string]string,
 		return nil, fmt.Errorf("%w: received an empty tag", ErrInvalidData)
 	}
 
-	// Verifying the number of tags for a single field.
-	tags := strings.Split(tag, "|")
-	if len(tags) > tagLimit {
-		return nil, fmt.Errorf("%w: received %d tags, expected [1, %d]", ErrInvalidData, len(tags), tagLimit)
+	// Verifying the number of commands for a single field.
+	commands := strings.Split(tag, "|")
+	if len(commands) > tagLimit {
+		return nil, fmt.Errorf("%w: received %d commands, expected [1, %d]", ErrInvalidData, len(commands), tagLimit)
 	}
 
 	cmd := make(map[string]string)
-	for _, t := range tags {
+	for _, t := range commands {
 		// Splitting the tag into a command and its instruction.
 		cmdData := strings.Split(t, ":")
 		if len(cmdData) != cmdPartsNumber {
-			return nil, fmt.Errorf("%w: incorrect tag format, expected <command:instruction>, got <%s>", ErrInvalidData, t)
+			return nil, fmt.Errorf("%w: incorrect command format, expected <command:instruction>, got <%s>", ErrInvalidData, t)
 		}
 		if !slices.Contains(expectedCommands, cmdData[0]) {
 			return nil, fmt.Errorf("%w: unknown command %q", ErrInvalidData, cmdData[0])
