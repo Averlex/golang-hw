@@ -1,3 +1,4 @@
+// Package hw10programoptimization implements the task for a following homework.
 package hw10programoptimization
 
 import (
@@ -8,6 +9,7 @@ import (
 	"strings"
 )
 
+// User contains user data.
 type User struct {
 	ID       int
 	Name     string
@@ -18,8 +20,10 @@ type User struct {
 	Address  string
 }
 
+// DomainStat contains the number of users in each domain.
 type DomainStat map[string]int
 
+// GetDomainStat returns the number of users in each domain.
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 	u, err := getUsers(r)
 	if err != nil {
