@@ -136,6 +136,33 @@ func TestGetDomainStat_Profile(t *testing.T) {
 	getMemoryProfiles(t, copiedData)
 }
 
+// go test -v -tags=bench -run=^$ -bench=^BenchmarkGetDomainStat$ -benchmem -count=10 ./...
+func BenchmarkGetDomainStat(b *testing.B) {
+	r, err := zip.OpenReader("testdata/users.dat.zip")
+	require.NoError(b, err)
+	defer r.Close()
+
+	require.Equal(b, 1, len(r.File))
+
+	file := r.File[0]
+	data, err := file.Open()
+	require.NoError(b, err)
+	content, err := io.ReadAll(data)
+	require.NoError(b, err)
+	data.Close()
+
+	b.ResetTimer()
+	b.StopTimer()
+
+	for i := 0; i < b.N; i++ {
+		reader := bytes.NewReader(content)
+		b.StartTimer()
+		_, err := GetDomainStat(reader, "biz")
+		b.StopTimer()
+		require.NoError(b, err)
+	}
+}
+
 var expectedBizStat = DomainStat{
 	"abata.biz":         25,
 	"abatz.biz":         25,
