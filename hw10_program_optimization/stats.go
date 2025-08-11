@@ -3,7 +3,6 @@ package hw10programoptimization
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -42,9 +41,9 @@ func getUsers(r io.Reader) ([]User, error) {
 	result := make([]User, 0)
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := scanner.Bytes()
 		var user User
-		if err := json.Unmarshal([]byte(line), &user); err != nil {
+		if err := user.UnmarshalJSON(line); err != nil {
 			return nil, err
 		}
 		result = append(result, user)
