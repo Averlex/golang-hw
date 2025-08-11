@@ -1,6 +1,29 @@
 # Проект Календарь
 
-## Последние дополнения
+## Последние изменения
+
+- Добавлены описания `Deployments`, `Services` и `Ingress` (все файлы `./helm_charts/templates/`)
+- Добавлена команда `make infrastructure-up` - поднимает контейнеры БД, RabbitMQ и применяет миграции при первом запуске
+  - Для остановки и удаления - `make infrastructure-down` и `make infrastructure-down-clean` соответственно
+- Добавлены команда `make chart-run` (для остановки - `make cluster-stop`, для удаления - `make cluster-delete`)
+  - Требуются дополнительные зависимости:
+    - `kubectl`:
+      ```
+      Client Version: v1.33.3
+      Kustomize Version: v5.6.0
+      Server Version: v1.33.1
+      ```
+    - `minikube v1.36.0`
+    - `helm v3.18.4`
+  - Команда:
+    - запускает инфраструктуру
+    - собирает образы сервисов
+    - запускает `minikube`
+    - включает аддон для Ingress
+    - загружает образы в `minikube`
+    - генерирует манифесты из шаблонов и отправляет их в Kubernetes
+
+## Docker & интеграционные тесты
 
 **Docker:**
 
