@@ -1,6 +1,7 @@
 //go:build bench
 // +build bench
 
+//nolint:godot
 package hw10programoptimization
 
 import (
