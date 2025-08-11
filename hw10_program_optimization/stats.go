@@ -33,11 +33,6 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 }
 
 func getUsers(r io.Reader) ([]User, error) {
-	// content, err := io.ReadAll(r)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	result := make([]User, 0)
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -49,15 +44,6 @@ func getUsers(r io.Reader) ([]User, error) {
 		result = append(result, user)
 	}
 
-	// lines := strings.Split(string(content), "\n")
-	// result := make([]User, len(lines))
-	// for i, line := range lines {
-	// 	var user User
-	// 	if err = json.Unmarshal([]byte(line), &user); err != nil {
-	// 		return nil, err
-	// 	}
-	// 	result[i] = user
-	// }
 	return result, nil
 }
 
