@@ -1,0 +1,121 @@
+# Default values for calendar-chart.
+
+# Scaling settings.
+replicaCount:
+  calendar: 5
+  scheduler: 3
+  sender: 3
+
+# Images settings.
+image:
+  calendar:
+    repository: calendar
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+  scheduler:
+    repository: scheduler
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+  sender:
+    repository: sender
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+
+# Env naming settings. Depends on the service config structure. By default, follows the pattern "CALENDAR_<section>_[<subsection>_]<field>"
+envNames:
+  calendar:
+    httpHost: "CALENDAR_HTTP_HOST"
+    httpPort: "CALENDAR_HTTP_PORT"
+    grpcHost: "CALENDAR_GRPC_HOST"
+    storageSqlUser: "CALENDAR_STORAGE_SQL_USER"
+    storageSqlPassword: "CALENDAR_STORAGE_SQL_PASSWORD"
+    storageSqlDbname: "CALENDAR_STORAGE_SQL_DBNAME"
+    storageSqlHost: "CALENDAR_STORAGE_SQL_HOST"
+    storageSqlPort: "CALENDAR_STORAGE_SQL_PORT"
+  scheduler:
+    storageSqlUser: "CALENDAR_STORAGE_SQL_USER"
+    storageSqlPassword: "CALENDAR_STORAGE_SQL_PASSWORD"
+    storageSqlDbname: "CALENDAR_STORAGE_SQL_DBNAME"
+    storageSqlHost: "CALENDAR_STORAGE_SQL_HOST"
+    storageSqlPort: "CALENDAR_STORAGE_SQL_PORT"
+    rmqHost: "CALENDAR_RMQ_HOST"
+    rmqPort: "CALENDAR_RMQ_PORT"
+    rmqUser: "CALENDAR_RMQ_USER"
+    rmqPassword: "CALENDAR_RMQ_PASSWORD"
+  sender:
+    rmqHost: "CALENDAR_RMQ_HOST"
+    rmqPort: "CALENDAR_RMQ_PORT"
+    rmqUser: "CALENDAR_RMQ_USER"
+    rmqPassword: "CALENDAR_RMQ_PASSWORD"
+
+env:
+  calendar:
+    httpHost: "0.0.0.0"
+    httpPort: "8888"
+    grpcHost: "localhost" # gRPC API is intentionally not exposed.
+    storageSqlUser: "calendar_user"
+    storageSqlPassword: "calendar_pass"
+    storageSqlDbname: "calendar"
+    storageSqlHost: "host.minikube.internal"
+    storageSqlPort: "9091"
+  scheduler:
+    storageSqlUser: "calendar_user"
+    storageSqlPassword: "calendar_pass"
+    storageSqlDbname: "calendar"
+    storageSqlHost: "host.minikube.internal"
+    storageSqlPort: "9091"
+    rmqHost: "host.minikube.internal"
+    rmqPort: "9092"
+    rmqUser: "calendar_user"
+    rmqPassword: "calendar_pass"
+  sender:
+    rmqHost: "host.minikube.internal"
+    rmqPort: "9092"
+    rmqUser: "calendar_user"
+    rmqPassword: "calendar_pass"
+
+# Container resources.
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# Probe settings for Calendar service.
+probes:
+  calendar:
+    liveness:
+      path: /hello
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readiness:
+      path: /hello
+      initialDelaySeconds: 30
+      periodSeconds: 5
+
+service:
+  calendar:
+    type: NodePort
+    port: 8888
+    targetPort: 8888
+  scheduler:
+    type: ClusterIP # The service doesn't have public API.
+    port: 8889
+    targetPort: 8889
+  sender:
+    type: ClusterIP # The service doesn't have public API.
+    port: 8890
+    targetPort: 8890
+
+# Настройки Ingress
+ingress:
+  enabled: true
+  host: "calendar.ingress"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  path: /
+  pathType: Prefix
+  serviceName: calendar-service
+  servicePort: 8888

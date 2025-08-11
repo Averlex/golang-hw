@@ -1,0 +1,149 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calendar-deployment
+  labels:
+    app: calendar
+spec:
+  replicas: {{ .Values.replicaCount.calendar }}
+  selector:
+    matchLabels:
+      app: calendar
+  template:
+    metadata:
+      labels:
+        app: calendar
+    spec:
+      containers:
+        - name: calendar
+          image: "{{ .Values.image.calendar.repository }}:{{ .Values.image.calendar.tag }}"
+          ports:
+            - containerPort: {{ .Values.service.calendar.port | int }}
+          imagePullPolicy: {{ .Values.image.calendar.pullPolicy }}
+          env:
+            - name: {{ .Values.envNames.calendar.httpHost }}
+              value: "{{ .Values.env.calendar.httpHost }}"
+            - name: {{ .Values.envNames.calendar.httpPort }}
+              value: "{{ .Values.env.calendar.httpPort }}"
+            - name: {{ .Values.envNames.calendar.grpcHost }}
+              value: "{{ .Values.env.calendar.grpcHost }}"
+            - name: {{ .Values.envNames.calendar.storageSqlUser }}
+              value: "{{ .Values.env.calendar.storageSqlUser }}"
+            - name: {{ .Values.envNames.calendar.storageSqlPassword }}
+              value: "{{ .Values.env.calendar.storageSqlPassword }}"
+            - name: {{ .Values.envNames.calendar.storageSqlDbname }}
+              value: "{{ .Values.env.calendar.storageSqlDbname }}"
+            - name: {{ .Values.envNames.calendar.storageSqlHost }}
+              value: "{{ .Values.env.calendar.storageSqlHost }}"
+            - name: {{ .Values.envNames.calendar.storageSqlPort }}
+              value: "{{ .Values.env.calendar.storageSqlPort }}"
+          resources:
+            requests:
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.calendar.liveness.path }}
+              port: {{ .Values.service.calendar.port | int }}
+            initialDelaySeconds:
+              {{ .Values.probes.calendar.liveness.initialDelaySeconds }}
+            periodSeconds:
+              {{ .Values.probes.calendar.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.calendar.readiness.path }}
+              port: {{ .Values.service.calendar.port | int }}
+            initialDelaySeconds:
+              {{ .Values.probes.calendar.readiness.initialDelaySeconds }}
+            periodSeconds:
+              {{ .Values.probes.calendar.readiness.periodSeconds }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-deployment
+  labels:
+    app: scheduler
+spec:
+  replicas: {{ .Values.replicaCount.scheduler }}
+  selector:
+    matchLabels:
+      app: scheduler
+  template:
+    metadata:
+      labels:
+        app: scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: "{{ .Values.image.scheduler.repository }}:{{ .Values.image.scheduler.tag }}"
+          imagePullPolicy: {{ .Values.image.scheduler.pullPolicy }}
+          env:
+            - name: CALENDAR_STORAGE_SQL_USER
+              value: "{{ .Values.env.scheduler.storageSqlUser }}"
+            - name: CALENDAR_STORAGE_SQL_PASSWORD
+              value: "{{ .Values.env.scheduler.storageSqlPassword }}"
+            - name: CALENDAR_STORAGE_SQL_DBNAME
+              value: "{{ .Values.env.scheduler.storageSqlDbname }}"
+            - name: CALENDAR_STORAGE_SQL_HOST
+              value: "{{ .Values.env.scheduler.storageSqlHost }}"
+            - name: CALENDAR_STORAGE_SQL_PORT
+              value: "{{ .Values.env.scheduler.storageSqlPort }}"
+            - name: CALENDAR_RMQ_HOST
+              value: "{{ .Values.env.scheduler.rmqHost }}"
+            - name: CALENDAR_RMQ_PORT
+              value: "{{ .Values.env.scheduler.rmqPort }}"
+            - name: CALENDAR_RMQ_USER
+              value: "{{ .Values.env.scheduler.rmqUser }}"
+            - name: CALENDAR_RMQ_PASSWORD
+              value: "{{ .Values.env.scheduler.rmqPassword }}"
+          resources:
+            requests:
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sender-deployment
+  labels:
+    app: sender
+spec:
+  replicas: {{ .Values.replicaCount.sender }}
+  selector:
+    matchLabels:
+      app: sender
+  template:
+    metadata:
+      labels:
+        app: sender
+    spec:
+      containers:
+        - name: sender
+          image: "{{ .Values.image.sender.repository }}:{{ .Values.image.sender.tag }}"
+          imagePullPolicy: {{ .Values.image.sender.pullPolicy }}
+          env:
+            - name: CALENDAR_RMQ_HOST
+              value: "{{ .Values.env.sender.rmqHost }}"
+            - name: CALENDAR_RMQ_PORT
+              value: "{{ .Values.env.sender.rmqPort }}"
+            - name: CALENDAR_RMQ_USER
+              value: "{{ .Values.env.sender.rmqUser }}"
+            - name: CALENDAR_RMQ_PASSWORD
+              value: "{{ .Values.env.sender.rmqPassword }}"
+          resources:
+            requests:
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
