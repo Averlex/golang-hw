@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calendar-service
+spec:
+  type: {{ .Values.service.calendar.type }}
+  selector:
+    app: calendar
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.calendar.port | int }}
+      targetPort: {{ .Values.service.calendar.targetPort | int }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scheduler-service
+spec:
+  type: {{ .Values.service.scheduler.type }}
+  selector:
+    app: scheduler
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.scheduler.port | int }}
+      targetPort: {{ .Values.service.scheduler.targetPort | int }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sender-service
+spec:
+  type: {{ .Values.service.sender.type }}
+  selector:
+    app: sender
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.sender.port | int }}
+      targetPort: {{ .Values.service.sender.targetPort | int }}

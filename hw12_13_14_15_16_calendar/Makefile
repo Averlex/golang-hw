@@ -19,7 +19,8 @@ PROD_PROJECT_NAME := calendar-prod
 TEST_PROJECT_NAME := calendar-test
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
-LDFLAGS := -X main.release=\"v1.0.0\" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
+VERSION := v1.0.0
+LDFLAGS := -X main.release=$(VERSION) -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 # --- Docker compose ---
 up:
@@ -33,6 +34,18 @@ down:
 
 down-clean:
 	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose.yaml down -v --remove-orphans --rmi all
+
+infrastructure-up:
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml up -d
+
+infrastructure-up-rebuild:
+	LDFLAGS="$(LDFLAGS)" COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml up -d --build --force-recreate
+
+infrastructure-down:
+	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml down
+
+infrastructure-down-clean:
+	COMPOSE_PROJECT_NAME=$(PROD_PROJECT_NAME) docker compose -f ./deployments/docker-compose-infrastructure.yaml down -v --remove-orphans --rmi all
 
 integration-tests:
 	@echo "=== Starting Integration Tests Environment ==="
@@ -105,6 +118,62 @@ integration-tests-down:
 integration-tests-down-clean:
 	COMPOSE_PROJECT_NAME=$(TEST_PROJECT_NAME) docker compose -f ./test/integration/deployments/docker-compose.yaml down -v --remove-orphans --rmi all
 
+# --- Kubernetes ---
+
+cluster-run: infrastructure-up build-images minikube-start minikube-load kubectl-apply
+	echo "Cluster successfully started"
+
+chart-run: infrastructure-up build-images minikube-start minikube-load helm-apply
+
+cluster-stop: infrastructure-down
+	minikube stop && \
+	echo "Cluster successfully stopped"
+
+# --- Note: this command will delete only cluster resources, not the infrastructure with its volumes ---
+cluster-delete: infrastructure-down
+	minikube delete && \
+	echo "Cluster successfully deleted"
+
+build-images: build-calendar-img build-sender-img build-scheduler-img
+
+build-calendar-img:
+	LDFLAGS="$(LDFLAGS)" docker build -t calendar:$(VERSION) -f ./build/Dockerfile.calendar .
+
+build-sender-img:
+	LDFLAGS="$(LDFLAGS)" docker build -t sender:$(VERSION) -f ./build/Dockerfile.sender .
+
+build-scheduler-img:
+	LDFLAGS="$(LDFLAGS)" docker build -t scheduler:$(VERSION) -f ./build/Dockerfile.scheduler .
+
+minikube-start:
+	minikube start --driver=docker && \
+	minikube addons enable ingress
+
+minikube-load: minikube-load-calendar minikube-load-sender minikube-load-scheduler
+
+minikube-load-calendar:
+	minikube image load calendar:$(VERSION)
+
+minikube-load-sender:
+	minikube image load sender:$(VERSION)
+
+minikube-load-scheduler:
+	minikube image load scheduler:$(VERSION)
+
+helm-apply:
+	helm install calendar-$(VERSION) ./helm_charts
+
+kubectl-apply: kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress
+
+kubectl-apply-deployment:
+	kubectl apply -f ./helm_charts/templates/deployment.yaml
+
+kubectl-apply-service:
+	kubectl apply -f ./helm_charts/templates/service.yaml
+
+kubectl-apply-ingress:
+	kubectl apply -f ./helm_charts/templates/ingress.yaml
+
 # --- Build and run ---
 build: build-calendar build-scheduler build-sender
 	@echo "Build completed successfully."
@@ -154,16 +223,6 @@ run-sender-json: build-sender setup-jq
 	CALENDAR_RMQ_USER=$(CALENDAR_RMQ_USER) \
 	CALENDAR_RMQ_PASSWORD=$(CALENDAR_RMQ_PASSWORD) \
 	$(SENDER_BIN) --config ./configs/sender/config.toml | jq -R 'fromjson?' 2>/dev/null
-
-
-# --- Database & RabbitMQ services ---
-
-# WARNING: docker-compose.yaml must be in sync with this Makefile
-run-third-party:
-	docker compose -f ./deployments/docker-compose.yaml up database rabbitmq -d
-
-stop-third-party:
-	docker compose -f ./deployments/docker-compose.yaml stop database rabbitmq
 
 # --- App CLI flags ---
 
@@ -280,10 +339,15 @@ clean-jq:
 		echo "To remove it manually: sudo apt-get remove --purge jq"; \
 	fi
 .PHONY: up up-rebuild down down-clean \
+		infrastructure-up infrastructure-up-rebuild infrastructure-down infrastructure-down-clean \
+		cluster-run cluster-stop cluster-delete \
+		chart-run helm-apply \
+		build-images build-calendar-img build-sender-img build-scheduler-img \
+		minikube-start minikube-load minikube-load-calendar minikube-load-sender minikube-load-scheduler \
+		kubectl-apply kubectl-apply-deployment kubectl-apply-service kubectl-apply-ingress \
 		integration-tests integration-tests-up integration-tests-rebuild integration-tests-down integration-tests-down-clean \
 		build build-calendar build-scheduler build-sender \
 		run-calendar run-calendar-json run-scheduler run-scheduler-json run-sender run-sender-json \
-		run-third-party stop-third-party \
 		version help \
 		test test-fast test-cover \
 		install-lint-deps lint \
@@ -292,3 +356,4 @@ clean-jq:
 		build-img run-img \
 		setup-tools setup-grpc setup-mockery setup-goose setup-jq \
 		clean-tools clean-grpc clean-mockery clean-goose clean-jq
+		
