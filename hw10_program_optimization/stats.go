@@ -1,4 +1,4 @@
-// Package hw10programoptimization implements the task for a following homework.
+// Package hw10programoptimization the function which needs to be optimized.
 package hw10programoptimization
 
 import (
@@ -25,44 +25,55 @@ type DomainStat map[string]int
 
 // GetDomainStat returns the number of users in each domain.
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
+	res, err := processByLine(r, domain)
 	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
+		return nil, fmt.Errorf("processing error: %w", err)
 	}
-	return countDomains(u, domain)
+	return res, nil
 }
 
-func getUsers(r io.Reader) ([]User, error) {
-	result := make([]User, 0)
+func processByLine(r io.Reader, domain string) (map[string]int, error) {
 	scanner := bufio.NewScanner(r)
+	result := make(map[string]int)
+
+	expression, err := regexp.Compile("\\." + domain)
+	if err != nil {
+		return nil, err
+	}
+
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		var user User
 		if err := user.UnmarshalJSON(line); err != nil {
 			return nil, err
 		}
-		result = append(result, user)
+		parsedDomain, count, err := countDomains(&user, expression)
+		if err != nil {
+			return nil, err
+		}
+		if parsedDomain == "" {
+			continue
+		}
+		result[parsedDomain] += count
 	}
 
 	return result, nil
 }
 
-func countDomains(u []User, domain string) (DomainStat, error) {
-	result := make(DomainStat)
-	expression, err := regexp.Compile("\\." + domain)
-	if err != nil {
-		return nil, err
+func countDomains(user *User, expression *regexp.Regexp) (string, int, error) {
+	count := 0
+	var parsedDomain string
+	if user == nil || expression == nil {
+		return parsedDomain,
+			count,
+			fmt.Errorf("not enough data passed for processing: user=%v, expression=%v", user, expression)
 	}
 
-	for _, user := range u {
-		matched := expression.Match([]byte(user.Email))
+	matched := expression.Match([]byte(user.Email))
 
-		if matched {
-			domain := strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])
-			num := result[domain]
-			num++
-			result[domain] = num
-		}
+	if matched {
+		parsedDomain = strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])
+		count++
 	}
-	return result, nil
+	return parsedDomain, count, nil
 }
