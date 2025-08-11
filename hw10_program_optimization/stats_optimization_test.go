@@ -5,6 +5,11 @@ package hw10programoptimization
 
 import (
 	"archive/zip"
+	"bytes"
+	"io"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"testing"
 	"time"
 
@@ -18,7 +23,7 @@ const (
 	timeLimit = 300 * time.Millisecond
 )
 
-// go test -v -count=1 -timeout=30s -tags bench .
+// go test -v -count=1 -timeout=30s -tags bench -run Time_And_Memory
 func TestGetDomainStat_Time_And_Memory(t *testing.T) {
 	bench := func(b *testing.B) {
 		b.Helper()
@@ -48,6 +53,86 @@ func TestGetDomainStat_Time_And_Memory(t *testing.T) {
 
 	require.Less(t, int64(result.T), int64(timeLimit), "the program is too slow")
 	require.Less(t, mem, memoryLimit, "the program is too greedy")
+}
+
+func getCPUProfile(t *testing.T, data io.Reader) {
+	t.Helper()
+
+	// CPU profiling.
+	fCPU, err := os.Create("./profiles/cpu.prof")
+	if err != nil {
+		t.Fatal("could not create CPU profile:", err)
+	}
+	defer fCPU.Close()
+
+	if err := pprof.StartCPUProfile(fCPU); err != nil {
+		require.NoError(t, err, "could not start CPU profile")
+	}
+
+	stat, err := GetDomainStat(data, "biz")
+	pprof.StopCPUProfile()
+
+	require.NoError(t, err)
+	require.Equal(t, expectedBizStat, stat)
+}
+
+func getMemoryProfiles(t *testing.T, data io.Reader) {
+	t.Helper()
+
+	// Including all allocations to the profile.
+	runtime.MemProfileRate = 1
+
+	var m0, m1 runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&m0)
+
+	stat, memErr := GetDomainStat(data, "biz")
+
+	runtime.ReadMemStats(&m1)
+
+	require.NoError(t, memErr)
+	require.Equal(t, expectedBizStat, stat)
+
+	t.Logf("allocated memory: %d KB", (m1.Alloc-m0.Alloc)/1024)
+	t.Logf("number of mallocs: %d", m1.Mallocs-m0.Mallocs)
+
+	fMem, err := os.Create("./profiles/memory.prof")
+	require.NoError(t, err, "could not create memory profile")
+	defer fMem.Close()
+
+	err = pprof.WriteHeapProfile(fMem)
+	require.NoError(t, err, "could not write memory profile")
+}
+
+// go test -v -count=1 -timeout=30s -tags bench -run Profile
+// go tool pprof -http=:8080 ./profiles/cpu.prof
+// go tool pprof -http=:8080 ./profiles/memory.prof
+func TestGetDomainStat_Profile(t *testing.T) {
+	if err := os.Mkdir("./profiles", os.ModePerm); err != nil {
+		if !os.IsExist(err) {
+			require.NoError(t, err, "could not create a profiles directory")
+		}
+	}
+
+	r, err := zip.OpenReader("testdata/users.dat.zip")
+	require.NoError(t, err)
+	defer r.Close()
+
+	require.Equal(t, 1, len(r.File))
+
+	data, err := r.File[0].Open()
+	require.NoError(t, err)
+	defer data.Close()
+
+	content, err := io.ReadAll(data)
+	require.NoError(t, err, "error during reading the content")
+	copiedData := bytes.NewReader(content)
+
+	getCPUProfile(t, copiedData)
+	_, err = copiedData.Seek(0, io.SeekStart)
+	require.NoError(t, err, "failed to seek data")
+
+	getMemoryProfiles(t, copiedData)
 }
 
 var expectedBizStat = DomainStat{
