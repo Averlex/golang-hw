@@ -1,4 +1,4 @@
-module github.com/fixme_my_friend/hw10_program_optimization
+module github.com/Averlex/golang-hw/hw10_program_optimization
 
 go 1.22
 
