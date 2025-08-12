@@ -25,10 +25,9 @@ type Client struct {
 	timeout   time.Duration
 	in        io.ReadCloser
 	out       io.Writer
-	mu        sync.RWMutex
+	mu        sync.Mutex
 	conn      net.Conn
 	logWriter io.Writer
-	buffer    []byte
 }
 
 func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, out io.Writer) TelnetClient {
@@ -49,7 +48,7 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...Connected to %s with timeout %v", c.address, max(0, c.timeout))
+	_, _ = fmt.Fprintf(c.logWriter, "...Connected to %s with timeout %v\n", c.address, max(0, c.timeout))
 	return nil
 }
 
@@ -68,7 +67,7 @@ func (c *Client) Close() error {
 	if err != nil {
 		return fmt.Errorf("connection close failed: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...Connection successfully closed")
+	_, _ = fmt.Fprintf(c.logWriter, "...Connection successfully closed\n")
 	c.conn = nil
 	return nil
 }
@@ -77,23 +76,30 @@ func (c *Client) Send() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.conn == nil {
+		return fmt.Errorf("connection is not initialized")
+	}
+
 	if c.in == nil {
 		return fmt.Errorf("input stream is not initialized")
 	}
 
-	if c.buffer != nil {
-		return fmt.Errorf("internal buffer is not empty - call Receive() first")
-	}
-
-	c.buffer = make([]byte, 0)
-	n, err := c.in.Read(c.buffer)
+	buffer, err := io.ReadAll(c.in)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return ErrEOT
-		}
-		return fmt.Errorf("unexpected error occurred during sending: %w", err)
+		return fmt.Errorf("unexpected error occurred during reading the data: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...New message sent: len=%vb", n)
+	// EOF received -> io.ReadAll does not return an error on getting EOF.
+	if len(buffer) == 0 {
+		return ErrEOT
+	}
+	n, err := c.conn.Write(buffer)
+	if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return fmt.Errorf("%w: %w", ErrEOT, err)
+		}
+		return fmt.Errorf("unable to send data: %w", err)
+	}
+	_, _ = fmt.Fprintf(c.logWriter, "...New message sent: len=%v bytes\n", n)
 	return nil
 }
 
@@ -106,20 +112,24 @@ func (c *Client) Receive() error {
 	}
 
 	if c.conn == nil {
-		return fmt.Errorf("connection is closed")
+		return fmt.Errorf("connection is not initialized")
 	}
 
-	if c.buffer == nil {
-		return fmt.Errorf("internal buffer is empty - nothing to receive")
+	buffer, err := io.ReadAll(c.conn)
+	if err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return fmt.Errorf("%w: %w", ErrEOT, err)
+		}
+		return fmt.Errorf("unexpected error occurred during reading the data: %w", err)
 	}
-
-	buffer := c.buffer
-	c.buffer = nil
-
+	// EOF received -> io.ReadAll does not return an error on getting EOF.
+	if len(buffer) == 0 {
+		return ErrEOT
+	}
 	n, err := c.out.Write(buffer)
 	if err != nil {
-		return fmt.Errorf("unexpected error occurred during receiving")
+		return fmt.Errorf("unable to write out the data: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...New message received: len=%vb", n)
+	_, _ = fmt.Fprintf(c.logWriter, "...New message received: len=%v bytes\n", n)
 	return nil
 }
