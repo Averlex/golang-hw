@@ -1,13 +1,15 @@
+// Package hw10programoptimization the function which needs to be optimized.
 package hw10programoptimization
 
 import (
-	"encoding/json"
+	"bufio"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
 )
 
+// User contains user data.
 type User struct {
 	ID       int
 	Name     string
@@ -18,49 +20,60 @@ type User struct {
 	Address  string
 }
 
+// DomainStat contains the number of users in each domain.
 type DomainStat map[string]int
 
+// GetDomainStat returns the number of users in each domain.
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
+	res, err := processByLine(r, domain)
 	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
+		return nil, fmt.Errorf("processing error: %w", err)
 	}
-	return countDomains(u, domain)
+	return res, nil
 }
 
-type users [100_000]User
+func processByLine(r io.Reader, domain string) (map[string]int, error) {
+	scanner := bufio.NewScanner(r)
+	result := make(map[string]int)
 
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := io.ReadAll(r)
+	expression, err := regexp.Compile("\\." + domain)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
+	for scanner.Scan() {
+		line := scanner.Bytes()
 		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
+		if err := user.UnmarshalJSON(line); err != nil {
+			return nil, err
 		}
-		result[i] = user
-	}
-	return
-}
-
-func countDomains(u users, domain string) (DomainStat, error) {
-	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
+		parsedDomain, count, err := countDomains(&user, expression)
 		if err != nil {
 			return nil, err
 		}
-
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		if parsedDomain == "" {
+			continue
 		}
+		result[parsedDomain] += count
 	}
+
 	return result, nil
+}
+
+func countDomains(user *User, expression *regexp.Regexp) (string, int, error) {
+	count := 0
+	var parsedDomain string
+	if user == nil || expression == nil {
+		return parsedDomain,
+			count,
+			fmt.Errorf("not enough data passed for processing: user=%v, expression=%v", user, expression)
+	}
+
+	matched := expression.Match([]byte(user.Email))
+
+	if matched {
+		parsedDomain = strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])
+		count++
+	}
+	return parsedDomain, count, nil
 }
