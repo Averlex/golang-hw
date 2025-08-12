@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-var ErrEOT = errors.New("EOT signal received")
+var (
+	ErrEOT        = errors.New("EOT signal received")
+	ErrConnClosed = errors.New("connection is closed")
+)
 
 type TelnetClient interface {
 	Connect() error
@@ -105,7 +108,7 @@ func (c *Client) Send() error {
 	n, err := c.conn.Write(buffer)
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) {
-			return fmt.Errorf("%w: %w", ErrEOT, err)
+			return fmt.Errorf("%w: %w", ErrConnClosed, err)
 		}
 		return fmt.Errorf("unable to send data: %w", err)
 	}
@@ -128,7 +131,7 @@ func (c *Client) Receive() error {
 	buffer, err := io.ReadAll(c.conn)
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) {
-			return fmt.Errorf("%w: %w", ErrEOT, err)
+			return fmt.Errorf("%w: %w", ErrConnClosed, err)
 		}
 		return fmt.Errorf("unexpected error occurred during reading the data: %w", err)
 	}
