@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -50,7 +51,6 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...Connected to %s with timeout %v\n", c.address, max(0, c.timeout))
 	c.mu.Lock()
 	c.conn = conn
 	c.mu.Unlock()
@@ -76,13 +76,8 @@ func (c *Client) Close() error {
 	default:
 		return nil
 	}
-
-	if err != nil {
-		return fmt.Errorf("connection close failed: %w", err)
-	}
-	_, _ = fmt.Fprintf(c.logWriter, "...Connection successfully closed\n")
 	c.conn = nil
-	return nil
+	return err
 }
 
 func (c *Client) Send() error {
@@ -97,22 +92,27 @@ func (c *Client) Send() error {
 		return fmt.Errorf("input stream is not initialized")
 	}
 
-	buffer, err := io.ReadAll(c.in)
+	reader := bufio.NewReader(c.in)
+	line, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("unexpected error occurred during reading the data: %w", err)
+		if !errors.Is(err, io.EOF) {
+			return fmt.Errorf("read from input failed: %w", err)
+		}
+		if len(line) > 0 {
+			line += "\n"
+		}
 	}
-	// EOF received -> io.ReadAll does not return an error on getting EOF.
-	if len(buffer) == 0 {
+	if len(line) == 0 {
 		return ErrEOT
 	}
-	n, err := c.conn.Write(buffer)
+
+	_, err = c.conn.Write([]byte(line))
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			return fmt.Errorf("%w: %w", ErrConnClosed, err)
 		}
 		return fmt.Errorf("unable to send data: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...New message sent: len=%v bytes\n", n)
 	return nil
 }
 
@@ -128,21 +128,19 @@ func (c *Client) Receive() error {
 		return fmt.Errorf("connection is not initialized")
 	}
 
-	buffer, err := io.ReadAll(c.conn)
+	buffer := make([]byte, 1024)
+	n, err := c.conn.Read(buffer)
 	if err != nil {
-		if errors.Is(err, net.ErrClosed) {
+		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
 			return fmt.Errorf("%w: %w", ErrConnClosed, err)
 		}
-		return fmt.Errorf("unexpected error occurred during reading the data: %w", err)
+		return fmt.Errorf("read from connection failed: %w", err)
 	}
-	// EOF received -> io.ReadAll does not return an error on getting EOF.
-	if len(buffer) == 0 {
-		return ErrEOT
-	}
-	n, err := c.out.Write(buffer)
+
+	_, err = c.out.Write(buffer[:n])
 	if err != nil {
 		return fmt.Errorf("unable to write out the data: %w", err)
 	}
-	_, _ = fmt.Fprintf(c.logWriter, "...New message received: len=%v bytes\n", n)
+
 	return nil
 }
