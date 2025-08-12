@@ -21,13 +21,12 @@ type TelnetClient interface {
 }
 
 type Client struct {
-	address   string
-	timeout   time.Duration
-	in        io.ReadCloser
-	out       io.Writer
-	mu        sync.Mutex
-	conn      net.Conn
-	logWriter io.Writer
+	mu             sync.RWMutex
+	address        string
+	timeout        time.Duration
+	in             io.ReadCloser
+	out, logWriter io.Writer
+	conn           net.Conn
 }
 
 func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, out io.Writer) TelnetClient {
@@ -41,14 +40,17 @@ func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, ou
 }
 
 func (c *Client) Connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	var err error
-	c.conn, err = net.DialTimeout("tcp", c.address, c.timeout)
+	c.mu.RLock()
+	address, timeout := c.address, c.timeout
+	c.mu.RUnlock() // To avoid blocking while dialing with timeout.
+	conn, err := net.DialTimeout("tcp", address, timeout)
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
 	_, _ = fmt.Fprintf(c.logWriter, "...Connected to %s with timeout %v\n", c.address, max(0, c.timeout))
+	c.mu.Lock()
+	c.conn = conn
+	c.mu.Unlock()
 	return nil
 }
 
