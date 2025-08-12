@@ -37,7 +37,7 @@ func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, ou
 		address: address,
 		timeout: timeout,
 		in:      in,
-		out:     out,
+		out:     bufio.NewWriter(out),
 	}
 }
 
@@ -79,8 +79,8 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) Send() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	if c.conn == nil {
 		return fmt.Errorf("connection is not initialized")
@@ -115,8 +115,8 @@ func (c *Client) Send() error {
 }
 
 func (c *Client) Receive() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	if c.out == nil {
 		return fmt.Errorf("output stream is not initialized")
@@ -138,6 +138,14 @@ func (c *Client) Receive() error {
 	_, err = c.out.Write(buffer[:n])
 	if err != nil {
 		return fmt.Errorf("unable to write out the data: %w", err)
+	}
+
+	// To prevent stdout from being buffered indefinitely -> removing the delay in output.
+	if bw, ok := c.out.(*bufio.Writer); ok {
+		err = bw.Flush()
+		if err != nil {
+			return fmt.Errorf("unable to flush output: %w", err)
+		}
 	}
 
 	return nil

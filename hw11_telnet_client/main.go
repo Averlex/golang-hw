@@ -89,7 +89,7 @@ func main() {
 		case errors.Is(err, ErrEOT):
 			fmt.Fprintf(os.Stderr, "...EOF received, terminating\n")
 		case errors.Is(err, ErrConnClosed):
-			fmt.Fprintf(os.Stderr, "...Connection is closed\n")
+			fmt.Fprintf(os.Stderr, "...Connection is closed, terminating\n")
 		default:
 			fmt.Fprintf(os.Stderr, "...Unexpected error occurred: %s\n", err.Error())
 		}
