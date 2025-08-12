@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"sync"
 	"time"
 )
@@ -25,21 +24,20 @@ type TelnetClient interface {
 }
 
 type Client struct {
-	mu             sync.RWMutex
-	address        string
-	timeout        time.Duration
-	in             io.ReadCloser
-	out, logWriter io.Writer
-	conn           net.Conn
+	mu      sync.RWMutex
+	address string
+	timeout time.Duration
+	in      io.ReadCloser
+	out     io.Writer
+	conn    net.Conn
 }
 
 func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, out io.Writer) TelnetClient {
 	return &Client{
-		address:   address,
-		timeout:   timeout,
-		in:        in,
-		out:       out,
-		logWriter: os.Stderr,
+		address: address,
+		timeout: timeout,
+		in:      in,
+		out:     out,
 	}
 }
 
