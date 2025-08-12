@@ -57,15 +57,23 @@ func (c *Client) Connect() error {
 func (c *Client) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	err := c.conn.Close()
-	// Prioritizing conn.Close() of in.Close().
-	if c.in != nil {
+
+	var err error
+	switch {
+	case c.conn != nil && c.in != nil:
+		inErr := c.in.Close()
+		err = c.conn.Close()
 		if err == nil {
-			err = c.in.Close()
-		} else {
-			c.in.Close()
+			err = inErr
 		}
+	case c.conn != nil:
+		err = c.conn.Close()
+	case c.in != nil:
+		err = c.in.Close()
+	default:
+		return nil
 	}
+
 	if err != nil {
 		return fmt.Errorf("connection close failed: %w", err)
 	}
