@@ -1,4 +1,4 @@
-//nolint:revive
+//nolint:revive,nolintlint
 package main
 
 import (
