@@ -80,8 +80,6 @@ func (c *Client) Close() error {
 
 func (c *Client) Send() error {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	if c.conn == nil {
 		return fmt.Errorf("connection is not initialized")
 	}
@@ -89,15 +87,13 @@ func (c *Client) Send() error {
 	if c.in == nil {
 		return fmt.Errorf("input stream is not initialized")
 	}
+	c.mu.RUnlock()
 
 	reader := bufio.NewReader(c.in)
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		if !errors.Is(err, io.EOF) {
 			return fmt.Errorf("read from input failed: %w", err)
-		}
-		if len(line) > 0 {
-			line += "\n"
 		}
 	}
 	if len(line) == 0 {
@@ -116,7 +112,6 @@ func (c *Client) Send() error {
 
 func (c *Client) Receive() error {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
 
 	if c.out == nil {
 		return fmt.Errorf("output stream is not initialized")
@@ -125,17 +120,21 @@ func (c *Client) Receive() error {
 	if c.conn == nil {
 		return fmt.Errorf("connection is not initialized")
 	}
+	c.mu.RUnlock()
 
-	buffer := make([]byte, 1024)
-	n, err := c.conn.Read(buffer)
+	r := bufio.NewReader(c.conn)
+	line, err := r.ReadString('\n')
 	if err != nil {
-		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+		if errors.Is(err, net.ErrClosed) {
 			return fmt.Errorf("%w: %w", ErrConnClosed, err)
 		}
-		return fmt.Errorf("read from connection failed: %w", err)
+		if !errors.Is(err, io.EOF) {
+			return fmt.Errorf("read from connection failed: %w", err)
+		}
+		// Reading EOF is ok here.
 	}
 
-	_, err = c.out.Write(buffer[:n])
+	_, err = c.out.Write([]byte(line))
 	if err != nil {
 		return fmt.Errorf("unable to write out the data: %w", err)
 	}

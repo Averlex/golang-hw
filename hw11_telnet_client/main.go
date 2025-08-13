@@ -42,7 +42,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "...Close attempt failed with errors: %s\n", err.Error())
 			return
 		}
-		fmt.Fprintf(os.Stderr, "...Connection successfully closed")
+		fmt.Fprintf(os.Stderr, "...Connection successfully closed\n")
 	}()
 
 	// Context with signal handling.
