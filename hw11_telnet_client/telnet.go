@@ -37,7 +37,7 @@ func NewTelnetClient(address string, timeout time.Duration, in io.ReadCloser, ou
 		address: address,
 		timeout: timeout,
 		in:      in,
-		out:     bufio.NewWriter(out),
+		out:     out,
 	}
 }
 
@@ -80,72 +80,73 @@ func (c *Client) Close() error {
 
 func (c *Client) Send() error {
 	c.mu.RLock()
-	if c.conn == nil {
-		return fmt.Errorf("connection is not initialized")
-	}
-
-	if c.in == nil {
-		return fmt.Errorf("input stream is not initialized")
+	if c.conn == nil || c.in == nil {
+		return fmt.Errorf("nil parameter received: connection=%v, input_stream=%v", c.conn == nil, c.in == nil)
 	}
 	c.mu.RUnlock()
 
-	reader := bufio.NewReader(c.in)
-	line, err := reader.ReadString('\n')
+	data, err := c.readOut(c.in)
 	if err != nil {
-		if !errors.Is(err, io.EOF) {
-			return fmt.Errorf("read from input failed: %w", err)
-		}
+		return err
 	}
-	if len(line) == 0 {
+	// CTRL+D case.
+	if len(data) == 0 {
 		return ErrEOT
 	}
 
-	_, err = c.conn.Write([]byte(line))
+	err = c.writeOut(c.conn, data)
 	if err != nil {
-		if errors.Is(err, net.ErrClosed) {
-			return fmt.Errorf("%w: %w", ErrConnClosed, err)
-		}
-		return fmt.Errorf("unable to send data: %w", err)
+		return err
 	}
+
 	return nil
 }
 
 func (c *Client) Receive() error {
 	c.mu.RLock()
-
-	if c.out == nil {
-		return fmt.Errorf("output stream is not initialized")
-	}
-
-	if c.conn == nil {
-		return fmt.Errorf("connection is not initialized")
+	if c.conn == nil || c.out == nil {
+		return fmt.Errorf("nil parameter received: connection=%v, output_stream=%v", c.conn == nil, c.out == nil)
 	}
 	c.mu.RUnlock()
 
-	r := bufio.NewReader(c.conn)
-	line, err := r.ReadString('\n')
+	data, err := c.readOut(c.conn)
+	if err != nil {
+		return err
+	}
+
+	err = c.writeOut(c.out, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) readOut(r io.Reader) ([]byte, error) {
+	reader := bufio.NewReader(r)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			if len(line) == 0 {
+				return nil, ErrEOT
+			}
+			return []byte(line + "\n"), nil
+		}
+		if errors.Is(err, net.ErrClosed) {
+			return nil, fmt.Errorf("%w: %w", ErrConnClosed, err)
+		}
+		return nil, fmt.Errorf("reading failed: %w", err)
+	}
+	return []byte(line), nil
+}
+
+func (c *Client) writeOut(w io.Writer, data []byte) error {
+	_, err := w.Write(data)
 	if err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			return fmt.Errorf("%w: %w", ErrConnClosed, err)
 		}
-		if !errors.Is(err, io.EOF) {
-			return fmt.Errorf("read from connection failed: %w", err)
-		}
-		// Reading EOF is ok here.
-	}
-
-	_, err = c.out.Write([]byte(line))
-	if err != nil {
 		return fmt.Errorf("unable to write out the data: %w", err)
 	}
-
-	// To prevent stdout from being buffered indefinitely -> removing the delay in output.
-	if bw, ok := c.out.(*bufio.Writer); ok {
-		err = bw.Flush()
-		if err != nil {
-			return fmt.Errorf("unable to flush output: %w", err)
-		}
-	}
-
 	return nil
 }
