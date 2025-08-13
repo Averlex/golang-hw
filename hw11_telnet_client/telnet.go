@@ -124,20 +124,27 @@ func (c *Client) Receive() error {
 
 func (c *Client) readOut(r io.Reader) ([]byte, error) {
 	reader := bufio.NewReader(r)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			if len(line) == 0 {
-				return nil, ErrEOT
+	var res []byte
+	for {
+		line, err := reader.ReadBytes('\n')
+		res = append(res, line...)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if reader.Buffered() == 0 {
+					return nil, ErrEOT // No more data to read.
+				}
+				continue // More data in buffer, trying again.
 			}
-			return []byte(line + "\n"), nil
+			if errors.Is(err, net.ErrClosed) {
+				return nil, fmt.Errorf("%w: %w", ErrConnClosed, err)
+			}
+			return nil, fmt.Errorf("reading failed: %w", err)
 		}
-		if errors.Is(err, net.ErrClosed) {
-			return nil, fmt.Errorf("%w: %w", ErrConnClosed, err)
+		if reader.Buffered() == 0 {
+			break // Not expecting any more data here.
 		}
-		return nil, fmt.Errorf("reading failed: %w", err)
 	}
-	return []byte(line), nil
+	return res, nil
 }
 
 func (c *Client) writeOut(w io.Writer, data []byte) error {
